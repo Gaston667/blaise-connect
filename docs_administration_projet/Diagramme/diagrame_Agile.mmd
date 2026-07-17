@@ -1,0 +1,8 @@
+flowchart TD
+    CDC["Cahier des charges évolutif"] <--> PB["Product Backlog"]
+    PB --> SB["Sprint Backlog"]
+    SB --> DEV["Développement et tests"]
+    DEV --> DEMO["Démonstration"]
+    DEMO --> RET["Retours du responsable"]
+    RET --> PB
+    
