@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blaise-connect-backend"
+version = "0.1.0"
+description = "API backend de BlaiseConnect"
+requires-python = ">=3.11"
+
+dependencies = [
+    "fastapi[standard-no-fastapi-cloud-cli]",
+    "sqlalchemy",
+    "psycopg[binary]",
+]

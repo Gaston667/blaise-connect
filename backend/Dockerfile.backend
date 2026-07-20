@@ -1,0 +1,30 @@
+# Utilise l'image officielle Python 3.13 en version allégée.
+FROM python:3.13-slim
+
+# Empêche Python de créer des fichiers compilés .pyc dans le conteneur.
+ENV PYTHONDONTWRITEBYTECODE=1
+# Envoie immédiatement les journaux Python vers la sortie du conteneur.
+ENV PYTHONUNBUFFERED=1
+
+# Définit /app comme dossier de travail pour les commandes suivantes.
+WORKDIR /app
+
+# Copie la configuration du projet et le code nécessaire à son installation.
+COPY pyproject.toml ./
+COPY app ./app
+
+# Installe le backend et ses dépendances sans conserver le cache de pip.
+RUN python -m pip install --no-cache-dir .
+
+# Crée un utilisateur non-root fixe, puis lui donne la propriété de /app.
+RUN useradd --create-home --uid 10001 appuser \
+    && chown -R appuser:appuser /app
+
+# Exécute l'API avec l'utilisateur non privilégié créé ci-dessus.
+USER appuser
+
+# Documente le port utilisé par FastAPI dans le conteneur.
+EXPOSE 8000
+
+# Lance l'API en mode production ; Compose remplace cette commande en développement.
+CMD ["fastapi", "run", "app/main.py", "--port", "8000"]

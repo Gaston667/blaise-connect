@@ -1,0 +1,375 @@
+@startuml
+title BlaiseConnect - Schéma simplifié par groupe
+
+top to bottom direction
+hide circle
+
+skinparam shadowing false
+skinparam linetype ortho
+skinparam ArrowColor #546E7A
+
+skinparam entity {
+    BorderColor #616161
+    FontColor #263238
+}
+
+skinparam package {
+    BorderColor #757575
+    FontColor #263238
+}
+
+package "ACCÈS À L'APPLICATION" #FFEBEE {
+
+    entity "COMPTES" as comptes #FFCDD2 {
+        * id : UUID <<PK>>
+        --
+        * matricule : texte <<UNIQUE>>
+        * mot_de_passe_hash : texte
+        * rôle : texte
+        * actif : booléen
+        verrouillé_jusqu_au : date et heure
+        archivé_le : date et heure
+    }
+}
+
+package "ÉLÈVES" #FFF3E0 {
+
+    entity "DOSSIERS ÉLÈVES" as eleves #FFE0B2 {
+        * id : UUID <<PK>>
+        --
+        * compte_id : UUID <<FK, UNIQUE>>
+        * prénom : texte
+        * nom : texte
+        date_de_naissance : date
+        sexe : texte
+        email : texte
+        téléphone : texte
+        adresse : texte
+        * date_admission : date
+    }
+}
+
+package "ENSEIGNANTS" #E8F5E9 {
+
+    entity "DOSSIERS ENSEIGNANTS" as enseignants #C8E6C9 {
+        * id : UUID <<PK>>
+        --
+        * compte_id : UUID <<FK, UNIQUE>>
+        * prénom : texte
+        * nom : texte
+        date_de_naissance : date
+        email : texte
+        téléphone : texte
+        adresse : texte
+        * date_embauche : date
+        qualification : texte
+    }
+}
+
+package "ADMINISTRATEURS" #E3F2FD {
+
+    entity "DOSSIERS ADMINISTRATEURS" as administrateurs #BBDEFB {
+        * id : UUID <<PK>>
+        --
+        * compte_id : UUID <<FK, UNIQUE>>
+        * prénom : texte
+        * nom : texte
+        email : texte
+        téléphone : texte
+        adresse : texte
+        * date_embauche : date
+        * fonction : texte
+    }
+}
+
+package "RESPONSABLES" #F3E5F5 {
+
+    entity "DOSSIERS RESPONSABLES" as responsables #E1BEE7 {
+        * id : UUID <<PK>>
+        --
+        compte_id : UUID <<FK, UNIQUE>>
+        * prénom : texte
+        * nom : texte
+        email : texte
+        * téléphone : texte
+        adresse : texte
+        profession : texte
+        employeur : texte
+    }
+}
+
+package "ORGANISATION SCOLAIRE" #F5F5F5 {
+
+    entity "ANNÉES SCOLAIRES" as annees #E0E0E0 {
+        * id : UUID <<PK>>
+        --
+        * nom : texte <<UNIQUE>>
+        * date_début : date
+        * date_fin : date
+        * année_actuelle : booléen
+        clôturée_le : date et heure
+    }
+
+    entity "PÉRIODES DE BULLETIN" as periodes #E0E0E0 {
+        * id : UUID <<PK>>
+        --
+        * année_scolaire_id : UUID <<FK>>
+        * nom : texte
+        * date_début : date
+        * date_fin : date
+    }
+
+    entity "NIVEAUX" as niveaux #E0E0E0 {
+        * id : UUID <<PK>>
+        --
+        * code : texte <<UNIQUE>>
+        * nom : texte
+        * catégorie : texte
+        * ordre_affichage : entier
+        * actif : booléen
+    }
+
+    entity "PROMOTIONS" as promotions #E0E0E0 {
+        * id : UUID <<PK>>
+        --
+        * nom : texte
+        description : texte
+        année_sortie_prévue : entier
+    }
+
+    entity "CLASSES" as classes #E0E0E0 {
+        * id : UUID <<PK>>
+        --
+        * année_scolaire_id : UUID <<FK>>
+        * niveau_id : UUID <<FK>>
+        promotion_id : UUID <<FK>>
+        groupe : texte
+        capacité : entier
+    }
+}
+
+package "INSCRIPTIONS ET FAMILLES" #FFFDE7 {
+
+    entity "INSCRIPTIONS DES ÉLÈVES" as inscriptions #FFF9C4 {
+        * id : UUID <<PK>>
+        --
+        * élève_id : UUID <<FK>>
+        * classe_id : UUID <<FK>>
+        * date_début : date
+        date_fin : date
+        raison_fin : texte
+    }
+
+    entity "ÉLÈVES - RESPONSABLES" as liens_famille #FFF9C4 {
+        * élève_id : UUID <<PK, FK>>
+        * responsable_id : UUID <<PK, FK>>
+        --
+        * lien : texte
+        précision_lien : texte
+        * responsable_légal : booléen
+        * contact_principal : booléen
+        * contact_urgence : booléen
+    }
+}
+
+comptes "1" -- "0..1" eleves
+comptes "1" -- "0..1" enseignants
+comptes "1" -- "0..1" administrateurs
+comptes "0..1" -- "0..1" responsables
+
+annees "1" -- "0..*" periodes
+annees "1" -- "0..*" classes
+
+niveaux "1" -- "0..*" classes
+promotions "0..1" -- "0..*" classes
+
+eleves "1" -- "0..*" inscriptions
+classes "1" -- "0..*" inscriptions
+
+eleves "1" -- "0..*" liens_famille
+responsables "1" -- "0..*" liens_famille
+
+note right of comptes
+Rôles :
+- ÉLÈVE
+- ENSEIGNANT
+- ADMINISTRATEUR
+- PARENT
+end note
+
+note right of liens_famille
+Lien :
+- PÈRE
+- MÈRE
+- AUTRE
+
+Si AUTRE :
+précision_lien obligatoire
+end note
+
+note right of inscriptions
+Raison de fin :
+- ANNÉE TERMINÉE
+- CHANGEMENT DE CLASSE
+- DÉPART DE L'ÉCOLE
+end note
+
+
+package "MATIÈRES ET ENSEIGNEMENT" #E8F5E9 {
+
+    entity "MATIÈRES" as matieres #C8E6C9 {
+        * id : UUID <<PK>>
+        --
+        * nom : VARCHAR(100) <<UNIQUE>>
+        description : TEXT
+        * actif : BOOLEAN
+    }
+
+    entity "MATIÈRES PAR CLASSE" as matieres_par_classe #C8E6C9 {
+        * id : UUID <<PK>>
+        --
+        * classe_id : UUID <<FK>>
+        * matiere_id : UUID <<FK>>
+        * coefficient : DECIMAL
+    }
+
+    entity "AFFECTATIONS ENSEIGNANTS" as affectations_enseignants #C8E6C9 {
+        * id : UUID <<PK>>
+        --
+        * enseignant_id : UUID <<FK>>
+        * matiere_par_classe_id : UUID <<FK>>
+        * date_debut : DATE
+        date_fin : DATE
+    }
+}
+
+package "ÉVALUATIONS ET NOTES" #E3F2FD {
+
+    entity "ÉVALUATIONS" as evaluations #BBDEFB {
+        * id : UUID <<PK>>
+        --
+        * affectation_enseignant_id : UUID <<FK>>
+        * titre : VARCHAR(150)
+        description : TEXT
+        * date_evaluation : DATE
+        * note_maximale : DECIMAL
+        * coefficient : DECIMAL
+    }
+
+    entity "NOTES" as notes #BBDEFB {
+        * id : UUID <<PK>>
+        --
+        * evaluation_id : UUID <<FK>>
+        * inscription_eleve_id : UUID <<FK>>
+        * type_resultat : NOTÉ ou ABSENT
+        note : DECIMAL
+        commentaire : TEXT
+    }
+}
+
+package "ABSENCES ET RETARDS" #FFFDE7 {
+
+    entity "CONTEXTE DE L'APPEL" as evenements_presence #FFF9C4 {
+        * id : UUID <<PK>>
+        --
+        * affectation_enseignant_id : UUID <<FK>>
+        * date_presence : DATE
+        * heure_debut_cours : TIME
+        * heure_fin_cours : TIME
+    }
+
+    entity "ABSENCES ET RETARDS" as absences_retards #FFF9C4 {
+        * id : UUID <<PK>>
+        --
+        * evenement_presence_id : UUID <<FK>>
+        * inscription_eleve_id : UUID <<FK>>
+        * type_presence : ABSENT ou EN RETARD
+        minutes_retard : SMALLINT
+        raison : TEXT
+        * statut_justificatif : VARCHAR(20)
+        * enregistre_par_compte_id : UUID <<FK>>
+        revise_par_compte_id : UUID <<FK>>
+        revise_le : TIMESTAMPTZ
+    }
+}
+
+package "BULLETINS" #F3E5F5 {
+
+    entity "BULLETINS" as bulletins #E1BEE7 {
+        * id : UUID <<PK>>
+        --
+        * inscription_eleve_id : UUID <<FK>>
+        * periode_bulletin_id : UUID <<FK>>
+        * moyenne_generale : DECIMAL
+        commentaire_general : TEXT
+        * genere_par_compte_id : UUID <<FK>>
+        * genere_le : TIMESTAMPTZ
+        valide_par_compte_id : UUID <<FK>>
+        valide_le : TIMESTAMPTZ
+        chemin_pdf : VARCHAR(500)
+    }
+
+    entity "MOYENNES PAR MATIÈRE" as bulletins_matieres #E1BEE7 {
+        * bulletin_id : UUID <<PK, FK>>
+        * matiere_par_classe_id : UUID <<PK, FK>>
+        --
+        * moyenne_matiere : DECIMAL
+        * coefficient_sauvegarde : DECIMAL
+        commentaire_enseignant : TEXT
+    }
+
+    entity "NOTES UTILISÉES" as notes_bulletin #E1BEE7 {
+        * bulletin_id : UUID <<PK, FK>>
+        * note_id : UUID <<PK, FK>>
+    }
+}
+
+classes "1" -- "0..*" matieres_par_classe
+matieres "1" -- "0..*" matieres_par_classe
+
+enseignants "1" -- "0..*" affectations_enseignants
+matieres_par_classe "1" -- "0..*" affectations_enseignants
+
+affectations_enseignants "1" -- "0..*" evaluations
+evaluations "1" -- "0..*" notes
+inscriptions "1" -- "0..*" notes
+
+affectations_enseignants "1" -- "0..*" evenements_presence
+evenements_presence "1" -- "1..*" absences_retards
+inscriptions "1" -- "0..*" absences_retards
+comptes "1" .. "0..*" absences_retards : saisie / vérification
+
+inscriptions "1" -- "0..*" bulletins
+periodes "1" -- "0..*" bulletins
+comptes "1" .. "0..*" bulletins : génération / validation
+
+bulletins "1" -- "1..*" bulletins_matieres
+matieres_par_classe "1" -- "0..*" bulletins_matieres
+
+bulletins "1" -- "0..*" notes_bulletin
+notes "1" -- "0..*" notes_bulletin
+
+note right of notes
+NOTÉ :
+note obligatoire
+
+ABSENT :
+note vide
+end note
+
+note right of absences_retards
+type_presence :
+- ABSENT
+- EN RETARD
+
+EN RETARD :
+minutes_retard obligatoire
+end note
+
+note right of notes_bulletin
+Cette table conserve
+la liste exacte des notes
+utilisées dans le bulletin.
+end note
+
+@enduml

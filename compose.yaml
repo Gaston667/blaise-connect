@@ -1,0 +1,184 @@
+# Nom commun donné au projet et à ses ressources Docker Compose.
+name: blaiseconnect
+
+
+
+# Déclare les services qui composent l'application.
+services:
+  # Base de données PostgreSQL utilisée par le backend.
+  postgres:
+    # Image officielle, limitée à la version majeure PostgreSQL 16.
+    image: postgres:16
+    # Nom lisible et stable du conteneur dans Docker Desktop.
+    container_name: container-postgres
+    # Redémarre le service après l'arrêt du processus ou un redémarrage de Docker, sauf arrêt manuel.
+    restart: unless-stopped
+    # Charge les identifiants et paramètres locaux depuis .env, qui ne doit pas être committé.
+    env_file:
+      - .env
+    # Rend PostgreSQL accessible uniquement depuis ce PC sur le port défini dans .env.
+    # Dans cette configuration, le port interne de PostgreSQL reste 5432.
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+    # Conserve les données dans un volume Docker et expose le dossier local des sauvegardes.
+    volumes:
+      # Données permanentes de PostgreSQL, conservées lorsque le conteneur est recréé.
+      - postgres_data:/var/lib/postgresql/data
+      # Sauvegardes accessibles dans ./storage/postgres/backups sur Windows.
+      - ./storage/postgres/backups:/backups
+    # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
+    healthcheck:
+      # pg_isready utilise l'utilisateur et la base définis dans .env.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      # Relance le contrôle toutes les 10 secondes.
+      interval: 10s
+      # Considère un contrôle comme échoué s'il dure plus de 5 secondes.
+      timeout: 5s
+      # Déclare le service défaillant après 10 échecs consécutifs.
+      retries: 10
+      # Laisse 10 secondes à PostgreSQL pour démarrer avant de compter les échecs.
+      start_period: 10s
+    # Relie PostgreSQL au réseau privé partagé par les services du projet.
+    networks:
+      - reseau-container
+
+
+
+
+
+
+
+
+  # API FastAPI contenant les règles métier et les accès à la base.
+  backend:
+    # Construit l'image à partir du dossier backend et de son Dockerfile dédié.
+    build:
+      # Définit ./backend comme contexte envoyé à Docker pendant la construction.
+      context: ./backend
+      # Sélectionne explicitement le Dockerfile, car son nom n'est pas Dockerfile.
+      dockerfile: Dockerfile.backend
+    # Nom lisible et stable du conteneur dans Docker Desktop.
+    container_name: container-backend
+    # Redémarre le backend après l'arrêt du processus ou un redémarrage de Docker, sauf arrêt manuel.
+    restart: unless-stopped
+    # Attend que PostgreSQL soit sain avant de démarrer le backend.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Charge les variables communes du projet depuis le fichier local .env.
+    env_file:
+      - .env
+    # Fournit au backend les paramètres de connexion internes à PostgreSQL.
+    environment:
+      # Dans le réseau Docker, le nom du service postgres sert de nom d'hôte.
+      POSTGRES_HOST: postgres
+      # Les conteneurs communiquent sur le port interne 5432, pas sur le port publié par Windows.
+      POSTGRES_PORT: "5432"
+    # Publie l'API uniquement sur ce PC : localhost:8000 vers le port 8000 du conteneur.
+    ports:
+      - "127.0.0.1:8000:8000"
+    # Monte le code local dans le conteneur afin que FastAPI recharge les modifications.
+    volumes:
+      - ./backend/app:/app/app
+    # Remplace le CMD du Dockerfile par le serveur de développement avec rechargement automatique.
+    command:
+      - fastapi
+      - dev
+      - app/main.py
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    # Appelle /health pour vérifier que l'API répond réellement.
+    healthcheck:
+      # Utilise uniquement la bibliothèque standard Python déjà présente dans l'image.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+      # Relance le contrôle toutes les 10 secondes.
+      interval: 10s
+      # Considère un contrôle comme échoué s'il dure plus de 5 secondes.
+      timeout: 5s
+      # Déclare le backend défaillant après 5 échecs consécutifs.
+      retries: 5
+      # Laisse 10 secondes à FastAPI pour démarrer avant de compter les échecs.
+      start_period: 10s
+    # Relie le backend au même réseau privé que PostgreSQL.
+    networks:
+      - reseau-container
+
+
+
+
+
+
+  # Interface web d'administration de PostgreSQL.
+  pgadmin:
+    # Image pgAdmin épinglée à une version précise.
+    image: dpage/pgadmin4:9.13.0
+    # Nom lisible du conteneur pgAdmin.
+    container_name: container-pgadmin
+    # Politique de redémarrage identique aux autres services.
+    restart: unless-stopped
+    # Attend que PostgreSQL soit disponible avant de démarrer.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Définit le compte utilisé pour ouvrir l'interface pgAdmin.
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@gmail.com
+    # Lit le mot de passe depuis un secret au lieu de l'écrire dans le fichier Compose.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export PGADMIN_DEFAULT_PASSWORD="$(cat /run/secrets/pgadmin_password)"
+        exec /entrypoint.sh
+    # Rend le secret disponible uniquement dans /run/secrets du conteneur.
+    secrets:
+      - pgadmin_password
+    # Publie pgAdmin uniquement sur ce PC à l'adresse http://127.0.0.1:15050.
+    ports:
+      - "127.0.0.1:15050:80"
+    # Vérifie que le serveur web de pgAdmin répond.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    # Conserve la configuration de pgAdmin dans un volume dédié.
+    volumes:
+      - donnees_pgadmin:/var/lib/pgadmin
+    # Relie pgAdmin au réseau privé de l'application.
+    networks:
+      - reseau-container
+
+# Déclare les réseaux Docker utilisés par les services.
+networks:
+  # Réseau privé permettant au backend de joindre postgres par son nom de service.
+  reseau-container:
+    # Le pilote bridge convient aux communications locales entre conteneurs.
+    driver: bridge
+
+
+
+
+
+# Déclare les volumes persistants gérés par Docker.
+volumes:
+  # Stocke les fichiers internes de PostgreSQL en dehors du cycle de vie du conteneur.
+  postgres_data:
+  # Stocke les serveurs enregistrés et les préférences de pgAdmin.
+  donnees_pgadmin:
+
+
+
+
+
+# Déclare les secrets locaux transmis aux conteneurs sans les écrire dans l'image.
+secrets:
+  # Mot de passe principal de pgAdmin, lu depuis un fichier local ignoré par Git.
+  pgadmin_password:
+    file: ./secrets/pgadmin_password.txt

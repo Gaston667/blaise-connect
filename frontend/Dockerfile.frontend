@@ -1,0 +1,25 @@
+# Dockerfile destiné au serveur de développement React avec Vite.
+# Utilise l'image officielle Node.js 22 basée sur Debian Bookworm.
+FROM node:22-bookworm
+
+# Définit le dossier de travail utilisé dans le conteneur.
+WORKDIR /app
+
+# Copie d'abord les fichiers de dépendances pour profiter du cache Docker.
+COPY package.json package-lock.json ./
+
+# Installe exactement les versions verrouillées, puis donne les fichiers à l'utilisateur node.
+RUN npm ci \
+    && chown -R node:node /app
+
+# Copie le code React dans l'image et en attribue la propriété à l'utilisateur node.
+COPY --chown=node:node . .
+
+# Exécute ensuite l'application sans utiliser l'utilisateur administrateur root.
+USER node
+
+# Indique que le serveur de développement Vite utilise le port 5173.
+EXPOSE 5173
+
+# Lance Vite et l'écoute sur toutes les interfaces réseau du conteneur.
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

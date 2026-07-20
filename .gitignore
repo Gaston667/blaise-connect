@@ -1,18 +1,50 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+secrets/*
+!secrets/*.example
 
-# Other files and folders
-.settings/
+# Local instructions for development agents
+AGENTS.md
+AGENTS_*.md
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# Node and frontend builds
+node_modules/
+frontend/dist/
+frontend/build/
+frontend/coverage/
+frontend/.vite/
+
+# IDE and operating system
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Runtime files containing personal or generated data
+storage/photos/*
+!storage/photos/.gitkeep
+storage/justificatifs/*
+!storage/justificatifs/.gitkeep
+storage/bulletins/*
+!storage/bulletins/.gitkeep
+storage/postgres/backups/*
+!storage/postgres/backups/.gitkeep
