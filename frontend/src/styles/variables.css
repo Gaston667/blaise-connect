@@ -1,0 +1,370 @@
+:root {
+  /* =========================================================
+     BLAISECONNECT — VARIABLES GLOBALES DE LA CHARTE GRAPHIQUE
+     Palette principale issue du logo BlaiseConnect
+     ========================================================= */
+
+  /* 1. Couleurs officielles du logo */
+  --bc-pale-slate: #cfd6e2;
+  --bc-cobalt-blue: #0147b6;
+  --bc-cobalt-blue-dark: #0345a7;
+  --bc-prussian-blue: #00275a;
+  --bc-golden-bronze: #cd9f29;
+
+  /* 2. Couleurs principales */
+  --color-primary: var(--bc-cobalt-blue);
+  --color-primary-hover: var(--bc-cobalt-blue-dark);
+  --color-primary-active: var(--bc-prussian-blue);
+  --color-primary-light: #e8f0ff;
+  --color-primary-lighter: #f3f7ff;
+
+  --color-secondary: var(--bc-prussian-blue);
+  --color-secondary-hover: #001d44;
+  --color-secondary-active: #00142f;
+  --color-secondary-light: #e7edf5;
+
+  --color-accent: var(--bc-golden-bronze);
+  --color-accent-hover: #b88c21;
+  --color-accent-active: #9f781a;
+  --color-accent-light: #fff5d9;
+
+  /* 3. Fonds et surfaces */
+  --color-background: #f5f7fa;
+  --color-background-alt: #eef2f7;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f8fafc;
+  --color-surface-hover: #f0f4f9;
+  --color-surface-selected: var(--color-primary-light);
+  --color-surface-disabled: #edf0f4;
+  --color-overlay: rgba(0, 39, 90, 0.55);
+
+  /* 4. Textes */
+  --color-text-primary: #172033;
+  --color-text-secondary: #5f6c80;
+  --color-text-muted: #7d899a;
+  --color-text-disabled: #a3acb9;
+  --color-text-on-primary: #ffffff;
+  --color-text-on-secondary: #ffffff;
+  --color-text-on-accent: #172033;
+  --color-text-link: var(--color-primary);
+  --color-text-link-hover: var(--color-primary-active);
+
+  /* 5. Bordures et séparateurs */
+  --color-border: #d9e1ec;
+  --color-border-light: #e7ecf3;
+  --color-border-strong: #b8c4d4;
+  --color-border-focus: var(--color-primary);
+  --color-divider: #e2e7ee;
+
+  --border-width-thin: 1px;
+  --border-width-medium: 2px;
+  --border-width-thick: 4px;
+
+  --border-default: var(--border-width-thin) solid var(--color-border);
+  --border-strong: var(--border-width-thin) solid var(--color-border-strong);
+  --border-focus: var(--border-width-medium) solid var(--color-border-focus);
+
+  /* 6. États : succès */
+  --color-success: #198754;
+  --color-success-hover: #146c43;
+  --color-success-active: #0f5132;
+  --color-success-light: #e8f6ee;
+  --color-success-border: #9bd4b4;
+  --color-success-text: #125c3b;
+
+  /* 7. États : danger */
+  --color-danger: #c93636;
+  --color-danger-hover: #aa2929;
+  --color-danger-active: #8d2020;
+  --color-danger-light: #fdebec;
+  --color-danger-border: #efb0b4;
+  --color-danger-text: #8e2222;
+
+  /* 8. États : avertissement */
+  --color-warning: #d98e04;
+  --color-warning-hover: #b97503;
+  --color-warning-active: #965f00;
+  --color-warning-light: #fff4d8;
+  --color-warning-border: #f0cd7b;
+  --color-warning-text: #7a5200;
+
+  /* 9. États : information */
+  --color-info: #1677c8;
+  --color-info-hover: #105f9f;
+  --color-info-active: #0b4b7e;
+  --color-info-light: #e8f4fc;
+  --color-info-border: #9dcbed;
+  --color-info-text: #10567f;
+
+  /* 10. États : neutre */
+  --color-neutral: #687386;
+  --color-neutral-hover: #555f70;
+  --color-neutral-light: #eef1f5;
+  --color-neutral-border: #cfd6e2;
+  --color-neutral-text: #4f5969;
+
+  /* 11. Statuts métier BlaiseConnect */
+  --status-active-bg: var(--color-success-light);
+  --status-active-text: var(--color-success-text);
+  --status-active-border: var(--color-success-border);
+
+  --status-inactive-bg: var(--color-neutral-light);
+  --status-inactive-text: var(--color-neutral-text);
+  --status-inactive-border: var(--color-neutral-border);
+
+  --status-archived-bg: #e5e8ed;
+  --status-archived-text: #4c5563;
+  --status-archived-border: #b9c0ca;
+
+  --status-pending-bg: var(--color-warning-light);
+  --status-pending-text: var(--color-warning-text);
+  --status-pending-border: var(--color-warning-border);
+
+  --status-validated-bg: var(--color-success-light);
+  --status-validated-text: var(--color-success-text);
+  --status-validated-border: var(--color-success-border);
+
+  --status-rejected-bg: var(--color-danger-light);
+  --status-rejected-text: var(--color-danger-text);
+  --status-rejected-border: var(--color-danger-border);
+
+  --status-justified-bg: var(--color-success-light);
+  --status-justified-text: var(--color-success-text);
+  --status-justified-border: var(--color-success-border);
+
+  --status-unjustified-bg: var(--color-danger-light);
+  --status-unjustified-text: var(--color-danger-text);
+  --status-unjustified-border: var(--color-danger-border);
+
+  --status-absent-bg: var(--color-danger-light);
+  --status-absent-text: var(--color-danger-text);
+  --status-absent-border: var(--color-danger-border);
+
+  --status-late-bg: var(--color-warning-light);
+  --status-late-text: var(--color-warning-text);
+  --status-late-border: var(--color-warning-border);
+
+  /* 12. Boutons */
+  --button-primary-bg: var(--color-primary);
+  --button-primary-bg-hover: var(--color-primary-hover);
+  --button-primary-bg-active: var(--color-primary-active);
+  --button-primary-text: var(--color-text-on-primary);
+  --button-primary-border: var(--color-primary);
+
+  --button-secondary-bg: var(--color-surface);
+  --button-secondary-bg-hover: var(--color-surface-hover);
+  --button-secondary-bg-active: var(--color-background-alt);
+  --button-secondary-text: var(--color-secondary);
+  --button-secondary-border: var(--color-border-strong);
+
+  --button-accent-bg: var(--color-accent);
+  --button-accent-bg-hover: var(--color-accent-hover);
+  --button-accent-bg-active: var(--color-accent-active);
+  --button-accent-text: var(--color-text-on-accent);
+
+  --button-success-bg: var(--color-success);
+  --button-success-bg-hover: var(--color-success-hover);
+  --button-success-text: #ffffff;
+
+  --button-danger-bg: var(--color-danger);
+  --button-danger-bg-hover: var(--color-danger-hover);
+  --button-danger-bg-active: var(--color-danger-active);
+  --button-danger-text: #ffffff;
+
+  --button-disabled-bg: #dde3ec;
+  --button-disabled-text: #8b96a6;
+  --button-disabled-border: #d3dae4;
+
+  --button-height-sm: 32px;
+  --button-height-md: 40px;
+  --button-height-lg: 48px;
+
+  --button-padding-sm: 0 12px;
+  --button-padding-md: 0 16px;
+  --button-padding-lg: 0 20px;
+
+  /* 13. Formulaires */
+  --input-bg: var(--color-surface);
+  --input-text: var(--color-text-primary);
+  --input-placeholder: #8d98a8;
+  --input-border: var(--color-border-strong);
+  --input-border-hover: #8ea0b7;
+  --input-border-focus: var(--color-primary);
+  --input-focus-ring: rgba(1, 71, 182, 0.16);
+
+  --input-disabled-bg: var(--color-surface-disabled);
+  --input-disabled-text: var(--color-text-disabled);
+  --input-disabled-border: var(--color-border);
+
+  --input-error-border: var(--color-danger);
+  --input-error-ring: rgba(201, 54, 54, 0.15);
+  --input-success-border: var(--color-success);
+  --input-success-ring: rgba(25, 135, 84, 0.15);
+
+  --input-height-sm: 36px;
+  --input-height-md: 44px;
+  --input-height-lg: 52px;
+
+  /* 14. Tableaux */
+  --table-bg: var(--color-surface);
+  --table-header-bg: #eef3f8;
+  --table-header-text: #273247;
+  --table-row-bg: var(--color-surface);
+  --table-row-hover-bg: #f8fafd;
+  --table-row-selected-bg: var(--color-primary-light);
+  --table-row-danger-bg: var(--color-danger-light);
+  --table-border: var(--color-border-light);
+  --table-stripe-bg: #fbfcfe;
+
+  /* 15. Navigation */
+  --sidebar-bg: var(--color-secondary);
+  --sidebar-text: rgba(255, 255, 255, 0.82);
+  --sidebar-text-hover: #ffffff;
+  --sidebar-item-hover-bg: rgba(255, 255, 255, 0.08);
+  --sidebar-item-active-bg: rgba(1, 71, 182, 0.45);
+  --sidebar-item-active-border: var(--color-accent);
+
+  --header-bg: var(--color-surface);
+  --header-text: var(--color-text-primary);
+  --header-border: var(--color-border-light);
+
+  /* 16. Liens */
+  --link-color: var(--color-primary);
+  --link-color-hover: var(--color-primary-active);
+  --link-color-visited: #4f46a5;
+  --link-color-danger: var(--color-danger);
+
+  /* 17. Alertes */
+  --alert-success-bg: var(--color-success-light);
+  --alert-success-text: var(--color-success-text);
+  --alert-success-border: var(--color-success-border);
+
+  --alert-danger-bg: var(--color-danger-light);
+  --alert-danger-text: var(--color-danger-text);
+  --alert-danger-border: var(--color-danger-border);
+
+  --alert-warning-bg: var(--color-warning-light);
+  --alert-warning-text: var(--color-warning-text);
+  --alert-warning-border: var(--color-warning-border);
+
+  --alert-info-bg: var(--color-info-light);
+  --alert-info-text: var(--color-info-text);
+  --alert-info-border: var(--color-info-border);
+
+  /* 18. Typographie */
+  --font-family-base: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-family-heading: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.375rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2.25rem;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.7;
+
+  /* 19. Espacements */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  /* 20. Arrondis */
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 999px;
+
+  /* 21. Ombres */
+  --shadow-xs: 0 1px 2px rgba(0, 39, 90, 0.05);
+  --shadow-sm: 0 2px 8px rgba(0, 39, 90, 0.06);
+  --shadow-md: 0 8px 24px rgba(0, 39, 90, 0.10);
+  --shadow-lg: 0 16px 40px rgba(0, 39, 90, 0.16);
+  --shadow-focus: 0 0 0 3px var(--input-focus-ring);
+  --shadow-danger-focus: 0 0 0 3px var(--input-error-ring);
+
+  /* 22. Dimensions */
+  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 72px;
+  --header-height: 64px;
+  --content-max-width: 1440px;
+  --modal-width-sm: 420px;
+  --modal-width-md: 640px;
+  --modal-width-lg: 900px;
+
+  /* 23. Transitions */
+  --transition-fast: 120ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 320ms ease;
+
+  /* 24. Z-index */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-overlay: 1040;
+  --z-modal: 1050;
+  --z-toast: 1060;
+
+  /* 25. Breakpoints documentaires */
+  --breakpoint-mobile: 640px;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-large: 1280px;
+}
+
+/* Thème sombre optionnel : <html data-theme="dark"> */
+[data-theme="dark"] {
+  --color-background: #0d1625;
+  --color-background-alt: #121d2e;
+  --color-surface: #162236;
+  --color-surface-alt: #1b2940;
+  --color-surface-hover: #22324c;
+  --color-surface-selected: #173764;
+  --color-surface-disabled: #263247;
+
+  --color-text-primary: #f2f5f9;
+  --color-text-secondary: #c2cad6;
+  --color-text-muted: #9ca8b9;
+  --color-text-disabled: #718095;
+
+  --color-border: #34425a;
+  --color-border-light: #2b3950;
+  --color-border-strong: #4a5b75;
+  --color-divider: #2f3d54;
+
+  --table-header-bg: #1d2b42;
+  --table-row-hover-bg: #1b2a40;
+  --table-stripe-bg: #18253a;
+
+  --header-bg: #162236;
+  --header-text: #f2f5f9;
+  --header-border: #2b3950;
+
+  --input-bg: #18263b;
+  --input-text: #f2f5f9;
+  --input-placeholder: #8d9aae;
+  --input-border: #465873;
+  --input-disabled-bg: #243249;
+
+  --color-overlay: rgba(0, 0, 0, 0.68);
+}

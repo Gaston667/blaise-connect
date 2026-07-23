@@ -1,0 +1,161 @@
+@startuml
+
+' Autorise le mélange des classes avec l'élément PostgreSQL de type database.
+allowmixing
+
+title BlaiseConnect - MVC Sprint 1 avec fichiers et méthodes
+
+skinparam classAttributeIconSize 0
+left to right direction
+
+package "VIEW - React" #E3F2FD {
+
+    class "login_page.jsx" as LoginPage {
+        - registration_number
+        - password
+        - error_message
+        + handle_submit()
+        + handle_registration_number_change()
+        + handle_password_change()
+    }
+
+    class "accounts_page.jsx" as AccountsPage {
+        - accounts
+        - loading
+        - error_message
+        + load_accounts()
+        + handle_create_account()
+        + handle_update_account()
+        + handle_archive_account()
+    }
+
+    class "auth_service.js" as FrontAuthService {
+        + login(credentials)
+        + logout()
+        + get_current_user()
+    }
+
+    class "account_service.js" as FrontAccountService {
+        + get_accounts()
+        + create_account(account_data)
+        + update_account(account_id, account_data)
+        + archive_account(account_id)
+    }
+}
+
+package "CONTROLLER - FastAPI" #FFF3E0 {
+
+    class "routes/auth.py" as AuthRoutes {
+        + login(login_data, db)
+        + logout(current_account)
+        + get_current_account(current_account)
+    }
+
+    class "routes/accounts.py" as AccountRoutes {
+        + list_accounts(db, current_admin)
+        + create_account(account_data, db, current_admin)
+        + update_account(account_id, account_data, db, current_admin)
+        + archive_account(account_id, db, current_admin)
+    }
+}
+
+package "SCHEMAS - Pydantic" #F3E5F5 {
+
+    class "schemas/auth.py" as AuthSchemas {
+        LoginRequest
+        LoginResponse
+        CurrentAccountResponse
+    }
+
+    class "schemas/account.py" as AccountSchemas {
+        AccountCreate
+        AccountUpdate
+        AccountResponse
+    }
+}
+
+package "SERVICE - Règles métier" #E8F5E9 {
+
+    class "services/auth_service.py" as AuthService {
+        + authenticate_account(db, registration_number, password)
+        + register_failed_attempt(db, account)
+        + reset_failed_attempts(db, account)
+        + create_session(account)
+        + close_session(account)
+    }
+
+    class "services/account_service.py" as AccountService {
+        + get_accounts(db)
+        + create_account(db, account_data)
+        + update_account(db, account_id, account_data)
+        + archive_account(db, account_id)
+    }
+
+    class "core/security.py" as Security {
+        + hash_password(password)
+        + verify_password(password, password_hash)
+        + create_access_token(account)
+        + get_current_account(token)
+        + require_role(account, required_role)
+    }
+}
+
+package "MODEL - SQLAlchemy" #FFEBEE {
+
+    class "models/account.py" as Account {
+        + UUID id
+        + String registration_number
+        - String password_hash
+        + String role
+        + Boolean is_active
+        + Integer failed_login_attempts
+        + DateTime locked_until
+        + DateTime archived_at
+    }
+
+    class "core/database.py" as Database {
+        + engine
+        + session_factory
+        + get_db()
+    }
+}
+
+database "PostgreSQL\naccounts" as PostgreSQL
+
+LoginPage --> FrontAuthService
+AccountsPage --> FrontAccountService
+
+FrontAuthService --> AuthRoutes : HTTP
+FrontAccountService --> AccountRoutes : HTTP
+
+AuthRoutes ..> AuthSchemas : valide
+AccountRoutes ..> AccountSchemas : valide
+
+AuthRoutes --> AuthService
+AccountRoutes --> AccountService
+
+AuthService --> Security
+AccountService --> Security
+
+AuthService --> Account
+AccountService --> Account
+
+Account --> Database
+Database --> PostgreSQL
+
+note bottom of LoginPage
+US-001
+Connexion et déconnexion
+end note
+
+note bottom of AccountsPage
+US-002
+Gestion des comptes et rôles
+end note
+
+note bottom of Security
+US-025
+Sécurité des accès et sessions
+end note
+
+@enduml

@@ -12,4 +12,5 @@ dependencies = [
     "fastapi[standard-no-fastapi-cloud-cli]",
     "sqlalchemy",
     "psycopg[binary]",
+    "pwdlib[argon2]",
 ]

@@ -49,6 +49,56 @@ services:
 
 
 
+    # Interface React exécutée par le serveur de développement Vite.
+  frontend:
+    # Construit l'image avec les fichiers présents dans ./frontend.
+    build:
+      # Définit le dossier envoyé à Docker pendant la construction.
+      context: ./frontend
+
+      # Indique le nom du Dockerfile à utiliser.
+      dockerfile: Dockerfile.frontend
+
+    # Donne un nom facilement reconnaissable au conteneur.
+    container_name: container-frontend
+
+    # Redémarre le conteneur automatiquement, sauf après un arrêt manuel.
+    restart: unless-stopped
+
+    # Attend que le backend soit sain avant de démarrer React.
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    # Donne à Vite l'adresse du backend dans le réseau Docker.
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+
+    # Relie le port 5173 de Windows au port 5173 du conteneur.
+    # 127.0.0.1 empêche l'exposition du frontend sur le réseau local.
+    ports:
+      - "127.0.0.1:5173:5173"
+
+    # Partage le code local avec le conteneur pour voir les modifications.
+    volumes:
+      # Le code modifié sur Windows apparaît immédiatement dans /app.
+      - ./frontend:/app
+
+      # Conserve les dépendances Linux à l'intérieur de Docker.
+      - frontend_node_modules:/app/node_modules
+
+    # Place React sur le même réseau privé que FastAPI.
+    networks:
+      - reseau-container
+
+
+
+
+
+
+
+
+
   # API FastAPI contenant les règles métier et les accès à la base.
   backend:
     # Construit l'image à partir du dossier backend et de son Dockerfile dédié.
@@ -114,6 +164,7 @@ services:
 
 
 
+
   # Interface web d'administration de PostgreSQL.
   pgadmin:
     # Image pgAdmin épinglée à une version précise.
@@ -155,6 +206,12 @@ services:
     networks:
       - reseau-container
 
+
+
+
+
+
+
 # Déclare les réseaux Docker utilisés par les services.
 networks:
   # Réseau privé permettant au backend de joindre postgres par son nom de service.
@@ -166,12 +223,17 @@ networks:
 
 
 
+
+
 # Déclare les volumes persistants gérés par Docker.
 volumes:
   # Stocke les fichiers internes de PostgreSQL en dehors du cycle de vie du conteneur.
   postgres_data:
   # Stocke les serveurs enregistrés et les préférences de pgAdmin.
   donnees_pgadmin:
+
+  # Stocke les dépendances Node.js utilisées par le conteneur frontend.
+  frontend_node_modules:
 
 
 
