@@ -27,9 +27,9 @@
 
 | US | Deadline | Nom de l’US | Description de l’US | Statut | Fichiers concernés |
 |---|---|---|---|---|---|
-| US-001 | 22/07/2026 | Connexion et déconnexion | En tant qu’utilisateur, je veux me connecter avec mon compte personnel afin d’accéder aux fonctionnalités autorisées par mon rôle. | 🟥 À faire | À compléter pendant le développement |
-| US-002 | 23/07/2026 | Gestion des comptes et rôles | En tant qu’administrateur, je veux gérer les comptes utilisateurs afin de contrôler l’accès à BlaiseConnect. | 🟥 À faire | À compléter pendant le développement |
-| US-025 | 24/07/2026 | Sécurité des accès | En tant qu’établissement, je veux sécuriser les accès et les sessions afin de protéger les données scolaires. | 🟥 À faire | À compléter pendant le développement |
+| US-001 | 22/07/2026 | Connexion et déconnexion | En tant qu’utilisateur, je veux me connecter avec mon compte personnel afin d’accéder aux fonctionnalités autorisées par mon rôle. | 🟨 En cours | `backend/app/routes/auth.py`, `backend/app/services/auth_service.py`, `backend/app/services/session_service.py`, `frontend/src/pages/login_page.jsx`, `frontend/src/pages/home_page.jsx`, `frontend/src/services/auth_service.js`, `backend/tests/services/` |
+| US-002 | 23/07/2026 | Gestion des comptes et rôles | En tant qu’administrateur, je veux gérer les comptes utilisateurs afin de contrôler l’accès à BlaiseConnect. | 🟨 En cours | `backend/app/models/account.py`, `backend/app/schemas/account_*.py`, `backend/app/routes/accounts.py`, `backend/app/services/account_service.py`, `frontend/src/pages/accounts_page.jsx` |
+| US-025 | 24/07/2026 | Sécurité des accès | En tant qu’établissement, je veux sécuriser les accès et les sessions afin de protéger les données scolaires. | 🟨 En cours | `backend/app/core/security.py`, `backend/app/core/authentication.py`, `backend/app/core/session_cookie_config.py`, `database/migration/002_create_auth_sessions.sql`, `database/migration/003_grant_application_privileges.sql`, `compose.yaml` |
 
 ---
 
@@ -104,4 +104,3 @@ Lorsqu’une User Story avance :
 3. modifier la deadline uniquement si le changement est justifié ;
 4. déplacer une User Story non terminée dans le sprint suivant ;
 5. enregistrer dans le journal des décisions tout changement important de priorité ou de périmètre.
-

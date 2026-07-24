@@ -13,9 +13,13 @@ services:
     container_name: container-postgres
     # Redémarre le service après l'arrêt du processus ou un redémarrage de Docker, sauf arrêt manuel.
     restart: unless-stopped
-    # Charge les identifiants et paramètres locaux depuis .env, qui ne doit pas être committé.
-    env_file:
-      - .env
+    # Initialise PostgreSQL avec le compte d'administration, jamais utilisé par FastAPI.
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
     # Rend PostgreSQL accessible uniquement depuis ce PC sur le port défini dans .env.
     # Dans cette configuration, le port interne de PostgreSQL reste 5432.
     ports:
@@ -26,10 +30,16 @@ services:
       - postgres_data:/var/lib/postgresql/data
       # Sauvegardes accessibles dans ./storage/postgres/backups sur Windows.
       - ./storage/postgres/backups:/backups
+      # Crée le rôle applicatif avant l'exécution des migrations.
+      - ./database/init/000_create_application_role.sh:/docker-entrypoint-initdb.d/000_create_application_role.sh:ro
+      # Applique les migrations dans l'ordre lors de la première initialisation.
+      - ./database/migration/001_create_accounts_and_profiles.sql:/docker-entrypoint-initdb.d/001_create_accounts_and_profiles.sql:ro
+      - ./database/migration/002_create_auth_sessions.sql:/docker-entrypoint-initdb.d/002_create_auth_sessions.sql:ro
+      - ./database/migration/003_grant_application_privileges.sql:/docker-entrypoint-initdb.d/003_grant_application_privileges.sql:ro
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
     healthcheck:
       # pg_isready utilise l'utilisateur et la base définis dans .env.
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER} -d ${POSTGRES_DB}"]
       # Relance le contrôle toutes les 10 secondes.
       interval: 10s
       # Considère un contrôle comme échoué s'il dure plus de 5 secondes.
@@ -115,7 +125,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # Charge les variables communes du projet depuis le fichier local .env.
+    # Charge les variables locales utilisées par FastAPI.
     env_file:
       - .env
     # Fournit au backend les paramètres de connexion internes à PostgreSQL.
@@ -167,40 +177,36 @@ services:
 
 
 
-  # Interface web d'administration de PostgreSQL.
+# Interface web d'administration de PostgreSQL.
+  # Interface d’administration pgAdmin.
   pgadmin:
-    # Image pgAdmin épinglée à une version précise.
     image: dpage/pgadmin4:9.13.0
-    # Nom lisible du conteneur pgAdmin.
     container_name: container-pgadmin
-    # Politique de redémarrage identique aux autres services.
     restart: unless-stopped
-    # Attend que PostgreSQL soit disponible avant de démarrer.
+
     depends_on:
       postgres:
         condition: service_healthy
-    # Définit le compte utilisé pour ouvrir l'interface pgAdmin.
+
     environment:
-      # Ces deux valeurs sont lues depuis le fichier local .env ignoré par Git.
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-    # Publie pgAdmin uniquement sur ce PC à l'adresse http://127.0.0.1:15050.
+
+    # Accessible depuis le navigateur
     ports:
       - "127.0.0.1:15050:80"
-    # Vérifie que le serveur web de pgAdmin répond.
+
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
-    # Conserve la configuration de pgAdmin dans un volume dédié.
+
     volumes:
       - donnees_pgadmin:/var/lib/pgadmin
-    # Relie pgAdmin au réseau privé de l'application.
+
     networks:
       - reseau-container
-
-
 
 
 
@@ -217,13 +223,11 @@ networks:
 
 
 
-
-
 # Déclare les volumes persistants gérés par Docker.
 volumes:
   # Stocke les fichiers internes de PostgreSQL en dehors du cycle de vie du conteneur.
   postgres_data:
-  # Stocke les serveurs enregistrés et les préférences de pgAdmin.
+  # Conserve les comptes et serveurs enregistrés dans pgAdmin.
   donnees_pgadmin:
 
   # Stocke les dépendances Node.js utilisées par le conteneur frontend.

@@ -4,6 +4,7 @@
 !.env.example
 secrets/*
 !secrets/*.example
+database/local/*.txt
 
 # Local instructions for development agents
 AGENTS.md
