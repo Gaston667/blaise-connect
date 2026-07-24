@@ -130,6 +130,8 @@ services:
     # Monte le code local dans le conteneur afin que FastAPI recharge les modifications.
     volumes:
       - ./backend/app:/app/app
+      # Rend les tests locaux accessibles dans le conteneur de développement.
+      - ./backend/tests:/app/tests:ro
     # Remplace le CMD du Dockerfile par le serveur de développement avec rechargement automatique.
     command:
       - fastapi
@@ -179,17 +181,9 @@ services:
         condition: service_healthy
     # Définit le compte utilisé pour ouvrir l'interface pgAdmin.
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@gmail.com
-    # Lit le mot de passe depuis un secret au lieu de l'écrire dans le fichier Compose.
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        export PGADMIN_DEFAULT_PASSWORD="$(cat /run/secrets/pgadmin_password)"
-        exec /entrypoint.sh
-    # Rend le secret disponible uniquement dans /run/secrets du conteneur.
-    secrets:
-      - pgadmin_password
+      # Ces deux valeurs sont lues depuis le fichier local .env ignoré par Git.
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     # Publie pgAdmin uniquement sur ce PC à l'adresse http://127.0.0.1:15050.
     ports:
       - "127.0.0.1:15050:80"
@@ -234,13 +228,3 @@ volumes:
 
   # Stocke les dépendances Node.js utilisées par le conteneur frontend.
   frontend_node_modules:
-
-
-
-
-
-# Déclare les secrets locaux transmis aux conteneurs sans les écrire dans l'image.
-secrets:
-  # Mot de passe principal de pgAdmin, lu depuis un fichier local ignoré par Git.
-  pgadmin_password:
-    file: ./secrets/pgadmin_password.txt

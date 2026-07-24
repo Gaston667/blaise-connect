@@ -5,7 +5,7 @@ from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 
 def build_database_url() -> URL:
@@ -19,10 +19,6 @@ def build_database_url() -> URL:
         port=int(os.getenv("POSTGRES_PORT", "5432")),
         database=os.environ["POSTGRES_DB"],
     )
-
-
-class Base(DeclarativeBase):
-    """Classe de base commune à tous les modèles SQLAlchemy."""
 
 
 # L'engine gère les connexions entre SQLAlchemy et PostgreSQL.

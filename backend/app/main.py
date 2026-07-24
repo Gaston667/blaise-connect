@@ -1,3 +1,5 @@
+"""Point d'entrée de l'API FastAPI de BlaiseConnect."""
+
 from fastapi import FastAPI
 
 

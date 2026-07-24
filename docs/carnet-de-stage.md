@@ -5,6 +5,6 @@
 - **23 juillet 2026 — Sprint 1 :** les matricules commencent par `a`, `e`, `u` ou `p`, puis six chiffres.
 - **22 juillet 2026 — Sprint 1 :** React est structuré en composants, pages, services, layouts, assets et styles.
 - Les Dockerfiles, Compose et fichiers d'exclusion sont documentés et protègent les données générées.
-- **Sécurité US-025 :** Argon2, le hash fictif anti-énumération et le contrôle des comptes verrouillés sont testés.
-- La migration 001 est conservée ; le code V1 limitera l'authentification aux rôles `ADMIN` et `TEACHER`.
-- **Prochaine étape :** implémenter et tester la route `POST /auth/login` de l'US-001.
+- **Sécurité US-025 :** la migration 002 suit l'activité des sessions sur 15 minutes ; les JWT attendront la V2.
+- **24 juillet 2026 :** chaque classe backend possède son fichier documenté ; aucun `lambda` n'est utilisé.
+- **24 juillet 2026 :** `login`, `me`, `logout` et le verrouillage 5 essais/5 minutes sont testés.
