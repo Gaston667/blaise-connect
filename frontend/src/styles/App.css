@@ -622,6 +622,80 @@
   cursor: not-allowed;
 }
 
+.comptes-error {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-danger-text);
+  background: var(--color-danger-light);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+}
+
+.comptes-stats {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.comptes-stat-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.comptes-stat-icon {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+}
+
+.comptes-stat-icon-total,
+.comptes-stat-icon-student {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.comptes-stat-icon-admin,
+.comptes-stat-icon-guardian {
+  color: var(--color-success);
+  background: var(--color-success-light);
+}
+
+.comptes-stat-icon-teacher {
+  color: var(--color-warning);
+  background: var(--color-warning-light);
+}
+
+.comptes-stat-icon-inactive {
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.comptes-stat-card strong {
+  color: var(--color-secondary);
+  font-size: var(--font-size-xl);
+}
+
+.comptes-stat-card h2 {
+  margin: var(--space-1) 0;
+  color: var(--color-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.comptes-stat-card p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
 .comptes-placeholder {
   min-height: 280px;
   display: flex;
@@ -629,6 +703,12 @@
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+@media (min-width: 480px) {
+  .comptes-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 768px) {
@@ -671,5 +751,11 @@
     flex-direction: row;
     align-items: flex-start;
     justify-content: space-between;
+  }
+}
+
+@media (min-width: 1100px) {
+  .comptes-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

@@ -1,6 +1,8 @@
 # Carnet de stage — BlaiseConnect
 - **20 juillet 2026 — Sprint 1 :** prise en main du dépôt et lecture des documents du projet.
 - Les User Stories actives sont US-001, US-002 et US-025.
+- **26 juillet 2026 - US-002 :** restauration des styles mobile first des cartes de statistiques, absents de `App.css` malgré leur utilisation dans la page.
+- **25 juillet 2026 - US-001 :** connexion, restauration de session et déconnexion validées ; US-001 passée au statut Terminé dans le backlog et le Sprint Planning.
 - **25 juillet 2026 - US-002/025 :** accès frontend à la gestion des comptes limité au rôle ADMIN ; menu masqué et navigation refusée aux enseignants.
 - **25 juillet 2026 - US-002 :** ajout visuel des indicateurs Élèves et Responsables, affichés à zéro car leurs comptes sont hors périmètre V1.
 - **25 juillet 2026 - US-002 :** quatre indicateurs connectés à `GET /accounts`, avec chargement, erreur et rendu mobile first ; lint et build réussis.

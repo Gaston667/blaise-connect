@@ -40,7 +40,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 
 | ID | Domaine | User Story résumée | Priorité proposée | Estimation | Statuts |
 |---|---|---|---|---|---|
-| US-001 | Authentification | Se connecter et se déconnecter | Indispensable pour le MVP | M | 🟥 À faire |
+| US-001 | Authentification | Se connecter et se déconnecter | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-002 | Comptes et droits | Gérer les comptes et leurs rôles | Indispensable pour le MVP | M | 🟥 À faire |
 | US-003 | Années scolaires | Gérer les années et périodes scolaires | Indispensable pour le MVP | M | 🟥 À faire |
 | US-004 | Classes | Gérer les classes du lycée | Indispensable pour le MVP | M | 🟥 À faire |
@@ -87,7 +87,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** authentifier les administrateurs et les enseignants.
 - **Utilisateur concerné :** administrateur, enseignant.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** compte personnel obligatoire ; mot de passe jamais stocké en clair ; déconnexion manuelle et automatique après inactivité.
 - **Critères d’acceptation :** les identifiants valides ouvrent une session ; les identifiants invalides affichent un message sans révéler l’information incorrecte ; la déconnexion ferme la session ; une session inactive expire.
 - **Dépendances :** aucune.
@@ -691,4 +691,3 @@ Avant de préparer le premier sprint, le responsable doit au minimum confirmer :
 - les classes et utilisateurs du pilote ;
 - l’existence du modèle officiel de bulletin ;
 - l’infrastructure disponible pour le déploiement.
-
