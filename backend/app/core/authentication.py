@@ -73,3 +73,24 @@ CurrentAccountDependency = Annotated[
     Account,
     Depends(get_current_account),
 ]
+
+
+def require_admin_account(
+    current_account: CurrentAccountDependency,
+) -> Account:
+    """Autorise uniquement un compte administrateur à accéder à la ressource."""
+
+    if current_account.role != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas les droits pour accéder à cette ressource.",
+        )
+
+    return current_account
+
+CurrentAdminDependency = Annotated[
+    Account,
+    Depends(require_admin_account),
+]
+
+

@@ -1,6 +1,7 @@
 """Point d'entrée de l'API FastAPI de BlaiseConnect."""
 
 from fastapi import FastAPI
+from app.routes.accounts import router as accounts_router
 
 
 # Importation des routeurs
@@ -18,3 +19,4 @@ app = FastAPI(
 # Enregistre les routes dans l'application principale.
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(accounts_router)

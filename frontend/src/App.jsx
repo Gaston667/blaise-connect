@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+import MainLayout from './layouts/main_layout.jsx'
+import AccountsPage from './pages/accounts_page.jsx'
 import HomePage from './pages/home_page.jsx'
 import LoginPage from './pages/login_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
@@ -10,6 +12,7 @@ import { getCurrentAccount } from './services/auth_service.js'
 export default function App() {
   const [currentAccount, setCurrentAccount] = useState(null)
   const [isSessionLoading, setIsSessionLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState('home')
 
   /**
    * Recherche une session existante au premier affichage.
@@ -34,6 +37,7 @@ export default function App() {
    */
   function handleLoginSuccess(account) {
     setCurrentAccount(account)
+    setCurrentPage('home')
   }
 
   /**
@@ -41,6 +45,19 @@ export default function App() {
    */
   function handleLogoutSuccess() {
     setCurrentAccount(null)
+    setCurrentPage('home')
+  }
+
+  /**
+   * Change la page affichée dans l'espace connecté.
+   */
+  function handleNavigate(page) {
+    if (page === 'accounts' && currentAccount?.role !== 'ADMIN') {
+      setCurrentPage('home')
+      return
+    }
+
+    setCurrentPage(page)
   }
 
   if (isSessionLoading) {
@@ -52,11 +69,23 @@ export default function App() {
   }
 
   if (currentAccount) {
+    const canManageAccounts = currentAccount.role === 'ADMIN'
+    const shouldDisplayAccounts =
+      currentPage === 'accounts' && canManageAccounts
+
     return (
-      <HomePage
+      <MainLayout
         account={currentAccount}
+        currentPage={currentPage}
+        onNavigate={handleNavigate}
         onLogoutSuccess={handleLogoutSuccess}
-      />
+      >
+        {shouldDisplayAccounts ? (
+          <AccountsPage />
+        ) : (
+          <HomePage account={currentAccount} />
+        )}
+      </MainLayout>
     )
   }
 

@@ -1,6 +1,9 @@
 # Carnet de stage — BlaiseConnect
 - **20 juillet 2026 — Sprint 1 :** prise en main du dépôt et lecture des documents du projet.
 - Les User Stories actives sont US-001, US-002 et US-025.
+- **25 juillet 2026 - US-002/025 :** accès frontend à la gestion des comptes limité au rôle ADMIN ; menu masqué et navigation refusée aux enseignants.
+- **25 juillet 2026 - US-002 :** ajout visuel des indicateurs Élèves et Responsables, affichés à zéro car leurs comptes sont hors périmètre V1.
+- **25 juillet 2026 - US-002 :** quatre indicateurs connectés à `GET /accounts`, avec chargement, erreur et rendu mobile first ; lint et build réussis.
 - **Correction du 24 juillet — Docker pgAdmin :** secrets et ancien volume retirés ; nouvelle instance initialisée depuis le `.env`, accès HTTP local vérifié après son démarrage lent.
 - **23 juillet 2026 — Sprint 1 :** les matricules commencent par `a`, `e`, `u` ou `p`, puis six chiffres.
 - **22 juillet 2026 — Sprint 1 :** React est structuré en composants, pages, services, layouts, assets et styles.
@@ -8,3 +11,6 @@
 - **Sécurité US-025 :** la migration 002 suit l'activité des sessions sur 15 minutes ; les JWT attendront la V2.
 - **24 juillet 2026 :** chaque classe backend possède son fichier documenté ; aucun `lambda` n'est utilisé.
 - **24 juillet 2026 — Audit Sprint 1 :** documentation complète, 9 tests, lint/build, droits SQL et parcours `login/me/logout` réussis ; US-002 et validation visuelle restent à finir.
+- **25 juillet 2026 — Conception MVC :** diagramme classé par blocs View vert, Controller orange, contrats rouges, Model bleu et utilitaires gris ; SVG à régénérer.
+- **25 juillet 2026 — US-002 frontend :** interface mobile first découpée en `Sidebar`, `AppHeader`, `LogoutButton` et `MainLayout` ; branchement de `GET /accounts` restant.
+- **25 juillet 2026 — Interface connectée :** l’en-tête conserve une icône ouvrant `UserMenu` avec identité disponible, rôle, profil futur et seconde déconnexion.
