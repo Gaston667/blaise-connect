@@ -27,3 +27,33 @@ export async function getAccounts() {
 
   return response.json()
 }
+
+
+/**
+ * Envoie au backend les informations du nouveau compte.
+ *
+ * @param {object} account_data Informations saisies dans le formulaire.
+ * @returns {Promise<object>} Compte créé par le backend.
+ */
+export async function createAccount(account_data) {
+  const response = await fetch('/api/accounts', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(account_data),
+  })
+
+  if (!response.ok) {
+    const error_data = await response.json().catch(function parseError() {
+      return null
+    })
+
+    throw new Error(
+      error_data?.detail || 'Impossible de créer le compte.',
+    )
+  }
+
+  return response.json()
+}

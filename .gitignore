@@ -7,8 +7,8 @@ secrets/*
 database/local/*.txt
 
 # Local instructions for development agents
-AGENTS.md
-AGENTS_*.md
+# AGENTS.md
+# AGENTS_*.md
 
 # Python
 .venv/
