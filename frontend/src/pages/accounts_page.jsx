@@ -15,6 +15,7 @@ import {
 import { getAccounts } from '../services/account_service'
 
 const PAGE_SIZE = 10
+const STATS_PER_SLIDE = 3
 
 const ROLE_OPTIONS = [
   { value: 'ALL', label: 'Toutes les rôles' },
@@ -85,6 +86,15 @@ function getPageNumbers(currentPage, totalPages) {
   return pages
 }
 
+/** Découpe un tableau en groupes de `size` éléments, pour le carrousel de stats. */
+function chunkArray(items, size) {
+  const chunks = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+  return chunks
+}
+
 /** Affiche la gestion des comptes de l'US-002. */
 export default function AccountsPage({ onNavigate }) {
   const [accounts, setAccounts] = useState([])
@@ -93,6 +103,7 @@ export default function AccountsPage({ onNavigate }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(1)
+  const [statsSlide, setStatsSlide] = useState(0)
 
   useEffect(function loadAccountsEffect() {
     async function loadAccounts() {
@@ -153,6 +164,60 @@ export default function AccountsPage({ onNavigate }) {
   const pageStart = (safeCurrentPage - 1) * PAGE_SIZE
   const paginatedAccounts = filteredAccounts.slice(pageStart, pageStart + PAGE_SIZE)
 
+  const statCards = [
+    {
+      key: 'total',
+      icon: <UsersRound aria-hidden="true" size={25} />,
+      iconClass: 'comptes-stat-icon-total',
+      value: isLoading ? '—' : accounts.length,
+      label: 'Total comptes',
+      description: 'Tous les utilisateurs',
+    },
+    {
+      key: 'admin',
+      icon: <ShieldCheck aria-hidden="true" size={25} />,
+      iconClass: 'comptes-stat-icon-admin',
+      value: isLoading ? '—' : administratorCount,
+      label: 'Administrateurs',
+      description: 'Accès complet',
+    },
+    {
+      key: 'teacher',
+      icon: <GraduationCap aria-hidden="true" size={25} />,
+      iconClass: 'comptes-stat-icon-teacher',
+      value: isLoading ? '—' : teacherCount,
+      label: 'Enseignants',
+      description: 'Accès enseignant',
+    },
+    {
+      key: 'inactive',
+      icon: <UserX aria-hidden="true" size={25} />,
+      iconClass: 'comptes-stat-icon-inactive',
+      value: isLoading ? '—' : inactiveCount,
+      label: 'Comptes inactifs',
+      description: 'Désactivés ou archivés',
+    },
+    {
+      key: 'student',
+      icon: <School aria-hidden="true" size={25} />,
+      iconClass: 'comptes-stat-icon-student',
+      value: 0,
+      label: 'Élèves',
+      description: 'Interface uniquement',
+    },
+    {
+      key: 'guardian',
+      icon: <UserRoundCheck aria-hidden="true" size={25} />,
+      iconClass: 'comptes-stat-icon-guardian',
+      value: 0,
+      label: 'Responsables',
+      description: 'Interface uniquement',
+    },
+  ]
+
+  const statsSlides = chunkArray(statCards, STATS_PER_SLIDE)
+  const safeStatsSlide = Math.min(statsSlide, statsSlides.length - 1)
+
   return (
     <main className="comptes-main">
       <header className="comptes-heading">
@@ -184,72 +249,69 @@ export default function AccountsPage({ onNavigate }) {
 
       {errorMessage && <p className="comptes-error" role="alert">{errorMessage}</p>}
 
-      <section className="comptes-stats" aria-label="Résumé des comptes">
-        <article className="comptes-stat-card">
-          <span className="comptes-stat-icon comptes-stat-icon-total">
-            <UsersRound aria-hidden="true" size={25} />
-          </span>
-          <div>
-            <strong>{isLoading ? '—' : accounts.length}</strong>
-            <h2>Total comptes</h2>
-            <p>Tous les utilisateurs</p>
-          </div>
-        </article>
+      <section className="comptes-stats-carousel" aria-label="Résumé des comptes">
+        <div className="comptes-stats-carousel-header">
+          <button
+            type="button"
+            className="comptes-stats-nav-button"
+            onClick={() => setStatsSlide((slide) => Math.max(0, slide - 1))}
+            disabled={safeStatsSlide === 0}
+            aria-label="Statistiques précédentes"
+          >
+            <ChevronLeft aria-hidden="true" size={18} />
+          </button>
 
-        <article className="comptes-stat-card">
-          <span className="comptes-stat-icon comptes-stat-icon-admin">
-            <ShieldCheck aria-hidden="true" size={25} />
-          </span>
-          <div>
-            <strong>{isLoading ? '—' : administratorCount}</strong>
-            <h2>Administrateurs</h2>
-            <p>Accès complet</p>
+          <div className="comptes-stats-dots">
+            {statsSlides.map((_, index) => (
+              <button
+                key={index}
+                type="button"
+                className={`comptes-stats-dot ${
+                  index === safeStatsSlide ? 'comptes-stats-dot-active' : ''
+                }`}
+                onClick={() => setStatsSlide(index)}
+                aria-label={`Aller au groupe de statistiques ${index + 1}`}
+                aria-current={index === safeStatsSlide}
+              />
+            ))}
           </div>
-        </article>
 
-        <article className="comptes-stat-card">
-          <span className="comptes-stat-icon comptes-stat-icon-teacher">
-            <GraduationCap aria-hidden="true" size={25} />
-          </span>
-          <div>
-            <strong>{isLoading ? '—' : teacherCount}</strong>
-            <h2>Enseignants</h2>
-            <p>Accès enseignant</p>
-          </div>
-        </article>
+          <button
+            type="button"
+            className="comptes-stats-nav-button"
+            onClick={() =>
+              setStatsSlide((slide) => Math.min(statsSlides.length - 1, slide + 1))
+            }
+            disabled={safeStatsSlide === statsSlides.length - 1}
+            aria-label="Statistiques suivantes"
+          >
+            <ChevronRight aria-hidden="true" size={18} />
+          </button>
+        </div>
 
-        <article className="comptes-stat-card">
-          <span className="comptes-stat-icon comptes-stat-icon-inactive">
-            <UserX aria-hidden="true" size={25} />
-          </span>
-          <div>
-            <strong>{isLoading ? '—' : inactiveCount}</strong>
-            <h2>Comptes inactifs</h2>
-            <p>Désactivés ou archivés</p>
+        <div className="comptes-stats-track-wrapper">
+          <div
+            className="comptes-stats-track"
+            style={{ transform: `translateX(-${safeStatsSlide * 100}%)` }}
+          >
+            {statsSlides.map((slide, slideIndex) => (
+              <div className="comptes-stats-slide" key={slideIndex}>
+                {slide.map((card) => (
+                  <article className="comptes-stat-card" key={card.key}>
+                    <span className={`comptes-stat-icon ${card.iconClass}`}>
+                      {card.icon}
+                    </span>
+                    <div>
+                      <strong>{card.value}</strong>
+                      <h2>{card.label}</h2>
+                      <p>{card.description}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ))}
           </div>
-        </article>
-
-        <article className="comptes-stat-card">
-          <span className="comptes-stat-icon comptes-stat-icon-student">
-            <School aria-hidden="true" size={25} />
-          </span>
-          <div>
-            <strong>0</strong>
-            <h2>Élèves</h2>
-            <p>Interface uniquement</p>
-          </div>
-        </article>
-
-        <article className="comptes-stat-card">
-          <span className="comptes-stat-icon comptes-stat-icon-guardian">
-            <UserRoundCheck aria-hidden="true" size={25} />
-          </span>
-          <div>
-            <strong>0</strong>
-            <h2>Responsables</h2>
-            <p>Interface uniquement</p>
-          </div>
-        </article>
+        </div>
       </section>
 
       <section className="comptes-list" aria-label="Liste des comptes">
@@ -279,7 +341,6 @@ export default function AccountsPage({ onNavigate }) {
             </select>
             <ChevronDown aria-hidden="true" size={16} className="comptes-filter-icon" />
           </div>
-
         </div>
 
         {isLoading ? (
