@@ -21,16 +21,22 @@ const ROLE_OPTIONS = [
   { value: 'ALL', label: 'Toutes les rôles' },
   { value: 'ADMIN', label: 'Administrateur' },
   { value: 'TEACHER', label: 'Enseignant' },
+  { value: 'STUDENT', label: 'Élève' },
+  { value: 'GUARDIAN', label: 'Responsable' },
 ]
 
 const ROLE_LABELS = {
   ADMIN: 'Administrateur',
   TEACHER: 'Enseignant',
+  STUDENT: 'Élève',
+  GUARDIAN: 'Responsable',
 }
 
 const ROLE_BADGE_CLASSES = {
   ADMIN: 'comptes-role-badge-admin',
   TEACHER: 'comptes-role-badge-teacher',
+  STUDENT: 'comptes-role-badge-student',
+  GUARDIAN: 'comptes-role-badge-guardian',
 }
 
 function isAdministrator(account) {
@@ -39,6 +45,14 @@ function isAdministrator(account) {
 
 function isTeacher(account) {
   return account.role === 'TEACHER'
+}
+
+function isStudent(account) {
+  return account.role === 'STUDENT'
+}
+
+function isGuardian(account) {
+  return account.role === 'GUARDIAN'
 }
 
 function isInactive(account) {
@@ -139,6 +153,8 @@ export default function AccountsPage({ onNavigate }) {
 
   const administratorCount = accounts.filter(isAdministrator).length
   const teacherCount = accounts.filter(isTeacher).length
+  const studentCount = accounts.filter(isStudent).length
+  const guardianCount = accounts.filter(isGuardian).length
   const inactiveCount = accounts.filter(isInactive).length
 
   const filteredAccounts = useMemo(function filterAccounts() {
@@ -201,17 +217,17 @@ export default function AccountsPage({ onNavigate }) {
       key: 'student',
       icon: <School aria-hidden="true" size={25} />,
       iconClass: 'comptes-stat-icon-student',
-      value: 0,
+      value: isLoading ? '—' : studentCount,
       label: 'Élèves',
-      description: 'Interface uniquement',
+      description: 'Comptes élèves',
     },
     {
       key: 'guardian',
       icon: <UserRoundCheck aria-hidden="true" size={25} />,
       iconClass: 'comptes-stat-icon-guardian',
-      value: 0,
+      value: isLoading ? '—' : guardianCount,
       label: 'Responsables',
-      description: 'Interface uniquement',
+      description: 'Comptes responsables',
     },
   ]
 

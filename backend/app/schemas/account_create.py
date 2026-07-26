@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
-from app.schemas.account_role import AccountRole
+from app.schemas.account_creation_role import AccountCreationRole
 from app.schemas.registration_number import RegistrationNumber
 
 
@@ -19,4 +19,4 @@ class AccountCreate(BaseModel):
         min_length=8,
         max_length=128,
     )
-    role: AccountRole
+    role: AccountCreationRole

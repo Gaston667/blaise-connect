@@ -966,6 +966,16 @@
   background: var(--color-warning-light);
 }
 
+.comptes-role-badge-student {
+  color: #174ea6;
+  background: #e8f0fe;
+}
+
+.comptes-role-badge-guardian {
+  color: #6b21a8;
+  background: #f3e8ff;
+}
+
 .comptes-status {
   display: inline-flex;
   align-items: center;

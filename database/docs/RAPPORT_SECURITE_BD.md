@@ -95,7 +95,7 @@ Le rôle `blaise_app` ne doit pas être superutilisateur, propriétaire de la ba
 
 ## Comptes fictifs de développement
 
-Le script `database/init/005_create_test_accounts.sql` prépare 74 comptes :
+Le script `database/init/006_create_test_accounts.sql` prépare 74 comptes :
 
 | Rôle | Matricules | Nombre |
 |---|---|---:|
@@ -114,4 +114,3 @@ Mesures obligatoires :
 - remplacer ou désactiver ces comptes avant tout déploiement accessible publiquement.
 
 Le script est monté après les migrations et ne s'exécute automatiquement que pendant l'initialisation d'un nouveau volume PostgreSQL.
-
