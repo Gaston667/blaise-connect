@@ -3,16 +3,13 @@ import {
   Activity,
   ArrowLeft,
   Ban,
-  BellRing,
   ChevronRight,
   Clock,
   FileClock,
   Key,
-  Lock,
   Mail,
   Pencil,
   Phone,
-  ShieldCheck,
   Trash2,
 } from 'lucide-react'
 import { getAccountDetails } from '../services/account_service'
