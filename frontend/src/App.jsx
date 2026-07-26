@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import MainLayout from './layouts/main_layout.jsx'
 import AccountsPage from './pages/accounts_page.jsx'
+import AccountDetailsPage from './pages/account_details_page.jsx'
 import HomePage from './pages/home_page.jsx'
 import LoginPage from './pages/login_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
@@ -13,6 +14,7 @@ export default function App() {
   const [currentAccount, setCurrentAccount] = useState(null)
   const [isSessionLoading, setIsSessionLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState('home')
+  const [selectedAccountId, setSelectedAccountId] = useState(null)
 
   /**
    * Recherche une session existante au premier affichage.
@@ -50,11 +52,19 @@ export default function App() {
 
   /**
    * Change la page affichée dans l'espace connecté.
+   * Le second paramètre est optionnel : il transporte l'id du compte
+   * sélectionné quand on navigue vers 'account-details'.
    */
-  function handleNavigate(page) {
-    if (page === 'accounts' && currentAccount?.role !== 'ADMIN') {
+  function handleNavigate(page, accountId) {
+    const pagesReservedToAdmin = ['accounts', 'account-details']
+
+    if (pagesReservedToAdmin.includes(page) && currentAccount?.role !== 'ADMIN') {
       setCurrentPage('home')
       return
+    }
+
+    if (page === 'account-details') {
+      setSelectedAccountId(accountId)
     }
 
     setCurrentPage(page)
@@ -72,6 +82,20 @@ export default function App() {
     const canManageAccounts = currentAccount.role === 'ADMIN'
     const shouldDisplayAccounts =
       currentPage === 'accounts' && canManageAccounts
+    const shouldDisplayAccountDetails =
+      currentPage === 'account-details' && canManageAccounts && selectedAccountId
+
+    let pageContent = <HomePage account={currentAccount} />
+    if (shouldDisplayAccounts) {
+      pageContent = <AccountsPage onNavigate={handleNavigate} />
+    } else if (shouldDisplayAccountDetails) {
+      pageContent = (
+        <AccountDetailsPage
+          accountId={selectedAccountId}
+          onNavigate={handleNavigate}
+        />
+      )
+    }
 
     return (
       <MainLayout
@@ -80,11 +104,7 @@ export default function App() {
         onNavigate={handleNavigate}
         onLogoutSuccess={handleLogoutSuccess}
       >
-        {shouldDisplayAccounts ? (
-          <AccountsPage onNavigate={handleNavigate} />
-        ) : (
-          <HomePage account={currentAccount} />
-        )}
+        {pageContent}
       </MainLayout>
     )
   }
