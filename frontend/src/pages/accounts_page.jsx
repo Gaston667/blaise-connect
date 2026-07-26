@@ -471,6 +471,7 @@ export default function AccountsPage({ onNavigate }) {
           </>
         )}
       </section>
+
     </main>
   )
 }

@@ -4,7 +4,10 @@ const ACCOUNTS_API_URL = '/api/accounts'
 async function getAccountsApiErrorMessage(response) {
   try {
     const errorData = await response.json()
-    return errorData.detail || 'Impossible de charger les comptes.'
+    if (typeof errorData.detail === 'string') {
+      return errorData.detail
+    }
+    return 'La requête sur les comptes a échoué.'
   } catch {
     return 'Le serveur ne répond pas correctement.'
   }
