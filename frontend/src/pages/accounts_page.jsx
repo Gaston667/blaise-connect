@@ -1,14 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
   GraduationCap,
+  Lock,
+  Pencil,
   Plus,
   School,
+  Search,
   ShieldCheck,
+  Trash2,
   UserRoundCheck,
   UserX,
   UsersRound,
 } from 'lucide-react'
 import { getAccounts } from '../services/account_service'
+
+const PAGE_SIZE = 10
+
+const ROLE_OPTIONS = [
+  { value: 'ALL', label: 'Toutes les rôles' },
+  { value: 'ADMIN', label: 'Administrateur' },
+  { value: 'TEACHER', label: 'Enseignant' },
+]
+
+const ROLE_LABELS = {
+  ADMIN: 'Administrateur',
+  TEACHER: 'Enseignant',
+}
+
+const ROLE_BADGE_CLASSES = {
+  ADMIN: 'comptes-role-badge-admin',
+  TEACHER: 'comptes-role-badge-teacher',
+}
 
 function isAdministrator(account) {
   return account.role === 'ADMIN'
@@ -22,11 +48,47 @@ function isInactive(account) {
   return !account.is_active || account.archived_at !== null
 }
 
+function getInitials(registrationNumber) {
+  if (!registrationNumber) return '?'
+  return registrationNumber.slice(0, 2).toUpperCase()
+}
+
+function formatDate(dateValue) {
+  if (!dateValue) return '—'
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('fr-FR')
+}
+
+/** Construit la liste des pages à afficher, avec des '...' pour les longues listes. */
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1)
+  }
+
+  const pages = [1]
+  if (currentPage > 3) pages.push('…')
+
+  const start = Math.max(2, currentPage - 1)
+  const end = Math.min(totalPages - 1, currentPage + 1)
+  for (let page = start; page <= end; page += 1) {
+    pages.push(page)
+  }
+
+  if (currentPage < totalPages - 2) pages.push('…')
+  pages.push(totalPages)
+
+  return pages
+}
+
 /** Affiche la gestion des comptes de l'US-002. */
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState('ALL')
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(function loadAccountsEffect() {
     async function loadAccounts() {
@@ -42,9 +104,53 @@ export default function AccountsPage() {
     loadAccounts()
   }, [])
 
+  useEffect(function resetPageOnFilterChange() {
+    setCurrentPage(1)
+  }, [searchQuery, roleFilter])
+
   const administratorCount = accounts.filter(isAdministrator).length
   const teacherCount = accounts.filter(isTeacher).length
   const inactiveCount = accounts.filter(isInactive).length
+
+  const filteredAccounts = useMemo(function filterAccounts() {
+    const query = searchQuery.trim().toLowerCase()
+
+    return accounts.filter((account) => {
+      const matchesRole = roleFilter === 'ALL' || account.role === roleFilter
+      if (!matchesRole) return false
+
+      if (!query) return true
+
+      return (account.registration_number || '').toLowerCase().includes(query)
+    })
+  }, [accounts, searchQuery, roleFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filteredAccounts.length / PAGE_SIZE))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const pageStart = (safeCurrentPage - 1) * PAGE_SIZE
+  const paginatedAccounts = filteredAccounts.slice(pageStart, pageStart + PAGE_SIZE)
+
+  function handleExport() {
+    const header = ['Identifiant', 'Rôle', 'Statut', 'Date de création']
+    const rows = filteredAccounts.map((account) => [
+      account.registration_number || '',
+      ROLE_LABELS[account.role] || account.role,
+      isInactive(account) ? 'Inactif' : 'Actif',
+      formatDate(account.created_at),
+    ])
+
+    const csvContent = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'comptes-blaiseconnect.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <main className="comptes-main">
@@ -132,12 +238,178 @@ export default function AccountsPage() {
         </article>
       </section>
 
-      <section className="comptes-placeholder">
-        <span className="comptes-placeholder-icon">
-          <UsersRound aria-hidden="true" size={30} />
-        </span>
-        <h2>Liste des comptes</h2>
-        <p>La prochaine étape affichera ici le tableau détaillé des comptes.</p>
+      <section className="comptes-list" aria-label="Liste des comptes">
+        <div className="comptes-toolbar">
+          <div className="comptes-search-wrapper">
+            <Search aria-hidden="true" size={18} className="comptes-search-icon" />
+            <input
+              type="search"
+              className="comptes-search-input"
+              placeholder="Rechercher un compte…"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </div>
+
+          <div className="comptes-filter-wrapper">
+            <select
+              className="comptes-filter-select"
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value)}
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown aria-hidden="true" size={16} className="comptes-filter-icon" />
+          </div>
+
+          <button className="comptes-export-button" type="button" onClick={handleExport}>
+            <Download aria-hidden="true" size={18} />
+            Exporter
+          </button>
+        </div>
+
+        {isLoading ? (
+          <p className="comptes-table-status">Chargement des comptes…</p>
+        ) : filteredAccounts.length === 0 ? (
+          <div className="comptes-empty-state">
+            <UsersRound aria-hidden="true" size={28} />
+            <p>Aucun compte ne correspond à votre recherche.</p>
+          </div>
+        ) : (
+          <>
+            <div className="comptes-table-wrapper">
+              <table className="comptes-table">
+                <thead>
+                  <tr>
+                    <th>Identifiant</th>
+                    <th>Rôle</th>
+                    <th>Statut</th>
+                    <th>Date de création</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedAccounts.map((account) => {
+                    const inactive = isInactive(account)
+                    return (
+                      <tr key={account.id}>
+                        <td>
+                          <div className="comptes-table-identity">
+                            <span className="comptes-table-avatar">
+                              {getInitials(account.registration_number)}
+                            </span>
+                            <span>{account.registration_number || '—'}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span
+                            className={`comptes-role-badge ${
+                              ROLE_BADGE_CLASSES[account.role] || ''
+                            }`}
+                          >
+                            {ROLE_LABELS[account.role] || account.role}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`comptes-status ${
+                              inactive ? 'comptes-status-inactive' : 'comptes-status-active'
+                            }`}
+                          >
+                            <span className="comptes-status-dot" aria-hidden="true" />
+                            {inactive ? 'Inactif' : 'Actif'}
+                          </span>
+                        </td>
+                        <td>{formatDate(account.created_at)}</td>
+                        <td>
+                          <div className="comptes-actions">
+                            <button
+                              type="button"
+                              className="comptes-action-button comptes-action-edit"
+                              title="Modifier (bientôt disponible)"
+                              disabled
+                            >
+                              <Pencil aria-hidden="true" size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="comptes-action-button comptes-action-lock"
+                              title="Verrouiller (bientôt disponible)"
+                              disabled
+                            >
+                              <Lock aria-hidden="true" size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="comptes-action-button comptes-action-delete"
+                              title="Supprimer (bientôt disponible)"
+                              disabled
+                            >
+                              <Trash2 aria-hidden="true" size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="comptes-pagination">
+              <p className="comptes-pagination-info">
+                Affichage de {pageStart + 1} à{' '}
+                {Math.min(pageStart + PAGE_SIZE, filteredAccounts.length)} sur{' '}
+                {filteredAccounts.length} comptes
+              </p>
+
+              <div className="comptes-pagination-controls">
+                <button
+                  type="button"
+                  className="comptes-pagination-button"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={safeCurrentPage === 1}
+                  aria-label="Page précédente"
+                >
+                  <ChevronLeft aria-hidden="true" size={16} />
+                </button>
+
+                {getPageNumbers(safeCurrentPage, totalPages).map((page, index) =>
+                  page === '…' ? (
+                    <span key={`ellipsis-${index}`} className="comptes-pagination-ellipsis">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      type="button"
+                      className={`comptes-pagination-button ${
+                        page === safeCurrentPage ? 'comptes-pagination-button-active' : ''
+                      }`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  className="comptes-pagination-button"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  aria-label="Page suivante"
+                >
+                  <ChevronRight aria-hidden="true" size={16} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </section>
     </main>
   )
