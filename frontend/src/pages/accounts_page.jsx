@@ -3,15 +3,11 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Download,
   GraduationCap,
-  Lock,
-  Pencil,
   Plus,
   School,
   Search,
   ShieldCheck,
-  Trash2,
   UserRoundCheck,
   UserX,
   UsersRound,
@@ -53,6 +49,14 @@ function getInitials(registrationNumber) {
   return registrationNumber.slice(0, 2).toUpperCase()
 }
 
+function getFullName(account) {
+  const fullName = [account.last_name, account.first_name]
+    .filter(Boolean)
+    .join(' ')
+
+  return fullName || 'Non renseigné'
+}
+
 function formatDate(dateValue) {
   if (!dateValue) return '—'
   const date = new Date(dateValue)
@@ -82,7 +86,7 @@ function getPageNumbers(currentPage, totalPages) {
 }
 
 /** Affiche la gestion des comptes de l'US-002. */
-export default function AccountsPage() {
+export default function AccountsPage({ onNavigate }) {
   const [accounts, setAccounts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -104,9 +108,23 @@ export default function AccountsPage() {
     loadAccounts()
   }, [])
 
-  useEffect(function resetPageOnFilterChange() {
+  function handleSearchChange(event) {
+    setSearchQuery(event.target.value)
     setCurrentPage(1)
-  }, [searchQuery, roleFilter])
+  }
+
+  function handleRoleFilterChange(event) {
+    setRoleFilter(event.target.value)
+    setCurrentPage(1)
+  }
+
+  function handleHomeNavigation() {
+    onNavigate('home')
+  }
+
+  function handleAccountsNavigation() {
+    onNavigate('accounts')
+  }
 
   const administratorCount = accounts.filter(isAdministrator).length
   const teacherCount = accounts.filter(isTeacher).length
@@ -121,7 +139,12 @@ export default function AccountsPage() {
 
       if (!query) return true
 
-      return (account.registration_number || '').toLowerCase().includes(query)
+      const registrationNumber = (
+        account.registration_number || ''
+      ).toLowerCase()
+      const fullName = getFullName(account).toLowerCase()
+
+      return registrationNumber.includes(query) || fullName.includes(query)
     })
   }, [accounts, searchQuery, roleFilter])
 
@@ -130,33 +153,24 @@ export default function AccountsPage() {
   const pageStart = (safeCurrentPage - 1) * PAGE_SIZE
   const paginatedAccounts = filteredAccounts.slice(pageStart, pageStart + PAGE_SIZE)
 
-  function handleExport() {
-    const header = ['Identifiant', 'Rôle', 'Statut', 'Date de création']
-    const rows = filteredAccounts.map((account) => [
-      account.registration_number || '',
-      ROLE_LABELS[account.role] || account.role,
-      isInactive(account) ? 'Inactif' : 'Actif',
-      formatDate(account.created_at),
-    ])
-
-    const csvContent = [header, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'comptes-blaiseconnect.csv'
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
   return (
     <main className="comptes-main">
       <header className="comptes-heading">
         <div>
-          <p className="comptes-breadcrumb">Accueil / Comptes</p>
+          <nav className="comptes-breadcrumb" aria-label="Fil d’Ariane">
+            <button type="button" onClick={handleHomeNavigation}>
+              Accueil
+            </button>
+            <ChevronRight aria-hidden="true" size={14} />
+            <button
+              type="button"
+              className="comptes-breadcrumb-current"
+              onClick={handleAccountsNavigation}
+              aria-current="page"
+            >
+              Comptes
+            </button>
+          </nav>
           <h1 className="comptes-title">Gestion des comptes</h1>
           <p className="comptes-description">
             Consultez et gérez les comptes autorisés dans BlaiseConnect.
@@ -247,7 +261,7 @@ export default function AccountsPage() {
               className="comptes-search-input"
               placeholder="Rechercher un compte…"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={handleSearchChange}
             />
           </div>
 
@@ -255,7 +269,7 @@ export default function AccountsPage() {
             <select
               className="comptes-filter-select"
               value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value)}
+              onChange={handleRoleFilterChange}
             >
               {ROLE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -266,10 +280,6 @@ export default function AccountsPage() {
             <ChevronDown aria-hidden="true" size={16} className="comptes-filter-icon" />
           </div>
 
-          <button className="comptes-export-button" type="button" onClick={handleExport}>
-            <Download aria-hidden="true" size={18} />
-            Exporter
-          </button>
         </div>
 
         {isLoading ? (
@@ -286,10 +296,10 @@ export default function AccountsPage() {
                 <thead>
                   <tr>
                     <th>Identifiant</th>
+                    <th>Nom et prénom</th>
                     <th>Rôle</th>
                     <th>Statut</th>
                     <th>Date de création</th>
-                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -305,6 +315,7 @@ export default function AccountsPage() {
                             <span>{account.registration_number || '—'}</span>
                           </div>
                         </td>
+                        <td>{getFullName(account)}</td>
                         <td>
                           <span
                             className={`comptes-role-badge ${
@@ -325,34 +336,6 @@ export default function AccountsPage() {
                           </span>
                         </td>
                         <td>{formatDate(account.created_at)}</td>
-                        <td>
-                          <div className="comptes-actions">
-                            <button
-                              type="button"
-                              className="comptes-action-button comptes-action-edit"
-                              title="Modifier (bientôt disponible)"
-                              disabled
-                            >
-                              <Pencil aria-hidden="true" size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              className="comptes-action-button comptes-action-lock"
-                              title="Verrouiller (bientôt disponible)"
-                              disabled
-                            >
-                              <Lock aria-hidden="true" size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              className="comptes-action-button comptes-action-delete"
-                              title="Supprimer (bientôt disponible)"
-                              disabled
-                            >
-                              <Trash2 aria-hidden="true" size={16} />
-                            </button>
-                          </div>
-                        </td>
                       </tr>
                     )
                   })}

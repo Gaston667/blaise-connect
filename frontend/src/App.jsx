@@ -81,7 +81,7 @@ export default function App() {
         onLogoutSuccess={handleLogoutSuccess}
       >
         {shouldDisplayAccounts ? (
-          <AccountsPage />
+          <AccountsPage onNavigate={handleNavigate} />
         ) : (
           <HomePage account={currentAccount} />
         )}

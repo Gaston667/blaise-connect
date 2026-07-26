@@ -546,6 +546,29 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.comptes-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.comptes-breadcrumb button {
+  padding: 0;
+  color: var(--color-primary);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.comptes-breadcrumb button:hover {
+  text-decoration: underline;
+}
+
+.comptes-breadcrumb .comptes-breadcrumb-current {
+  color: var(--color-text-secondary);
+}
+
 .accueil-title,
 .comptes-title {
   margin: 0;
@@ -764,25 +787,6 @@
   pointer-events: none;
 }
 
-.comptes-export-button {
-  min-height: var(--button-height-lg, 44px);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: var(--button-padding-lg, 0 var(--space-4));
-  color: var(--color-text-primary);
-  background: var(--color-surface);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-}
-
-.comptes-export-button:hover {
-  background: var(--color-primary-lighter);
-}
-
 .comptes-table-status {
   padding: var(--space-6);
   color: var(--color-text-secondary);
@@ -828,6 +832,11 @@
 
 .comptes-table tbody tr {
   border-bottom: var(--border-default);
+  transition: background-color 160ms ease;
+}
+
+.comptes-table tbody tr:hover {
+  background: var(--color-primary-lighter);
 }
 
 .comptes-table tbody tr:last-child {
@@ -898,35 +907,6 @@
 
 .comptes-status-inactive .comptes-status-dot {
   background: var(--color-danger);
-}
-
-.comptes-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.comptes-action-button {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-md);
-  cursor: not-allowed;
-}
-
-.comptes-action-edit {
-  color: var(--color-primary);
-}
-
-.comptes-action-lock {
-  color: var(--color-text-secondary);
-}
-
-.comptes-action-delete {
-  color: var(--color-danger);
 }
 
 .comptes-pagination {

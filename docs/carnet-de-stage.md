@@ -1,6 +1,11 @@
 # Carnet de stage — BlaiseConnect
 - **20 juillet 2026 — Sprint 1 :** prise en main du dépôt et lecture des documents du projet.
 - Les User Stories actives sont US-001, US-002 et US-025.
+- **26 juillet 2026 - US-002 frontend :** survol visuel ajouté aux lignes du tableau pour préparer leur future navigation vers une fiche de compte.
+- **26 juillet 2026 - US-002 frontend :** fil d’Ariane `Accueil > Comptes` rendu navigable ; ouverture future d’une fiche de compte depuis une ligne conservée comme prochaine étape.
+- **26 juillet 2026 - US-002 frontend :** colonne Actions et contrôles inactifs retirés du tableau des comptes.
+- **26 juillet 2026 - US-002 frontend :** export CSV et bouton associé retirés car non nécessaires au périmètre actuel.
+- **26 juillet 2026 - US-002 frontend :** colonne « Nom et prénom » ajoutée au tableau et à l’export ; valeur provisoire « Non renseigné » tant que les profils ne sont pas exposés par l’API.
 - **26 juillet 2026 - Migration 004 :** migration appliquée avec succès sur la base existante ; `blaise_app` peut insérer matricule, hash et rôle, mais pas `is_active`, et ne possède aucun droit `DELETE`.
 - **26 juillet 2026 - Correction US-002 :** import et route `POST /accounts` restaurés ; `is_active` laissé à la valeur par défaut PostgreSQL ; aucun droit `DELETE` dans la migration 004. Migration non appliquée.
 - **26 juillet 2026 - Audit US-002 :** Compose valide et 14 tests réussis, mais chargement FastAPI bloqué par l'import incomplet `crea` ; conflit détecté entre `is_active=True` et les droits de la migration 004. Migration non appliquée.
