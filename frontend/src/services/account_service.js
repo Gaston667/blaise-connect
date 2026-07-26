@@ -24,3 +24,17 @@ export async function getAccounts() {
 
   return response.json()
 }
+/** Récupère les détails complets d'un compte (profil, sécurité, activité). */
+export async function getAccountDetails(accountId) {
+  const response = await fetch(`${ACCOUNTS_API_URL}/${accountId}`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const errorMessage = await getAccountsApiErrorMessage(response)
+    throw new Error(errorMessage)
+  }
+
+  return response.json()
+}

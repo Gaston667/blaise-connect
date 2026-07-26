@@ -119,6 +119,10 @@ export default function AccountsPage({ onNavigate }) {
     loadAccounts()
   }, [])
 
+   function handleAccountClick(accountId) {
+    onNavigate('account-details', accountId)
+   }
+
   function handleSearchChange(event) {
     setSearchQuery(event.target.value)
     setCurrentPage(1)
@@ -367,7 +371,19 @@ export default function AccountsPage({ onNavigate }) {
                   {paginatedAccounts.map((account) => {
                     const inactive = isInactive(account)
                     return (
-                      <tr key={account.id}>
+                      <tr
+  key={account.id}
+  className="comptes-table-row-clickable"
+  onClick={() => handleAccountClick(account.id)}
+  role="button"
+  tabIndex={0}
+  onKeyDown={(event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleAccountClick(account.id)
+    }
+  }}
+>
                         <td>
                           <div className="comptes-table-identity">
                             <span className="comptes-table-avatar">
