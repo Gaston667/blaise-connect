@@ -1,6 +1,11 @@
 # Carnet de stage — BlaiseConnect
 - **20 juillet 2026 — Sprint 1 :** prise en main du dépôt et lecture des documents du projet.
 - Les User Stories actives sont US-001, US-002 et US-025.
+- **26 juillet 2026 - Migration 004 :** migration appliquée avec succès sur la base existante ; `blaise_app` peut insérer matricule, hash et rôle, mais pas `is_active`, et ne possède aucun droit `DELETE`.
+- **26 juillet 2026 - Correction US-002 :** import et route `POST /accounts` restaurés ; `is_active` laissé à la valeur par défaut PostgreSQL ; aucun droit `DELETE` dans la migration 004. Migration non appliquée.
+- **26 juillet 2026 - Audit US-002 :** Compose valide et 14 tests réussis, mais chargement FastAPI bloqué par l'import incomplet `crea` ; conflit détecté entre `is_active=True` et les droits de la migration 004. Migration non appliquée.
+- **26 juillet 2026 - Vérification US-002 :** compilation backend réussie et 14 tests réussis, dont création, doublon, rôles et longueur du mot de passe.
+- **26 juillet 2026 - US-002 :** préparation de `POST /accounts`, hachage, refus des doublons, rôles V1, migration 004 de moindre privilège et tests ; vérifications restant à exécuter.
 - **26 juillet 2026 - US-002 :** restauration des styles mobile first des cartes de statistiques, absents de `App.css` malgré leur utilisation dans la page.
 - **25 juillet 2026 - US-001 :** connexion, restauration de session et déconnexion validées ; US-001 passée au statut Terminé dans le backlog et le Sprint Planning.
 - **25 juillet 2026 - US-002/025 :** accès frontend à la gestion des comptes limité au rôle ADMIN ; menu masqué et navigation refusée aux enseignants.

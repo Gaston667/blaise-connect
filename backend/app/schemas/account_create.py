@@ -15,5 +15,8 @@ class AccountCreate(BaseModel):
     registration_number: RegistrationNumber
 
     # Le service devra hacher le mot de passe immédiatement.
-    password: SecretStr = Field(min_length=1)
+    password: SecretStr = Field(
+        min_length=8,
+        max_length=128,
+    )
     role: AccountRole

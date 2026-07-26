@@ -20,3 +20,4 @@ class AccountResponse(BaseModel):
     role: AccountRole
     is_active: bool
     archived_at: datetime | None
+    created_at: datetime
