@@ -93,4 +93,24 @@ Cette proposition applique le principe du moindre privilège. Elle doit être va
 
 Le rôle `blaise_app` ne doit pas être superutilisateur, propriétaire de la base ou propriétaire des migrations. Un rôle distinct doit appliquer les migrations versionnées.
 
+## Comptes fictifs de développement
 
+Le script `database/init/007_create_test_accounts.sql` prépare 74 comptes :
+
+| Rôle | Matricules | Nombre |
+|---|---|---:|
+| `ADMIN` | `a000001` à `a000004` | 4 |
+| `TEACHER` | `e000001` à `e000010` | 10 |
+| `STUDENT` | `u000001` à `u000030` | 30 |
+| `GUARDIAN` | `p000001` à `p000030` | 30 |
+
+Ils utilisent uniquement en développement le mot de passe commun `test@1234`, stocké dans PostgreSQL sous forme de hash Argon2. Le mot de passe en clair n'est jamais enregistré dans `accounts`.
+
+Mesures obligatoires :
+
+- ne jamais exécuter ce script en production ;
+- ne jamais réutiliser ce mot de passe pour un compte réel ;
+- conserver `database/local/compte_fictif.txt` hors de Git ;
+- remplacer ou désactiver ces comptes avant tout déploiement accessible publiquement.
+
+Le script est monté après les migrations et ne s'exécute automatiquement que pendant l'initialisation d'un nouveau volume PostgreSQL.

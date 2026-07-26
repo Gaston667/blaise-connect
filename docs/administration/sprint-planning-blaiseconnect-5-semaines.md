@@ -29,7 +29,7 @@
 |---|---|---|---|---|---|
 | US-001 | 22/07/2026 | Connexion et déconnexion | En tant qu’utilisateur, je veux me connecter avec mon compte personnel afin d’accéder aux fonctionnalités autorisées par mon rôle. | 🟩 Terminé | `backend/app/routes/auth.py`, `backend/app/services/auth_service.py`, `backend/app/services/session_service.py`, `frontend/src/pages/login_page.jsx`, `frontend/src/pages/home_page.jsx`, `frontend/src/services/auth_service.js`, `backend/tests/services/` |
 | US-002 | 23/07/2026 | Gestion des comptes et rôles | En tant qu’administrateur, je veux gérer les comptes utilisateurs afin de contrôler l’accès à BlaiseConnect. | 🟨 En cours | `backend/app/models/account.py`, `backend/app/schemas/account_*.py`, `backend/app/routes/accounts.py`, `backend/app/services/account_service.py`, `frontend/src/App.jsx`, `frontend/src/layouts/main_layout.jsx`, `frontend/src/components/`, `frontend/src/pages/accounts_page.jsx`, `frontend/src/styles/App.css` |
-| US-025 | 24/07/2026 | Sécurité des accès | En tant qu’établissement, je veux sécuriser les accès et les sessions afin de protéger les données scolaires. | 🟨 En cours | `backend/app/core/security.py`, `backend/app/core/authentication.py`, `backend/app/core/session_cookie_config.py`, `database/migration/002_create_auth_sessions.sql`, `database/migration/003_grant_application_privileges.sql`, `compose.yaml` |
+| US-025 | 24/07/2026 | Sécurité des accès | En tant qu’établissement, je veux sécuriser les accès et les sessions afin de protéger les données scolaires. | 🟨 En cours | `backend/app/core/security.py`, `backend/app/core/authentication.py`, `backend/app/core/session_cookie_config.py`, `database/migration/001_grant_application_privileges.sql`, `database/migration/002_create_accounts_and_profiles.sql`, `database/migration/003_grant_account_profile_privileges.sql`, `compose.yaml` |
 
 ---
 
@@ -39,10 +39,12 @@
 
 | US | Deadline | Nom de l’US | Description de l’US | Statut | Fichiers concernés |
 |---|---|---|---|---|---|
-| US-003 | 28/07/2026 | Années et périodes scolaires | En tant qu’administrateur, je veux gérer les années et périodes scolaires afin d’organiser les données dans le temps. | 🟥 À faire | À compléter pendant le développement |
-| US-004 | 29/07/2026 | Gestion des classes | En tant qu’administrateur, je veux gérer les classes afin d’organiser les élèves et les enseignements. | 🟥 À faire | À compléter pendant le développement |
-| US-005 | 30/07/2026 | Gestion des matières | En tant qu’administrateur, je veux gérer les matières et leurs coefficients afin de configurer les enseignements et les calculs. | 🟥 À faire | À compléter pendant le développement |
-| US-006 | 31/07/2026 | Gestion des enseignants | En tant qu’administrateur, je veux gérer les enseignants afin de conserver leurs informations et préparer leurs affectations. | 🟥 À faire | À compléter pendant le développement |
+| US-003 | 28/07/2026 | Années et périodes scolaires | En tant qu’administrateur, je veux gérer les années et périodes scolaires afin d’organiser les données dans le temps. | 🟥 À faire | `backend/app/models/school_year.py`, `backend/app/models/school_period.py`, `backend/app/schemas/school_year_*.py`, `backend/app/schemas/school_period_*.py`, `backend/app/routes/school_years.py`, `backend/app/services/school_year_service.py`, `frontend/src/pages/school_years_page.jsx`, `frontend/src/services/school_year_service.js` |
+| US-004 | 29/07/2026 | Gestion des classes | En tant qu’administrateur, je veux gérer les classes afin d’organiser les élèves et les enseignements. | 🟥 À faire | `backend/app/models/school_class.py`, `backend/app/schemas/school_class_*.py`, `backend/app/routes/school_classes.py`, `backend/app/services/school_class_service.py`, `frontend/src/pages/school_classes_page.jsx`, `frontend/src/services/school_class_service.js` |
+| US-005 | 30/07/2026 | Gestion des matières | En tant qu’administrateur, je veux gérer les matières et leurs coefficients afin de configurer les enseignements et les calculs. | 🟥 À faire | `backend/app/models/subject.py`, `backend/app/models/class_subject.py`, `backend/app/schemas/subject_*.py`, `backend/app/schemas/class_subject_*.py`, `backend/app/routes/subjects.py`, `backend/app/services/subject_service.py`, `frontend/src/pages/subjects_page.jsx`, `frontend/src/services/subject_service.js` |
+| US-006 | 31/07/2026 | Gestion des enseignants | En tant qu’administrateur, je veux gérer les enseignants afin de conserver leurs informations et préparer leurs affectations. | 🟥 À faire | `backend/app/models/teacher.py`, `backend/app/schemas/teacher_*.py`, `backend/app/routes/teachers.py`, `backend/app/services/teacher_service.py`, `frontend/src/pages/teachers_page.jsx`, `frontend/src/services/teacher_service.js` |
+
+**Fichiers transversaux du Sprint 2 :** `docs/diagramme/diagramme_mvc_sprint_2.plantuml`, `docs/diagramme/diagrame_classe.plantuml`, `docs/administration/journal-des-decisions-blaiseconnect.md`.
 
 ---
 

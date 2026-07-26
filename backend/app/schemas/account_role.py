@@ -1,6 +1,12 @@
-"""Type représentant les rôles de compte autorisés dans la Version 1."""
+"""Énumération de tous les rôles stockés dans la table accounts."""
 
-from typing import Literal
+from enum import StrEnum
 
 
-AccountRole = Literal["ADMIN", "TEACHER"]
+class AccountRole(StrEnum):
+    """Rôles pouvant être lus et retournés par l'API."""
+
+    ADMIN = "ADMIN"
+    TEACHER = "TEACHER"
+    STUDENT = "STUDENT"
+    GUARDIAN = "GUARDIAN"

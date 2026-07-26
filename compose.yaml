@@ -33,10 +33,14 @@ services:
       # Crée le rôle applicatif avant l'exécution des migrations.
       - ./database/init/000_create_application_role.sh:/docker-entrypoint-initdb.d/000_create_application_role.sh:ro
       # Applique les migrations dans l'ordre lors de la première initialisation.
-      - ./database/migration/001_create_accounts_and_profiles.sql:/docker-entrypoint-initdb.d/001_create_accounts_and_profiles.sql:ro
-      - ./database/migration/002_create_auth_sessions.sql:/docker-entrypoint-initdb.d/002_create_auth_sessions.sql:ro
-      - ./database/migration/003_grant_application_privileges.sql:/docker-entrypoint-initdb.d/003_grant_application_privileges.sql:ro
-      - ./database/migration/004_grant_account_creation.sql:/docker-entrypoint-initdb.d/004_grant_account_creation.sql:ro
+      - ./database/migration/001_grant_application_privileges.sql:/docker-entrypoint-initdb.d/001_grant_application_privileges.sql:ro
+      - ./database/migration/002_create_accounts_and_profiles.sql:/docker-entrypoint-initdb.d/002_create_accounts_and_profiles.sql:ro
+      - ./database/migration/003_grant_account_profile_privileges.sql:/docker-entrypoint-initdb.d/003_grant_account_profile_privileges.sql:ro
+      - ./database/migration/004_create_school_structure.sql:/docker-entrypoint-initdb.d/004_create_school_structure.sql:ro
+      - ./database/migration/005_grant_auth_session_insert.sql:/docker-entrypoint-initdb.d/005_grant_auth_session_insert.sql:ro
+      - ./database/migration/006_grant_account_insert_nullable_columns.sql:/docker-entrypoint-initdb.d/006_grant_account_insert_nullable_columns.sql:ro
+      # Ajoute les comptes fictifs après la création complète du schéma.
+      - ./database/init/007_create_test_accounts.sql:/docker-entrypoint-initdb.d/007_create_test_accounts.sql:ro
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
     healthcheck:
       # pg_isready utilise l'utilisateur et la base définis dans .env.

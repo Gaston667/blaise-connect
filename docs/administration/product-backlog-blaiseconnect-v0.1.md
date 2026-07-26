@@ -118,8 +118,8 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
 - **Statut :** À étudier.
-- **Règles de gestion :** les données historiques restent attachées à leur année ; le découpage en trimestres ou semestres doit être confirmé.
-- **Critères d’acceptation :** une année peut être créée ; ses dates et périodes sont enregistrées ; une année utilisée ne peut pas être supprimée sans contrôle ; l’historique reste consultable.
+- **Règles de gestion :** les données historiques restent attachées à leur année ; une année peut être courante sans période ; l'administrateur choisit la fin de chaque période et son début est calculé à partir de l'année ou de la période précédente.
+- **Critères d’acceptation :** une année peut être créée et activée sans période ; les périodes sont ajoutées progressivement sans chevauchement ni trou ; une année utilisée ne peut pas être supprimée sans contrôle ; l’historique reste consultable.
 - **Dépendances :** décision QD-5.
 - **Tâches techniques :** modèles année et période ; API ; écrans de gestion ; contraintes de dates ; tests.
 - **Cas d’erreur :** années en doublon, périodes qui se chevauchent, dates incohérentes, suppression d’une année utilisée.
@@ -645,9 +645,9 @@ Les estimations comprennent le développement, les tests et la documentation.
 | QD-2 | Existe-t-il déjà des fichiers contenant les élèves et enseignants ? | US-006, US-008, US-028 | À étudier |
 | QD-3 | Combien y a-t-il d’élèves, d’enseignants et de classes au lycée ? | Performance et déploiement | À étudier |
 | QD-4 | Quelles classes participeront au lancement pilote ? | US-028 | À étudier |
-| QD-5 | L’année est-elle divisée en trimestres ou en semestres ? | US-003, US-013, US-015, US-021 | À étudier |
+| QD-5 | L’année est-elle divisée en trimestres ou en semestres ? | US-003, US-013, US-015, US-021 | Validée par D-004/D-005 : périodes configurables par l’administrateur |
 | QD-6 | Quel barème est utilisé pour les notes ? | US-013, US-014, US-015 | À étudier |
-| QD-7 | Quels coefficients et règles d’arrondi sont appliqués ? | US-005, US-013, US-015 | À étudier |
+| QD-7 | Quels coefficients et règles d’arrondi sont appliqués ? | US-005, US-013, US-015 | Partiellement validée par D-016 : coefficients configurables ; règles d’arrondi à confirmer |
 | QD-8 | Existe-t-il un modèle officiel de bulletin ? | US-021, US-022 | À étudier |
 | QD-9 | Quels justificatifs d’absence sont acceptés ? | US-019, US-020 | À étudier |
 | QD-10 | Quelles informations sont obligatoires sur la fiche d’un élève ? | US-008 | À étudier |
