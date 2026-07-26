@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -eu
 
 # Crée le compte utilisé par FastAPI sans lui donner de privilèges administrateur.

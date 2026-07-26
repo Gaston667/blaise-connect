@@ -696,15 +696,312 @@
   font-size: var(--font-size-xs);
 }
 
-.comptes-placeholder {
-  min-height: 280px;
+/* Liste des comptes */
+
+.comptes-list {
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.comptes-toolbar {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: var(--border-default);
+}
+
+.comptes-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--input-height-lg, 44px);
+  padding-inline: var(--space-3);
+  background: var(--input-bg, var(--color-surface));
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.comptes-search-icon {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+}
+
+.comptes-search-input {
+  width: 100%;
+  color: var(--input-text, var(--color-text-primary));
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: var(--font-size-md);
+}
+
+.comptes-filter-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.comptes-filter-select {
+  width: 100%;
+  min-height: var(--input-height-lg, 44px);
+  padding: 0 var(--space-8) 0 var(--space-3);
+  color: var(--color-text-primary);
+  background: var(--input-bg, var(--color-surface));
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  appearance: none;
+  cursor: pointer;
+}
+
+.comptes-filter-icon {
+  position: absolute;
+  right: var(--space-3);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.comptes-export-button {
+  min-height: var(--button-height-lg, 44px);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--space-2);
+  padding: var(--button-padding-lg, 0 var(--space-4));
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.comptes-export-button:hover {
+  background: var(--color-primary-lighter);
+}
+
+.comptes-table-status {
+  padding: var(--space-6);
+  color: var(--color-text-secondary);
   text-align: center;
 }
 
+.comptes-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.comptes-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.comptes-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+.comptes-table th,
+.comptes-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.comptes-table th {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: var(--border-default);
+}
+
+.comptes-table tbody tr {
+  border-bottom: var(--border-default);
+}
+
+.comptes-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.comptes-table-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.comptes-table-avatar {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.comptes-role-badge {
+  display: inline-flex;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.comptes-role-badge-admin {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.comptes-role-badge-teacher {
+  color: var(--color-warning);
+  background: var(--color-warning-light);
+}
+
+.comptes-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.comptes-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+}
+
+.comptes-status-active {
+  color: var(--color-success);
+}
+
+.comptes-status-active .comptes-status-dot {
+  background: var(--color-success);
+}
+
+.comptes-status-inactive {
+  color: var(--color-danger);
+}
+
+.comptes-status-inactive .comptes-status-dot {
+  background: var(--color-danger);
+}
+
+.comptes-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.comptes-action-button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: not-allowed;
+}
+
+.comptes-action-edit {
+  color: var(--color-primary);
+}
+
+.comptes-action-lock {
+  color: var(--color-text-secondary);
+}
+
+.comptes-action-delete {
+  color: var(--color-danger);
+}
+
+.comptes-pagination {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-4);
+  border-top: var(--border-default);
+}
+
+.comptes-pagination-info {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.comptes-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.comptes-pagination-button {
+  min-width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding-inline: var(--space-2);
+  color: var(--color-text-primary);
+  background: transparent;
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.comptes-pagination-button:hover:not(:disabled) {
+  background: var(--color-primary-lighter);
+}
+
+.comptes-pagination-button:disabled {
+  color: var(--color-text-disabled, var(--color-text-secondary));
+  cursor: not-allowed;
+}
+
+.comptes-pagination-button-active {
+  color: var(--color-text-on-primary);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.comptes-pagination-ellipsis {
+  padding-inline: var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+@media (min-width: 768px) {
+  .comptes-toolbar {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .comptes-search-wrapper {
+    flex: 1;
+  }
+
+  .comptes-filter-wrapper {
+    width: 220px;
+  }
+
+  .comptes-pagination {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
 @media (min-width: 480px) {
   .comptes-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
