@@ -1,5 +1,5 @@
 -- ========================================
--- MIGRATION 001 : Comptes et profils utilisateurs
+-- MIGRATION 002 : Comptes, sessions et profils utilisateurs
 -- ========================================
 -- Objectif : Créer la base d'authentification et les profils de BlaiseConnect.
 --
@@ -20,6 +20,12 @@ BEGIN;
 -- Charge l'extension pgcrypto pour générer des UUID aléatoires
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Le statut scolaire est indépendant de l'état du compte de connexion.
+CREATE TYPE student_status_enum AS ENUM (
+    'ACTIVE',
+    'INACTIVE',
+    'ARCHIVED'
+);
 
 -- ========================================
 -- TABLE 1 : accounts (Comptes d'accès)
@@ -49,7 +55,8 @@ CREATE TABLE accounts (
     -- Valeurs autorisées : STUDENT, TEACHER, ADMIN, GUARDIAN
     role varchar(20) NOT NULL,
 
-    -- Indicateur : compte actif ou archivé
+    -- Autorisation durable de connexion. Le verrouillage temporaire est
+    -- représenté séparément par locked_until.
     is_active boolean NOT NULL DEFAULT true,
 
     -- Protection contre les attaques par force brute
@@ -123,6 +130,9 @@ CREATE TABLE students (
 
     -- Données administratives
     admission_date date NOT NULL,
+    status student_status_enum NOT NULL DEFAULT 'ACTIVE',
+    photo_path varchar(500),
+    archived_at timestamptz,
 
     -- Audit
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -146,7 +156,18 @@ CREATE TABLE students (
     -- Cohérence logique : date de naissance <= date d'admission
     -- (impossible d'admettre quelqu'un après sa naissance... dans le passé)
     CONSTRAINT ck_students_birth_date
-        CHECK (birth_date IS NULL OR birth_date <= admission_date)
+        CHECK (birth_date IS NULL OR birth_date <= admission_date),
+
+    CONSTRAINT ck_students_archived_at
+        CHECK (archived_at IS NULL OR archived_at >= created_at),
+
+    -- ARCHIVED possède une date d'archivage ; ACTIVE et INACTIVE n'en ont pas.
+    CONSTRAINT ck_students_status_archived_at
+        CHECK (
+            (status = 'ARCHIVED' AND archived_at IS NOT NULL)
+            OR
+            (status IN ('ACTIVE', 'INACTIVE') AND archived_at IS NULL)
+        )
 );
 
 
@@ -157,11 +178,14 @@ CREATE TABLE teachers (
     first_name varchar(100) NOT NULL,
     last_name varchar(100) NOT NULL,
     birth_date date,
+    gender varchar(20),
     email varchar(254),
     phone varchar(30),
     address text,
     hire_date date NOT NULL,
     qualification text,
+    photo_path varchar(500),
+    archived_at timestamptz,
 
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -180,7 +204,10 @@ CREATE TABLE teachers (
 
     -- Date naissance cohérente (avant ou égale à la date d'embauche)
     CONSTRAINT ck_teachers_birth_date
-        CHECK (birth_date IS NULL OR birth_date <= hire_date)
+        CHECK (birth_date IS NULL OR birth_date <= hire_date),
+
+    CONSTRAINT ck_teachers_archived_at
+        CHECK (archived_at IS NULL OR archived_at >= created_at)
 );
 
 
@@ -190,11 +217,14 @@ CREATE TABLE administrators (
     account_id uuid NOT NULL UNIQUE,
     first_name varchar(100) NOT NULL,
     last_name varchar(100) NOT NULL,
+    gender varchar(20),
     email varchar(254),
     phone varchar(30),
     address text,
     hire_date date NOT NULL,
     job_title varchar(100) NOT NULL,
+    photo_path varchar(500),
+    archived_at timestamptz,
 
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -213,7 +243,10 @@ CREATE TABLE administrators (
 
     -- Fonction non-vide
     CONSTRAINT ck_administrators_job_title
-        CHECK (char_length(btrim(job_title)) > 0)
+        CHECK (char_length(btrim(job_title)) > 0),
+
+    CONSTRAINT ck_administrators_archived_at
+        CHECK (archived_at IS NULL OR archived_at >= created_at)
 );
 
 -- TABLE : guardians
@@ -224,11 +257,14 @@ CREATE TABLE guardians (
     account_id uuid UNIQUE,
     first_name varchar(100) NOT NULL,
     last_name varchar(100) NOT NULL,
+    gender varchar(20),
     email varchar(254),
     phone varchar(30) NOT NULL,
     address text,
     occupation varchar(150),
     employer varchar(150),
+    photo_path varchar(500),
+    archived_at timestamptz,
 
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -243,8 +279,40 @@ CREATE TABLE guardians (
         CHECK (char_length(btrim(first_name)) > 0),
 
     CONSTRAINT ck_guardians_last_name
-        CHECK (char_length(btrim(last_name)) > 0)
+        CHECK (char_length(btrim(last_name)) > 0),
+
+    CONSTRAINT ck_guardians_archived_at
+        CHECK (archived_at IS NULL OR archived_at >= created_at)
 );
+
+CREATE TABLE auth_sessions (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    account_id uuid NOT NULL,
+    session_token_hash char(64) NOT NULL,
+    last_activity_at timestamptz NOT NULL DEFAULT now(),
+    revoked_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT pk_auth_sessions PRIMARY KEY (id),
+    CONSTRAINT fk_auth_sessions_account
+        FOREIGN KEY (account_id)
+        REFERENCES accounts(id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_auth_sessions_token_hash UNIQUE (session_token_hash),
+    CONSTRAINT ck_auth_sessions_token_hash
+        CHECK (session_token_hash ~ '^[0-9a-f]{64}$'),
+    CONSTRAINT ck_auth_sessions_last_activity
+        CHECK (last_activity_at >= created_at),
+    CONSTRAINT ck_auth_sessions_revoked_at
+        CHECK (revoked_at IS NULL OR revoked_at >= created_at)
+);
+
+CREATE INDEX idx_auth_sessions_account_id
+    ON auth_sessions (account_id);
+
+CREATE UNIQUE INDEX uq_teachers_email_ci
+    ON teachers (lower(email))
+    WHERE email IS NOT NULL;
 
 
 -- =========================================================
@@ -372,24 +440,118 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER trg_students_check_account_role
-BEFORE INSERT OR UPDATE ON students
+CREATE CONSTRAINT TRIGGER trg_students_check_account_role
+AFTER INSERT OR UPDATE ON students
+DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
 EXECUTE FUNCTION check_profile_account_role('STUDENT');
 
-CREATE TRIGGER trg_teachers_check_account_role
-BEFORE INSERT OR UPDATE ON teachers
+CREATE CONSTRAINT TRIGGER trg_teachers_check_account_role
+AFTER INSERT OR UPDATE ON teachers
+DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
 EXECUTE FUNCTION check_profile_account_role('TEACHER');
 
-CREATE TRIGGER trg_administrators_check_account_role
-BEFORE INSERT OR UPDATE ON administrators
+CREATE CONSTRAINT TRIGGER trg_administrators_check_account_role
+AFTER INSERT OR UPDATE ON administrators
+DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
 EXECUTE FUNCTION check_profile_account_role('ADMIN');
 
-CREATE TRIGGER trg_guardians_check_account_role
-BEFORE INSERT OR UPDATE ON guardians
+CREATE CONSTRAINT TRIGGER trg_guardians_check_account_role
+AFTER INSERT OR UPDATE ON guardians
+DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
 EXECUTE FUNCTION check_profile_account_role('GUARDIAN');
+
+-- Un profil archivé avec compte exige un compte inactif et archivé.
+CREATE OR REPLACE FUNCTION check_archived_profile_account()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    linked_account_active boolean;
+    linked_account_archived_at timestamptz;
+BEGIN
+    IF NEW.archived_at IS NULL OR NEW.account_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT a.is_active, a.archived_at
+      INTO linked_account_active, linked_account_archived_at
+      FROM accounts AS a
+     WHERE a.id = NEW.account_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23503',
+            MESSAGE = 'Le compte du profil archivé est introuvable.';
+    END IF;
+
+    IF linked_account_active OR linked_account_archived_at IS NULL THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'Le compte lié doit être inactif et archivé avant la fin de la transaction.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION check_account_archived_profiles()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.is_active = false AND NEW.archived_at IS NOT NULL THEN
+        RETURN NEW;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM students AS s
+         WHERE s.account_id = NEW.id AND s.archived_at IS NOT NULL
+        UNION ALL
+        SELECT 1 FROM teachers AS t
+         WHERE t.account_id = NEW.id AND t.archived_at IS NOT NULL
+        UNION ALL
+        SELECT 1 FROM administrators AS a
+         WHERE a.account_id = NEW.id AND a.archived_at IS NOT NULL
+        UNION ALL
+        SELECT 1 FROM guardians AS g
+         WHERE g.account_id = NEW.id AND g.archived_at IS NOT NULL
+    ) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'Un compte lié à un profil archivé doit rester inactif et archivé.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER trg_students_check_archived_account
+AFTER INSERT OR UPDATE OF account_id, archived_at ON students
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_archived_profile_account();
+
+CREATE CONSTRAINT TRIGGER trg_teachers_check_archived_account
+AFTER INSERT OR UPDATE OF account_id, archived_at ON teachers
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_archived_profile_account();
+
+CREATE CONSTRAINT TRIGGER trg_administrators_check_archived_account
+AFTER INSERT OR UPDATE OF account_id, archived_at ON administrators
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_archived_profile_account();
+
+CREATE CONSTRAINT TRIGGER trg_guardians_check_archived_account
+AFTER INSERT OR UPDATE OF account_id, archived_at ON guardians
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_archived_profile_account();
+
+CREATE CONSTRAINT TRIGGER trg_accounts_check_archived_profiles
+AFTER UPDATE OF is_active, archived_at ON accounts
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_account_archived_profiles();
 
 COMMIT;

@@ -1,5 +1,7 @@
 @startuml
-title BlaiseConnect - Schéma simplifié par groupe
+title BlaiseConnect - Schéma cible simplifié par groupe
+
+note "Nouvelle séquence consolidée 001 à 004 préparée mais non exécutée.\nLe diagramme présente le schéma obtenu après cette séquence." as DatabaseState
 
 top to bottom direction
 hide circle
@@ -27,8 +29,20 @@ package "ACCÈS À L'APPLICATION" #FFEBEE {
         * mot_de_passe_hash : texte
         * rôle : texte
         * actif : booléen
+        * tentatives_connexion_échouées : entier
         verrouillé_jusqu_au : date et heure
+        dernière_connexion_le : date et heure
         archivé_le : date et heure
+    }
+
+    entity "SESSIONS D'AUTHENTIFICATION" as sessions #FFCDD2 {
+        * id : UUID <<PK>>
+        --
+        * compte_id : UUID <<FK>>
+        * hash_jeton_session : texte <<UNIQUE>>
+        * dernière_activité_le : date et heure
+        révoquée_le : date et heure
+        * créée_le : date et heure
     }
 }
 
@@ -41,11 +55,14 @@ package "ÉLÈVES" #FFF3E0 {
         * prénom : texte
         * nom : texte
         date_de_naissance : date
-        sexe : texte
+        genre : texte
         email : texte
         téléphone : texte
         adresse : texte
         * date_admission : date
+        * statut : student_status_enum
+        photo_path : texte
+        archivé_le : date et heure
     }
 }
 
@@ -58,11 +75,14 @@ package "ENSEIGNANTS" #E8F5E9 {
         * prénom : texte
         * nom : texte
         date_de_naissance : date
+        genre : texte
         email : texte
         téléphone : texte
         adresse : texte
         * date_embauche : date
         qualification : texte
+        photo_path : texte
+        archivé_le : date et heure
     }
 }
 
@@ -74,11 +94,14 @@ package "ADMINISTRATEURS" #E3F2FD {
         * compte_id : UUID <<FK, UNIQUE>>
         * prénom : texte
         * nom : texte
+        genre : texte
         email : texte
         téléphone : texte
         adresse : texte
         * date_embauche : date
         * fonction : texte
+        photo_path : texte
+        archivé_le : date et heure
     }
 }
 
@@ -90,11 +113,14 @@ package "RESPONSABLES" #F3E5F5 {
         compte_id : UUID <<FK, UNIQUE>>
         * prénom : texte
         * nom : texte
+        genre : texte
         email : texte
         * téléphone : texte
         adresse : texte
         profession : texte
         employeur : texte
+        photo_path : texte
+        archivé_le : date et heure
     }
 }
 
@@ -108,6 +134,7 @@ package "ORGANISATION SCOLAIRE" #F5F5F5 {
         * date_fin : date
         * année_actuelle : booléen
         clôturée_le : date et heure
+        clôturée_par_compte_id : UUID <<FK>>
     }
 
     entity "PÉRIODES DE BULLETIN" as periodes #E0E0E0 {
@@ -122,19 +149,11 @@ package "ORGANISATION SCOLAIRE" #F5F5F5 {
     entity "NIVEAUX" as niveaux #E0E0E0 {
         * id : UUID <<PK>>
         --
-        * code : texte <<UNIQUE>>
+        * code : class_level_code_enum <<UNIQUE>>
         * nom : texte
-        * catégorie : texte
+        * catégorie : education_stage_enum
         * ordre_affichage : entier
         * actif : booléen
-    }
-
-    entity "PROMOTIONS" as promotions #E0E0E0 {
-        * id : UUID <<PK>>
-        --
-        * nom : texte
-        description : texte
-        année_sortie_prévue : entier
     }
 
     entity "CLASSES" as classes #E0E0E0 {
@@ -142,8 +161,8 @@ package "ORGANISATION SCOLAIRE" #F5F5F5 {
         --
         * année_scolaire_id : UUID <<FK>>
         * niveau_id : UUID <<FK>>
-        promotion_id : UUID <<FK>>
-        groupe : texte
+        * professeur_principal_id : UUID <<FK>>
+        * groupe : texte
         capacité : entier
     }
 }
@@ -157,7 +176,7 @@ package "INSCRIPTIONS ET FAMILLES" #FFFDE7 {
         * classe_id : UUID <<FK>>
         * date_début : date
         date_fin : date
-        raison_fin : texte
+        raison_fin : enrollment_end_reason_enum
     }
 
     entity "ÉLÈVES - RESPONSABLES" as liens_famille #FFF9C4 {
@@ -176,12 +195,14 @@ comptes "1" -- "0..1" eleves
 comptes "1" -- "0..1" enseignants
 comptes "1" -- "0..1" administrateurs
 comptes "0..1" -- "0..1" responsables
+comptes "1" -- "0..*" sessions
 
 annees "1" -- "0..*" periodes
 annees "1" -- "0..*" classes
 
 niveaux "1" -- "0..*" classes
-promotions "0..1" -- "0..*" classes
+enseignants "1" -- "0..*" classes : professeur principal
+comptes "1" -- "0..*" annees : clôture
 
 eleves "1" -- "0..*" inscriptions
 classes "1" -- "0..*" inscriptions
@@ -335,7 +356,7 @@ evaluations "1" -- "0..*" notes
 inscriptions "1" -- "0..*" notes
 
 affectations_enseignants "1" -- "0..*" evenements_presence
-evenements_presence "1" -- "1..*" absences_retards
+evenements_presence "1" -- "0..*" absences_retards
 inscriptions "1" -- "0..*" absences_retards
 comptes "1" .. "0..*" absences_retards : saisie / vérification
 

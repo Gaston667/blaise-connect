@@ -1,6 +1,14 @@
 # Carnet de stage — BlaiseConnect
 - **20 juillet 2026 — Sprint 1 :** prise en main du dépôt et lecture des documents du projet.
 - Les User Stories actives sont US-001, US-002 et US-025.
+- **26 juillet 2026 - Planning Sprint 2 :** fichiers métier renseignés pour US-003 à US-006 et fichiers transversaux de conception ajoutés au Sprint Planning.
+- **Correction du 26 juillet 2026 - Base Sprint 2 :** retour temporaire au schéma du Sprint 1 avant la consolidation des migrations.
+- **26 juillet 2026 - Vérification finale base Sprint 2 :** FastAPI et compilation réussis, 19 tests réussis, lint/build frontend et Compose valides, privilèges contrôlés et zéro donnée temporaire restante.
+- **26 juillet 2026 - Base de données :** anciennes migrations 001 à 008 consolidées en quatre fichiers ordonnés ; Compose actualisé, nouvelle séquence non exécutée.
+- **26 juillet 2026 - Périodes :** une année active peut exister sans période ; chaque fin est choisie par l'administrateur et le début suivant est calculé automatiquement.
+- **26 juillet 2026 - Niveaux :** codes et cycles uniformisés avec des énumérations PostgreSQL/FastAPI et une correspondance niveau-cycle contrôlée.
+- **26 juillet 2026 - Vérification préparation Sprint 2 :** compilation et imports backend réussis, lint et build frontend réussis ; validation automatique PlantUML impossible car la CLI n’est pas installée.
+- **26 juillet 2026 - Préparation Sprint 2 :** diagramme MVC global actualisé, diagramme détaillé Sprint 2 créé et ossature US-003 à US-006 ajoutée ; routes non montées, services non implémentés et migrations non créées en attente des validations QD-5/QD-7. Sprint Planning complété avec les fichiers concernés.
 - **26 juillet 2026 - US-002 frontend :** survol visuel ajouté aux lignes du tableau pour préparer leur future navigation vers une fiche de compte.
 - **26 juillet 2026 - US-002 frontend :** fil d’Ariane `Accueil > Comptes` rendu navigable ; ouverture future d’une fiche de compte depuis une ligne conservée comme prochaine étape.
 - **26 juillet 2026 - US-002 frontend :** colonne Actions et contrôles inactifs retirés du tableau des comptes.

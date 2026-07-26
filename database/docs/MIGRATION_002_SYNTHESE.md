@@ -1,4 +1,4 @@
-# Migration 001 : Synthèse de conception
+# Migration 002 : Synthèse des comptes, sessions et profils
 
 ## Objectif
 Initialiser les cinq tables fondamentales pour la gestion des comptes et profils d'utilisateurs BlaiseConnect.
@@ -27,12 +27,13 @@ Initialiser les cinq tables fondamentales pour la gestion des comptes et profils
 **Protections :**
 - `registration_number` : immuable après création du profil associé (trigger)
 - `role` : immuable (trigger)
-- Format regex : `^[A-Z0-9][A-Z0-9_-]{2,49}$` (CHECK)
+- Format SQL actuel : `^[a-z][a-z0-9]{6}$` (CHECK)
 
 ### 2–5. Profils
 
 #### `students` (élèves)
 - `account_id` : FK unique vers accounts (rôle STUDENT)
+- `status` : situation scolaire indépendante du compte (`ACTIVE`, `INACTIVE`, `ARCHIVED`)
 - Admission, dates de naissance, coordonnées optionnelles
 - Trigger : vérification de compatibilité rôle/table
 
@@ -122,7 +123,7 @@ Vérifie que le compte associé à un profil possède le rôle attendu.
 ### Horodatages
 - Type `timestamptz` : UTC obligatoire
 - Conversion au fuseau local : responsabilité frontend
-- Cohérence : `updated_at ≥ created_at`, tous les timestamps ≥ `created_at`
+- `updated_at` est actualisé automatiquement par trigger
 
 ---
 
@@ -140,7 +141,7 @@ Vérifie que le compte associé à un profil possède le rôle attendu.
 - account_id : FK, unique
 - Noms : non-vides après trim
 - Dates : cohérence (naissance ≤ admission pour élèves, etc.)
-- Champs optionnels : non-vides si renseignés
+- Les champs optionnels peuvent être `NULL`; certains acceptent encore une chaîne vide
 
 ### Triggers
 - **`enforce_profile_account_role`** : vérification multi-table deferrable
@@ -152,8 +153,8 @@ Vérifie que le compte associé à un profil possède le rôle attendu.
 ## Notes importantes
 
 1. **Matricules générés par FastAPI**, pas PostgreSQL
-2. **Aucune colonne de genre** : valeur à confirmer (à quoi elle sert ? qui valide ?)
-3. **Format applicatif V1 du matricule** : `a`, `e`, `u` ou `p`, suivi de six chiffres, conformément à la décision D-002 ; la migration 001 reste plus permissive et devra être resserrée par une nouvelle migration
+2. **Profils complets** : les quatre profils possèdent `gender`, `photo_path` et `archived_at`, tous facultatifs
+3. **Format applicatif V1 envisagé du matricule** : `a`, `e`, `u` ou `p`, suivi de six chiffres ; la migration 001 reste plus permissive et le format définitif doit encore être validé
 4. **Pas d'historique de connexions** : `last_login_at` est un snapshot, pas un audit complet
 5. **Pas de gestion du consentement RGPD** : à prévoir ultérieurement si nécessaire
 6. **Archivage ≠ suppression** : données conservées, lien compte/profil maintenu
@@ -162,8 +163,8 @@ Vérifie que le compte associé à un profil possède le rôle attendu.
 
 ## Points à valider avant déploiement
 
-- [x] Format exact du matricule : `^[aeup][0-9]{6}$`, validé dans la décision D-002
-- [ ] Valeurs possibles de `gender` (ou le supprimer ?)
+- [ ] Format exact du matricule : confirmer `^[aeup][0-9]{6}$` avant une migration corrective
+- [ ] Valeurs possibles de `gender`
 - [ ] Politique de rôles : formation multi-rôles possible ? (réponse : non, deux comptes requis)
 - [ ] Durée du verrouillage après N échecs (implémenté en application, déjà défini ?)
 
@@ -179,4 +180,4 @@ Vérifie que le compte associé à un profil possède le rôle attendu.
 
 ---
 
-**Status :** Documentation complète. Migration prête pour exécution et tests.
+**Statut :** migration 002 consolidée et non exécutée.

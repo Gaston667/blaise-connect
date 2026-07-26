@@ -1,0 +1,233 @@
+@startuml
+title BlaiseConnect - Sprint 2 - Structure scolaire
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype ortho
+
+package "VUE - React" #E8F5E9 {
+  class "pages/school_years_page.jsx" as SchoolYearsPage {
+    - schoolYears
+    - periods
+    - isLoading
+    - errorMessage
+    + loadSchoolYears()
+    + handleCreateSchoolYear(data)
+    + handleCreateSchoolPeriod(data)
+  }
+  class "services/school_year_service.js" as FrontSchoolYearService {
+    + listSchoolYears()
+    + createSchoolYear(data)
+    + createSchoolPeriod(yearId, data)
+  }
+
+  class "pages/school_classes_page.jsx" as SchoolClassesPage {
+    - schoolClasses
+    - searchQuery
+    - isLoading
+    + loadSchoolClasses()
+    + handleCreateSchoolClass(data)
+  }
+  class "services/school_class_service.js" as FrontSchoolClassService {
+    + listSchoolClasses(filters)
+    + createSchoolClass(data)
+    + updateSchoolClass(id, data)
+  }
+
+  class "pages/subjects_page.jsx" as SubjectsPage {
+    - subjects
+    - isLoading
+    + loadSubjects()
+    + handleCreateSubject(data)
+    + handleAssignSubject(data)
+  }
+  class "services/subject_service.js" as FrontSubjectService {
+    + listSubjects()
+    + createSubject(data)
+    + updateSubject(id, data)
+    + assignSubjectToClass(data)
+  }
+
+  class "pages/teachers_page.jsx" as TeachersPage {
+    - teachers
+    - searchQuery
+    - isLoading
+    + loadTeachers()
+    + handleCreateTeacher(data)
+    + handleDeactivateTeacher(id)
+  }
+  class "services/teacher_service.js" as FrontTeacherService {
+    + listTeachers(filters)
+    + createTeacher(data)
+    + updateTeacher(id, data)
+    + deactivateTeacher(id)
+  }
+}
+
+package "CONTROLEUR - FastAPI" #FFF3E0 {
+  class "routes/school_years.py" as SchoolYearRoutes {
+    + get_school_years(db, admin)
+    + post_school_year(data, db, admin)
+    + patch_school_year(id, data, db, admin)
+    + post_school_period(id, data, db, admin)
+  }
+  class "services/school_year_service.py" as SchoolYearService {
+    + list_school_years(db)
+    + create_school_year(db, data)
+    + update_school_year(db, id, data)
+    + create_school_period(db, yearId, data)
+    + validate_school_period_dates(db, yearId, data)
+  }
+
+  class "routes/school_classes.py" as SchoolClassRoutes {
+    + get_school_classes(filters, db, admin)
+    + post_school_class(data, db, admin)
+    + patch_school_class(id, data, db, admin)
+    + get_school_class_composition(id, db, admin)
+  }
+  class "services/school_class_service.py" as SchoolClassService {
+    + list_school_classes(db, filters)
+    + create_school_class(db, data)
+    + update_school_class(db, id, data)
+    + get_school_class_composition(db, id)
+  }
+
+  class "routes/subjects.py" as SubjectRoutes {
+    + get_subjects(db, admin)
+    + post_subject(data, db, admin)
+    + patch_subject(id, data, db, admin)
+    + post_class_subject(data, db, admin)
+  }
+  class "services/subject_service.py" as SubjectService {
+    + list_subjects(db)
+    + create_subject(db, data)
+    + update_subject(db, id, data)
+    + assign_subject_to_class(db, data)
+    + validate_coefficient(value)
+  }
+
+  class "routes/teachers.py" as TeacherRoutes {
+    + get_teachers(filters, db, admin)
+    + post_teacher(data, db, admin)
+    + patch_teacher(id, data, db, admin)
+    + deactivate_teacher(id, db, admin)
+  }
+  class "services/teacher_service.py" as TeacherService {
+    + list_teachers(db, filters)
+    + create_teacher(db, data)
+    + update_teacher(db, id, data)
+    + deactivate_teacher(db, id)
+    + validate_teacher_photo(file)
+  }
+}
+
+package "CONTRATS - Pydantic" #FFEBEE {
+  class SchoolYearCreate
+  class SchoolYearResponse
+  class SchoolPeriodCreate
+  class SchoolPeriodResponse
+  class SchoolClassCreate
+  class SchoolClassUpdate
+  class SchoolClassResponse
+  class SubjectCreate
+  class SubjectUpdate
+  class SubjectResponse
+  class ClassSubjectCreate
+  class ClassSubjectResponse
+  class TeacherCreate
+  class TeacherUpdate
+  class TeacherResponse
+}
+
+package "MODELE - SQLAlchemy" #E3F2FD {
+  class SchoolYear {
+    + id: UUID
+    + name: String
+    + start_date: Date
+    + end_date: Date
+    + is_current: Boolean
+    + closed_at: DateTime?
+    + closed_by_account_id: UUID?
+  }
+  class SchoolPeriod {
+    + id: UUID
+    + school_year_id: UUID
+    + name: String
+    + start_date: Date
+    + end_date: Date
+  }
+  class SchoolClass {
+    + id: UUID
+    + school_year_id: UUID
+    + class_level_id: UUID
+    + main_teacher_id: UUID
+    + group_label: String
+    + capacity: Integer?
+  }
+  class Subject {
+    + id: UUID
+    + name: String
+    + is_active: Boolean
+  }
+  class ClassSubject {
+    + id: UUID
+    + class_id: UUID
+    + subject_id: UUID
+    + coefficient: Decimal
+  }
+  class Teacher {
+    + id: UUID
+    + account_id: UUID
+    + first_name: String
+    + last_name: String
+    + birth_date: Date?
+    + gender: String?
+    + email: String?
+    + phone: String?
+    + address: String?
+    + hire_date: Date
+    + qualification: String?
+    + photo_path: String?
+    + archived_at: DateTime?
+  }
+}
+
+SchoolYearsPage --> FrontSchoolYearService
+SchoolClassesPage --> FrontSchoolClassService
+SubjectsPage --> FrontSubjectService
+TeachersPage --> FrontTeacherService
+
+FrontSchoolYearService ..> SchoolYearRoutes : HTTP futur
+FrontSchoolClassService ..> SchoolClassRoutes : HTTP futur
+FrontSubjectService ..> SubjectRoutes : HTTP futur
+FrontTeacherService ..> TeacherRoutes : HTTP futur
+
+SchoolYearRoutes ..> SchoolYearService
+SchoolClassRoutes ..> SchoolClassService
+SubjectRoutes ..> SubjectService
+TeacherRoutes ..> TeacherService
+
+SchoolYearService ..> SchoolYear
+SchoolYearService ..> SchoolPeriod
+SchoolClassService ..> SchoolClass
+SubjectService ..> Subject
+SubjectService ..> ClassSubject
+TeacherService ..> Teacher
+
+SchoolYear "1" -- "0..*" SchoolPeriod
+SchoolYear "1" -- "0..*" SchoolClass
+SchoolClass "1" -- "0..*" ClassSubject
+Subject "1" -- "0..*" ClassSubject
+
+note bottom
+État de préparation :
+- routes non montées dans main.py ;
+- nouvelle séquence consolidée 001 à 004 créée mais non exécutée ;
+- périodes progressives : fin choisie, début calculé, année active autorisée sans période (D-004/D-005) ;
+- coefficients configurables validés par D-016 ;
+- règles d'arrondi encore à confirmer avant US-015.
+end note
+
+@enduml

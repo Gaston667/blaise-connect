@@ -1,6 +1,5 @@
 @startuml
-
-title BlaiseConnect — Architecture MVC complète
+title BlaiseConnect - Architecture MVC globale
 
 left to right direction
 skinparam classAttributeIconSize 0
@@ -8,500 +7,152 @@ skinparam packageStyle rectangle
 skinparam shadowing false
 skinparam linetype ortho
 
-skinparam class {
-    BackgroundColor #FFFFFF
-    BorderColor #36536F
-    ArrowColor #36536F
-}
-
 legend left
-|= Couleur du bloc |= Couche |
-|<#E8F5E9>| View — React |
-|<#FFF3E0>| Controller — FastAPI |
-|<#FFEBEE>| Contrats et validations |
-|<#E3F2FD>| Model — SQLAlchemy |
-|<#ECEFF1>| Utilitaires — Core |
+|= Couleur |= Couche |
+|<#E8F5E9>| Vue React |
+|<#FFF3E0>| Contrôleur et services FastAPI |
+|<#FFEBEE>| Contrats Pydantic |
+|<#E3F2FD>| Modèles SQLAlchemy |
+|<#ECEFF1>| Utilitaires |
 endlegend
 
+package "VUE - React" #E8F5E9 {
+  class "App.jsx" as App
+  class "pages/login_page.jsx" as LoginPage
+  class "pages/home_page.jsx" as HomePage
+  class "pages/accounts_page.jsx" as AccountsPage
+  class "pages/school_years_page.jsx" as SchoolYearsPage <<préparé US-003>>
+  class "pages/school_classes_page.jsx" as SchoolClassesPage <<préparé US-004>>
+  class "pages/subjects_page.jsx" as SubjectsPage <<préparé US-005>>
+  class "pages/teachers_page.jsx" as TeachersPage <<préparé US-006>>
 
-' =========================================================
-' VIEW — REACT
-' =========================================================
-
-package "VIEW — React" #E8F5E9 {
-
-    class "App.jsx" as App <<component>> #DFF2E1 {
-        - currentAccount: AccountResponse?
-        - isSessionLoading: Boolean
-        + restoreSessionEffect(): void
-        + restoreSession(): Promise<void>
-        + handleLoginSuccess(account): void
-        + handleLogoutSuccess(): void
-    }
-
-    class "pages/login_page.jsx" as LoginPage <<component>> #DFF2E1 {
-        - registrationNumber: String
-        - password: String
-        - isPasswordVisible: Boolean
-        - isLoading: Boolean
-        - errorMessage: String
-        - successMessage: String
-        + handleRegistrationNumberChange(event): void
-        + handlePasswordChange(event): void
-        + handlePasswordVisibility(): void
-        + handleSubmit(event): Promise<void>
-    }
-
-    class "pages/home_page.jsx" as HomePage <<component>> #DFF2E1 {
-        - isLogoutLoading: Boolean
-        - errorMessage: String
-        + getRoleLabel(role): String
-        + handleLogout(): Promise<void>
-    }
-
-    class "services/auth_service.js" as FrontAuthService <<API client>> #DFF2E1 {
-        - AUTH_API_URL: String
-        - getApiErrorMessage(response): Promise<String>
-        + login(registrationNumber, password): Promise<LoginResponse>
-        + getCurrentAccount(): Promise<CurrentAccountResponse>
-        + logout(): Promise<void>
-    }
-
-    class "pages/accounts_page.jsx" as AccountsPage <<component>> #FFF1CC {
-        - accounts: AccountResponse[]
-        - isLoading: Boolean
-        - errorMessage: String
-        + loadAccounts(): Promise<void>
-        + handleCreateAccount(data): Promise<void>
-        + handleUpdateAccount(id, data): Promise<void>
-        + handleArchiveAccount(id): Promise<void>
-    }
-
-    class "services/account_service.js" as FrontAccountService <<API client>> #FFF1CC {
-        + listAccounts(): Promise<AccountResponse[]>
-        + createAccount(data): Promise<AccountResponse>
-        + updateAccount(id, data): Promise<AccountResponse>
-        + archiveAccount(id): Promise<AccountResponse>
-    }
-
-    class "SchoolYearsPage" as SchoolYearsPage <<prévu US-003>> #E7E3FA {
-        - schoolYears: SchoolYear[]
-        - periods: Period[]
-        - isLoading: Boolean
-        - errorMessage: String
-        + loadSchoolYears(): Promise<void>
-        + handleCreateSchoolYear(data): Promise<void>
-        + handleCreatePeriod(data): Promise<void>
-    }
-
-    class "SchoolClassesPage" as SchoolClassesPage <<prévu US-004>> #E7E3FA {
-        - schoolClasses: SchoolClass[]
-        - filters: Object
-        - isLoading: Boolean
-        + loadSchoolClasses(): Promise<void>
-        + handleCreateSchoolClass(data): Promise<void>
-        + handleArchiveSchoolClass(id): Promise<void>
-    }
-
-    class "SubjectsPage" as SubjectsPage <<prévu US-005>> #E7E3FA {
-        - subjects: Subject[]
-        - isLoading: Boolean
-        + loadSubjects(): Promise<void>
-        + handleCreateSubject(data): Promise<void>
-        + handleAssignSubject(data): Promise<void>
-    }
-
-    class "TeachersPage" as TeachersPage <<prévu US-006>> #E7E3FA {
-        - teachers: Teacher[]
-        - filters: Object
-        - isLoading: Boolean
-        + loadTeachers(): Promise<void>
-        + handleCreateTeacher(data): Promise<void>
-        + handleDeactivateTeacher(id): Promise<void>
-    }
+  class "services/auth_service.js" as FrontAuthService
+  class "services/account_service.js" as FrontAccountService
+  class "services/school_year_service.js" as FrontSchoolYearService <<préparé>>
+  class "services/school_class_service.js" as FrontSchoolClassService <<préparé>>
+  class "services/subject_service.js" as FrontSubjectService <<préparé>>
+  class "services/teacher_service.js" as FrontTeacherService <<préparé>>
 }
 
+package "CONTROLEUR - FastAPI" #FFF3E0 {
+  class "routes/auth.py" as AuthRoutes
+  class "routes/accounts.py" as AccountRoutes
+  class "routes/school_years.py" as SchoolYearRoutes <<non activé>>
+  class "routes/school_classes.py" as SchoolClassRoutes <<non activé>>
+  class "routes/subjects.py" as SubjectRoutes <<non activé>>
+  class "routes/teachers.py" as TeacherRoutes <<non activé>>
 
-' =========================================================
-' CONTROLLER — FASTAPI, SERVICES ET CONTRATS
-' =========================================================
-
-package "CONTROLLER — FastAPI" #FFF3E0 {
-
-    package "Routes HTTP" {
-
-        class "routes/auth.py" as AuthRoutes <<controller>> #DFF2E1 {
-            + login(login_data, response, db): LoginResponse
-            + get_current_account_information(current_account): CurrentAccountResponse
-            + logout(response, db, session_token): None
-        }
-
-        class "routes/accounts.py" as AccountRoutes <<controller>> #FFF1CC {
-            + list_accounts(db, current_admin): AccountResponse[]
-            + create_account(account_data, db, current_admin): AccountResponse
-            + update_account(account_id, account_data, db, current_admin): AccountResponse
-            + archive_account(account_id, db, current_admin): AccountResponse
-        }
-
-        class "SchoolYearRoutes" as SchoolYearRoutes <<prévu US-003>> #E7E3FA {
-            + list_school_years(db, current_admin): SchoolYearResponse[]
-            + create_school_year(data, db, current_admin): SchoolYearResponse
-            + update_school_year(id, data, db, current_admin): SchoolYearResponse
-            + create_period(id, data, db, current_admin): PeriodResponse
-        }
-
-        class "SchoolClassRoutes" as SchoolClassRoutes <<prévu US-004>> #E7E3FA {
-            + list_school_classes(filters, db, current_admin): SchoolClassResponse[]
-            + create_school_class(data, db, current_admin): SchoolClassResponse
-            + update_school_class(id, data, db, current_admin): SchoolClassResponse
-            + archive_school_class(id, db, current_admin): SchoolClassResponse
-        }
-
-        class "SubjectRoutes" as SubjectRoutes <<prévu US-005>> #E7E3FA {
-            + list_subjects(db, current_admin): SubjectResponse[]
-            + create_subject(data, db, current_admin): SubjectResponse
-            + update_subject(id, data, db, current_admin): SubjectResponse
-            + assign_subject_to_class(data, db, current_admin): ClassSubjectResponse
-        }
-
-        class "TeacherRoutes" as TeacherRoutes <<prévu US-006>> #E7E3FA {
-            + list_teachers(filters, db, current_admin): TeacherResponse[]
-            + create_teacher(data, db, current_admin): TeacherResponse
-            + update_teacher(id, data, db, current_admin): TeacherResponse
-            + deactivate_teacher(id, db, current_admin): TeacherResponse
-        }
-    }
-
-    package "Services métier" {
-
-        class "services/auth_service.py" as AuthService <<service>> #DFF2E1 {
-            + ALLOWED_AUTHENTICATION_ROLES: Tuple
-            + MAX_FAILED_LOGIN_ATTEMPTS: Integer
-            + ACCOUNT_LOCK_DURATION: TimeDelta
-            + get_account_by_registration_number(db, registration_number): Account?
-            + register_failed_login(db, account, current_time): None
-            + reset_failed_login_state(db, account): None
-            + authenticate_account(db, registration_number, password): Account?
-        }
-
-        class "services/session_service.py" as SessionService <<service>> #DFF2E1 {
-            + SESSION_INACTIVITY_DURATION: TimeDelta
-            + hash_session_token(session_token): String
-            + create_session(db, account_id): String
-            + validate_session(db, session_token): AuthSession?
-            + revoke_session(db, session_token): Boolean
-        }
-
-        class "services/account_service.py" as AccountService <<service>> #FFF1CC {
-            + list_accounts(db): Account[]
-            + create_account(db, account_data): Account
-            + update_account(db, account_id, account_data): Account
-            + archive_account(db, account_id): Account
-        }
-
-        class "SchoolYearService" as SchoolYearService <<prévu US-003>> #E7E3FA {
-            + list_school_years(db): SchoolYear[]
-            + create_school_year(db, data): SchoolYear
-            + update_school_year(db, id, data): SchoolYear
-            + create_period(db, school_year_id, data): Period
-            + validate_period_dates(db, school_year_id, data): None
-        }
-
-        class "SchoolClassService" as SchoolClassService <<prévu US-004>> #E7E3FA {
-            + list_school_classes(db, filters): SchoolClass[]
-            + create_school_class(db, data): SchoolClass
-            + update_school_class(db, id, data): SchoolClass
-            + archive_school_class(db, id): SchoolClass
-            + get_school_class_composition(db, id): Object
-        }
-
-        class "SubjectService" as SubjectService <<prévu US-005>> #E7E3FA {
-            + list_subjects(db): Subject[]
-            + create_subject(db, data): Subject
-            + update_subject(db, id, data): Subject
-            + assign_subject_to_class(db, data): ClassSubject
-            + validate_coefficient(coefficient): None
-        }
-
-        class "TeacherService" as TeacherService <<prévu US-006>> #E7E3FA {
-            + list_teachers(db, filters): Teacher[]
-            + create_teacher(db, data): Teacher
-            + update_teacher(db, id, data): Teacher
-            + deactivate_teacher(db, id): Teacher
-            + validate_photo(file): None
-        }
-    }
-
+  class "services/auth_service.py" as AuthService
+  class "services/session_service.py" as SessionService
+  class "services/account_service.py" as AccountService
+  class "services/school_year_service.py" as SchoolYearService <<à implémenter>>
+  class "services/school_class_service.py" as SchoolClassService <<à implémenter>>
+  class "services/subject_service.py" as SubjectService <<à implémenter>>
+  class "services/teacher_service.py" as TeacherService <<à implémenter>>
 }
 
-package "CONTRATS ET OBLIGATIONS — Pydantic" #FFEBEE {
-
-        class "LoginRequest" as LoginRequest #DFF2E1 {
-            + registration_number: RegistrationNumber
-            - password: SecretStr
-        }
-
-        class "LoginResponse" as LoginResponse #DFF2E1 {
-            + message: String
-            + account: CurrentAccountResponse
-        }
-
-        class "CurrentAccountResponse" as CurrentAccountResponse #DFF2E1 {
-            + id: UUID
-            + registration_number: RegistrationNumber
-            + role: AccountRole
-            + is_active: Boolean
-            + locked_until: DateTime?
-            + last_login_at: DateTime?
-            + archived_at: DateTime?
-            + created_at: DateTime
-            + updated_at: DateTime
-        }
-
-        class "AccountCreate" as AccountCreate #DFF2E1 {
-            + registration_number: RegistrationNumber
-            - password: SecretStr
-            + role: AccountRole
-        }
-
-        class "AccountUpdate" as AccountUpdate #DFF2E1 {
-            - password: SecretStr?
-            + is_active: Boolean?
-            + require_at_least_one_change(): AccountUpdate
-        }
-
-        class "AccountResponse" as AccountResponse #DFF2E1 {
-            + id: UUID
-            + registration_number: RegistrationNumber
-            + role: AccountRole
-            + is_active: Boolean
-            + archived_at: DateTime?
-        }
-
-        class "RegistrationNumber" as RegistrationNumber <<type>> #DFF2E1 {
-            + pattern: [aeup] + 6 chiffres
-            + normalize_registration_number(value): Object
-        }
-
-        class "AccountRole" as AccountRole <<type>> #DFF2E1 {
-            + ADMIN
-            + TEACHER
-        }
-    }
-
-    package "UTILITAIRES — Core" #ECEFF1 {
-
-        class "core/authentication.py" as Authentication <<dependency>> #DFF2E1 {
-            + get_current_account(db, session_token): Account
-        }
-
-        class "core/security.py" as Security <<security>> #DFF2E1 {
-            - password_hasher: PasswordHash
-            - DUMMY_PASSWORD_HASH: String
-            + hash_password(password): String
-            + verify_password(password, password_hash): Boolean
-        }
-
-        class "AccountLockedError" as AccountLockedError #DFF2E1 {
-            + locked_until: DateTime
-            + __init__(locked_until): None
-        }
-
-        class "core/database.py" as Database <<infrastructure>> #DFF2E1 {
-            + engine: Engine
-            + session_factory: SessionFactory
-            + build_database_url(): URL
-            + get_db(): Generator<Session>
-        }
-    }
-
-
-' =========================================================
-' MODEL — SQLALCHEMY ET BASE DE DONNÉES
-' =========================================================
-
-package "MODEL — SQLAlchemy" #E3F2FD {
-
-    class "Account" as Account #DFF2E1 {
-        + id: UUID
-        + registration_number: String
-        - password_hash: String
-        + role: String
-        + is_active: Boolean
-        + failed_login_attempts: Integer
-        + locked_until: DateTime?
-        + last_login_at: DateTime?
-        + archived_at: DateTime?
-        + created_at: DateTime
-        + updated_at: DateTime
-    }
-
-    class "AuthSession" as AuthSession #DFF2E1 {
-        + id: UUID
-        + account_id: UUID
-        - session_token_hash: String
-        + last_activity_at: DateTime
-        + revoked_at: DateTime?
-        + created_at: DateTime
-    }
-
-    class "SchoolYear" as SchoolYear <<prévu US-003>> #E7E3FA {
-        + id: UUID
-        + name: String
-        + start_date: Date
-        + end_date: Date
-        + is_active: Boolean
-        + created_at: DateTime
-        + updated_at: DateTime
-    }
-
-    class "Period" as Period <<prévu US-003>> #E7E3FA {
-        + id: UUID
-        + school_year_id: UUID
-        + name: String
-        + start_date: Date
-        + end_date: Date
-        + created_at: DateTime
-        + updated_at: DateTime
-    }
-
-    class "SchoolClass" as SchoolClass <<prévu US-004>> #E7E3FA {
-        + id: UUID
-        + school_year_id: UUID
-        + main_teacher_id: UUID?
-        + name: String
-        + level: String
-        + is_active: Boolean
-        + archived_at: DateTime?
-        + created_at: DateTime
-        + updated_at: DateTime
-    }
-
-    class "Subject" as Subject <<prévu US-005>> #E7E3FA {
-        + id: UUID
-        + name: String
-        + is_active: Boolean
-        + created_at: DateTime
-        + updated_at: DateTime
-    }
-
-    class "ClassSubject" as ClassSubject <<prévu US-005>> #E7E3FA {
-        + id: UUID
-        + school_class_id: UUID
-        + subject_id: UUID
-        + coefficient: Decimal
-        + created_at: DateTime
-        + updated_at: DateTime
-    }
-
-    class "Teacher" as Teacher <<prévu US-006>> #E7E3FA {
-        + id: UUID
-        + account_id: UUID
-        + first_name: String
-        + last_name: String
-        + birth_date: Date?
-        + email: String?
-        + phone: String?
-        + address: String?
-        + hire_date: Date
-        + qualification: String?
-        + photo_path: String?
-        + created_at: DateTime
-        + updated_at: DateTime
-    }
-
+package "CONTRATS - Pydantic" #FFEBEE {
+  class LoginRequest
+  class LoginResponse
+  class AccountCreate
+  class AccountUpdate
+  class AccountResponse
+  class SchoolYearCreate <<préparé>>
+  class SchoolYearResponse <<préparé>>
+  class SchoolPeriodCreate <<préparé>>
+  class SchoolPeriodResponse <<préparé>>
+  class SchoolClassCreate <<préparé>>
+  class SchoolClassUpdate <<préparé>>
+  class SchoolClassResponse <<préparé>>
+  class SubjectCreate <<préparé>>
+  class SubjectUpdate <<préparé>>
+  class SubjectResponse <<préparé>>
+  class ClassSubjectCreate <<préparé>>
+  class ClassSubjectResponse <<préparé>>
+  class TeacherCreate <<préparé>>
+  class TeacherUpdate <<préparé>>
+  class TeacherResponse <<préparé>>
 }
 
+package "MODELE - SQLAlchemy" #E3F2FD {
+  class Account
+  class AuthSession
+  class SchoolYear <<préparé>>
+  class SchoolPeriod <<préparé>>
+  class SchoolClass <<préparé>>
+  class Subject <<préparé>>
+  class ClassSubject <<préparé>>
+  class Teacher <<préparé>>
+}
 
-' =========================================================
-' RELATIONS MVC
-' =========================================================
+package "UTILITAIRES - Core" #ECEFF1 {
+  class Authentication
+  class Security
+  class Database
+  class AccountLockedError
+  class AccountAlreadyExistsError
+}
 
 App --> LoginPage
 App --> HomePage
 App --> AccountsPage
+App ..> SchoolYearsPage : futur
+App ..> SchoolClassesPage : futur
+App ..> SubjectsPage : futur
+App ..> TeachersPage : futur
+
 LoginPage --> FrontAuthService
-HomePage --> FrontAuthService
 AccountsPage --> FrontAccountService
+SchoolYearsPage ..> FrontSchoolYearService
+SchoolClassesPage ..> FrontSchoolClassService
+SubjectsPage ..> FrontSubjectService
+TeachersPage ..> FrontTeacherService
 
 FrontAuthService ..> AuthRoutes : HTTP
 FrontAccountService ..> AccountRoutes : HTTP
-SchoolYearsPage ..> SchoolYearRoutes : HTTP prévu
-SchoolClassesPage ..> SchoolClassRoutes : HTTP prévu
-SubjectsPage ..> SubjectRoutes : HTTP prévu
-TeachersPage ..> TeacherRoutes : HTTP prévu
+FrontSchoolYearService ..> SchoolYearRoutes : HTTP futur
+FrontSchoolClassService ..> SchoolClassRoutes : HTTP futur
+FrontSubjectService ..> SubjectRoutes : HTTP futur
+FrontTeacherService ..> TeacherRoutes : HTTP futur
 
-AuthRoutes ..> LoginRequest
-AuthRoutes ..> LoginResponse
-AuthRoutes ..> CurrentAccountResponse
 AuthRoutes --> AuthService
 AuthRoutes --> SessionService
-
-AccountRoutes ..> AccountCreate
-AccountRoutes ..> AccountUpdate
-AccountRoutes ..> AccountResponse
 AccountRoutes --> AccountService
+SchoolYearRoutes ..> SchoolYearService
+SchoolClassRoutes ..> SchoolClassService
+SubjectRoutes ..> SubjectService
+TeacherRoutes ..> TeacherService
 
-SchoolYearRoutes --> SchoolYearService
-SchoolClassRoutes --> SchoolClassService
-SubjectRoutes --> SubjectService
-TeacherRoutes --> TeacherService
+AccountService --> Account
+SessionService --> AuthSession
+SchoolYearService ..> SchoolYear
+SchoolYearService ..> SchoolPeriod
+SchoolClassService ..> SchoolClass
+SubjectService ..> Subject
+SubjectService ..> ClassSubject
+TeacherService ..> Teacher
+
+SchoolYear "1" -- "0..*" SchoolPeriod
+SchoolYear "1" -- "0..*" SchoolClass
+SchoolClass "1" -- "0..*" ClassSubject
+Subject "1" -- "0..*" ClassSubject
+Account "1" -- "0..1" Teacher
 
 Authentication --> SessionService
 Authentication --> Account
 AuthService --> Security
-AuthService --> Account
-AuthService ..> AccountLockedError
-SessionService --> AuthSession
-AccountService --> Account
-
-SchoolYearService --> SchoolYear
-SchoolYearService --> Period
-SchoolClassService --> SchoolClass
-SubjectService --> Subject
-SubjectService --> ClassSubject
-TeacherService --> Teacher
-TeacherService --> Account
-
-LoginRequest --> RegistrationNumber
-LoginResponse *-- CurrentAccountResponse
-CurrentAccountResponse --> RegistrationNumber
-CurrentAccountResponse --> AccountRole
-AccountCreate --> RegistrationNumber
-AccountCreate --> AccountRole
-AccountResponse --> RegistrationNumber
-AccountResponse --> AccountRole
-
-Account "1" -- "0..*" AuthSession : ouvre
-Account "1" -- "0..1" Teacher : profil enseignant
-SchoolYear "1" *-- "1..*" Period : contient
-SchoolYear "1" -- "0..*" SchoolClass : organise
-SchoolClass "1" -- "0..*" ClassSubject
-Subject "1" -- "0..*" ClassSubject
-Teacher "0..1" -- "0..*" SchoolClass : professeur principal
-
 Database ..> Account
-Database ..> AuthSession
-Database ..> SchoolYear
-Database ..> Period
-Database ..> SchoolClass
-Database ..> Subject
-Database ..> ClassSubject
-Database ..> Teacher
 
-note bottom of Period
-Le découpage trimestre ou semestre
-reste à valider.
+note bottom of SchoolPeriod
+L'administrateur choisit la date de fin.
+Le début est calculé automatiquement.
+Une année active peut encore ne contenir aucune période.
+Décisions D-004 et D-005 validées.
 end note
 
 note bottom of ClassSubject
-La valeur et la portée du coefficient
-restent à valider.
-end note
-
-note bottom of Teacher
-La table PostgreSQL teachers existe déjà.
-Le modèle SQLAlchemy reste à créer.
+Coefficient positif configuré par l'administrateur.
+Décision D-016 validée ; arrondi encore à confirmer.
 end note
 
 @enduml
