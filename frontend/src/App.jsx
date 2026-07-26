@@ -14,7 +14,7 @@ export default function App() {
   const [currentAccount, setCurrentAccount] = useState(null)
   const [isSessionLoading, setIsSessionLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState('home')
-  const [selectedAccountId, setSelectedAccountId] = useState(null)
+  const [selectedAccount, setSelectedAccount] = useState(null)
 
   /**
    * Recherche une session existante au premier affichage.
@@ -52,10 +52,10 @@ export default function App() {
 
   /**
    * Change la page affichée dans l'espace connecté.
-   * Le second paramètre est optionnel : il transporte l'id du compte
+   * Le second paramètre est optionnel : il transporte le compte
    * sélectionné quand on navigue vers 'account-details'.
    */
-  function handleNavigate(page, accountId) {
+  function handleNavigate(page, account) {
     const pagesReservedToAdmin = ['accounts', 'account-details']
 
     if (pagesReservedToAdmin.includes(page) && currentAccount?.role !== 'ADMIN') {
@@ -64,7 +64,7 @@ export default function App() {
     }
 
     if (page === 'account-details') {
-      setSelectedAccountId(accountId)
+      setSelectedAccount(account)
     }
 
     setCurrentPage(page)
@@ -83,7 +83,7 @@ export default function App() {
     const shouldDisplayAccounts =
       currentPage === 'accounts' && canManageAccounts
     const shouldDisplayAccountDetails =
-      currentPage === 'account-details' && canManageAccounts && selectedAccountId
+      currentPage === 'account-details' && canManageAccounts && selectedAccount
 
     let pageContent = <HomePage account={currentAccount} />
     if (shouldDisplayAccounts) {
@@ -91,7 +91,7 @@ export default function App() {
     } else if (shouldDisplayAccountDetails) {
       pageContent = (
         <AccountDetailsPage
-          accountId={selectedAccountId}
+          account={selectedAccount}
           onNavigate={handleNavigate}
         />
       )

@@ -133,9 +133,23 @@ export default function AccountsPage({ onNavigate }) {
     loadAccounts()
   }, [])
 
-   function handleAccountClick(accountId) {
-    onNavigate('account-details', accountId)
-   }
+  function handleAccountClick(event) {
+    const selectedId = event.currentTarget.dataset.accountId
+    const selectedAccount = accounts.find(function findSelectedAccount(account) {
+      return account.id === selectedId
+    })
+
+    if (selectedAccount) {
+      onNavigate('account-details', selectedAccount)
+    }
+  }
+
+  function handleAccountKeyDown(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleAccountClick(event)
+    }
+  }
 
   function handleSearchChange(event) {
     setSearchQuery(event.target.value)
@@ -388,18 +402,14 @@ export default function AccountsPage({ onNavigate }) {
                     const inactive = isInactive(account)
                     return (
                       <tr
-  key={account.id}
-  className="comptes-table-row-clickable"
-  onClick={() => handleAccountClick(account.id)}
-  role="button"
-  tabIndex={0}
-  onKeyDown={(event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      handleAccountClick(account.id)
-    }
-  }}
->
+                        key={account.id}
+                        data-account-id={account.id}
+                        className="comptes-table-row-clickable"
+                        onClick={handleAccountClick}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={handleAccountKeyDown}
+                      >
                         <td>
                           <div className="comptes-table-identity">
                             <span className="comptes-table-avatar">

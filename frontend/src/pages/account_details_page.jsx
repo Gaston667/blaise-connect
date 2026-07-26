@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Activity,
   ArrowLeft,
@@ -12,7 +12,6 @@ import {
   Phone,
   Trash2,
 } from 'lucide-react'
-import { getAccountDetails } from '../services/account_service'
 
 const ROLE_LABELS = {
   ADMIN: 'Administrateur',
@@ -79,43 +78,18 @@ function ComingSoonPanel({ label }) {
 }
 
 /** Affiche les détails complets d'un compte (US suivante). */
-export default function AccountDetailsPage({ accountId, onNavigate }) {
-  const [account, setAccount] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
+export default function AccountDetailsPage({ account, onNavigate }) {
   const [activeTab, setActiveTab] = useState('personal')
-
-  useEffect(function loadAccountDetailsEffect() {
-    async function loadDetails() {
-      try {
-        setAccount(await getAccountDetails(accountId))
-      } catch (error) {
-        setErrorMessage(error.message)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    if (accountId) loadDetails()
-  }, [accountId])
 
   function handleBackNavigation() {
     onNavigate('accounts')
   }
 
-  if (isLoading) {
-    return (
-      <main className="comptes-main">
-        <p className="comptes-table-status">Chargement du compte…</p>
-      </main>
-    )
-  }
-
-  if (errorMessage || !account) {
+  if (!account) {
     return (
       <main className="comptes-main">
         <p className="comptes-error" role="alert">
-          {errorMessage || 'Compte introuvable.'}
+          Compte introuvable.
         </p>
       </main>
     )
