@@ -27,6 +27,21 @@ function formatDate(dateValue) {
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString('fr-FR')
 }
+/** Déduit un type indicatif de période à partir de sa durée en jours. */
+function getPeriodTypeLabel(startDate, endDate) {
+  if (!startDate || !endDate) return '—'
+
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '—'
+
+  const durationInDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1
+
+  if (durationInDays <= 35) return 'Mois'
+  if (durationInDays <= 100) return 'Trimestre'
+  if (durationInDays <= 190) return 'Semestre'
+  return 'Année'
+}
 
 function getYearStatusLabel(schoolYear) {
   if (schoolYear.closed_at !== null) return 'Clôturée'
@@ -514,7 +529,7 @@ export default function SchoolYearsPage({ onNavigate }) {
                         <td>{period.name}</td>
                         <td>{formatDate(period.start_date)}</td>
                         <td>{formatDate(period.end_date)}</td>
-                        <td>—</td>
+                      <td>{getPeriodTypeLabel(period.start_date, period.end_date)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -656,7 +671,7 @@ export default function SchoolYearsPage({ onNavigate }) {
                       <td>{period.name}</td>
                       <td>{formatDate(period.start_date)}</td>
                       <td>{formatDate(period.end_date)}</td>
-                      <td>—</td>
+                      <td>{getPeriodTypeLabel(period.start_date, period.end_date)}</td>
                     </tr>
                   ))}
                 </tbody>
