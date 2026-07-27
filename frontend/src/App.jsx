@@ -6,6 +6,8 @@ import AccountDetailsPage from './pages/account_details_page.jsx'
 import HomePage from './pages/home_page.jsx'
 import LoginPage from './pages/login_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
+import SchoolYearsPage from './pages/school_years_page.jsx'
+import SchoolYearDetailsPage from './pages/school_year_details_page.jsx'
 
 /**
  * Composant racine de l'application React.
@@ -56,7 +58,7 @@ export default function App() {
    * sélectionné quand on navigue vers 'account-details'.
    */
   function handleNavigate(page, account) {
-    const pagesReservedToAdmin = ['accounts', 'account-details']
+    const pagesReservedToAdmin = ['accounts', 'account-details', 'school-years']
 
     if (pagesReservedToAdmin.includes(page) && currentAccount?.role !== 'ADMIN') {
       setCurrentPage('home')
@@ -95,6 +97,8 @@ export default function App() {
           onNavigate={handleNavigate}
         />
       )
+    }else if (currentPage === 'school-years' && canManageAccounts) {
+      pageContent = <SchoolYearsPage onNavigate={handleNavigate} />
     }
 
     return (

@@ -1,4 +1,4 @@
-"""Contrat de lecture d'une année scolaire."""
+"""Schéma Pydantic de lecture d'une année scolaire."""
 
 from datetime import date, datetime
 from uuid import UUID
@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class SchoolYearResponse(BaseModel):
-    """Expose les informations non sensibles d'une année scolaire."""
+    """Informations d'une année scolaire retournées par l'API."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -15,6 +15,7 @@ class SchoolYearResponse(BaseModel):
     name: str
     start_date: date
     end_date: date
-    is_active: bool
+    is_current: bool
+    closed_at: datetime | None
+    closed_by_account_id: UUID | None
     created_at: datetime
-    updated_at: datetime

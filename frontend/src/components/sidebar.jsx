@@ -1,7 +1,7 @@
-import { House, UsersRound, X } from 'lucide-react'
-
+import { CalendarRange, House, UsersRound, X } from 'lucide-react'
 import logo from '../assets/logo-blaise-connect.png.png'
 import LogoutButton from './logout_button.jsx'
+
 
 /**
  * Affiche la navigation principale de l'espace connecté.
@@ -67,10 +67,10 @@ export default function Sidebar({
           Accueil
         </button>
 
-        {canManageAccounts ? (
+       {canManageAccounts ? (
           <button
             className={
-              currentPage === 'accounts'
+              currentPage === 'accounts' || currentPage === 'account-details'
                 ? 'layout-navigation-item layout-navigation-item-active'
                 : 'layout-navigation-item'
             }
@@ -80,6 +80,22 @@ export default function Sidebar({
           >
             <UsersRound aria-hidden="true" size={20} />
             Gestion des comptes
+          </button>
+        ) : null}
+
+        {canManageAccounts ? (
+          <button
+            className={
+              currentPage === 'school-years'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="school-years"
+            onClick={handleNavigation}
+          >
+            <CalendarRange aria-hidden="true" size={20} />
+            Années scolaires
           </button>
         ) : null}
       </nav>
