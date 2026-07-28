@@ -39,6 +39,9 @@ Thumbs.db
 # Logs and temporary files
 *.log
 *.tmp
+cookies.txt
+login.json
+guardian_test.json
 
 # Runtime files containing personal or generated data
 storage/photos/*

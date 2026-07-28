@@ -3,7 +3,7 @@
 from typing import Iterable
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, select, text, func
-
+from app.services.guardian_service import list_guardians_for_student
 from app.schemas.student_update import StudentUpdate
 from app.schemas.student_create import StudentCreate
 from app.models.student import Student
@@ -167,7 +167,7 @@ def get_student(db: Session, student_id):
     row = db.execute(sql, {"student_id": student_id}).first()
     if not row:
         return None
-
+    guardians = list_guardians_for_student(db=db, student_id=str(student_id))   
     return {
         'id': row.id,
         'account_id': row.account_id,
@@ -190,6 +190,7 @@ def get_student(db: Session, student_id):
         'created_at': row.created_at,
         'updated_at': row.updated_at,
         'class_id': row.class_id,
+        'guardians': guardians,
         'school_year_id': row.school_year_id,
     }
 

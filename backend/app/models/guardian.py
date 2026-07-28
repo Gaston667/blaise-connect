@@ -1,4 +1,4 @@
-"""Modèle SQLAlchemy du profil responsable."""
+"""Modèle SQLAlchemy du profil responsable légal."""
 
 from datetime import datetime
 from uuid import UUID
@@ -22,6 +22,7 @@ class Guardian(Base):
     account_id: Mapped[UUID | None] = mapped_column(
         Uuid,
         ForeignKey("accounts.id"),
+        nullable=True,
         unique=True,
     )
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -33,7 +34,10 @@ class Guardian(Base):
     occupation: Mapped[str | None] = mapped_column(String(150), nullable=True)
     employer: Mapped[str | None] = mapped_column(String(150), nullable=True)
     photo_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
