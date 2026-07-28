@@ -1,42 +1,65 @@
-"""Service simple pour lister les classes disponibles."""
+"""Règles métier de gestion des classes de l'US-004."""
 
-from typing import Iterable
+from uuid import UUID
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+
+from app.core.school_class_not_found_error import SchoolClassNotFoundError
+from app.models.school_class import SchoolClass
+from app.schemas.school_class_create import SchoolClassCreate
+from app.schemas.school_class_update import SchoolClassUpdate
 
 
-def list_school_classes(db: Session) -> Iterable[dict]:
-    """Retourne les classes pour l'UI de filtrage des élèves."""
+def list_school_classes(db: Session) -> list[SchoolClass]:
+    """Retourne les classes dans un ordre stable."""
 
-    sql = text(
-        """
-        SELECT
-            c.id,
-            c.school_year_id,
-            c.class_level_id,
-            c.group_label,
-            c.capacity,
-            cl.name AS class_level_name,
-            c.created_at,
-            c.updated_at
-        FROM classes c
-        LEFT JOIN class_levels cl ON c.class_level_id = cl.id
-        ORDER BY cl.name, c.group_label
-        """
+    statement = select(SchoolClass).order_by(
+        SchoolClass.school_year_id,
+        SchoolClass.class_level_id,
+        SchoolClass.group_label,
     )
+    return list(db.scalars(statement).all())
 
-    rows = db.execute(sql).all()
 
-    return [
-        {
-            'id': row.id,
-            'school_year_id': row.school_year_id,
-            'name': f"{row.class_level_name} {row.group_label}" if row.class_level_name else row.group_label,
-            'class_level_id': row.class_level_id,
-            'group_label': row.group_label,
-            'capacity': row.capacity,
-            'created_at': row.created_at,
-            'updated_at': row.updated_at,
-        }
-        for row in rows
-    ]
+def get_school_class_by_id(
+    db: Session,
+    school_class_id: UUID,
+) -> SchoolClass:
+    """Retourne une classe ou signale qu'elle n'existe pas."""
+
+    school_class = db.get(SchoolClass, school_class_id)
+    if school_class is None:
+        raise SchoolClassNotFoundError(school_class_id)
+    return school_class
+
+
+def create_school_class(
+    db: Session,
+    school_class_data: SchoolClassCreate,
+) -> SchoolClass:
+    """Crée une classe en laissant PostgreSQL vérifier ses relations."""
+
+    school_class = SchoolClass(**school_class_data.model_dump())
+    db.add(school_class)
+    db.commit()
+    db.refresh(school_class)
+    return school_class
+
+
+def update_school_class(
+    db: Session,
+    school_class_id: UUID,
+    school_class_data: SchoolClassUpdate,
+) -> SchoolClass:
+    """Modifie les champs fournis d'une classe non verrouillée par son année."""
+
+    school_class = get_school_class_by_id(db, school_class_id)
+    updated_fields = school_class_data.model_dump(exclude_unset=True)
+
+    for field_name, field_value in updated_fields.items():
+        setattr(school_class, field_name, field_value)
+
+    db.commit()
+    db.refresh(school_class)
+    return school_class

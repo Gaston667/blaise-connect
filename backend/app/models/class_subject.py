@@ -20,9 +20,9 @@ class ClassSubject(Base):
         primary_key=True,
         server_default=text("gen_random_uuid()"),
     )
-    school_class_id: Mapped[UUID] = mapped_column(
+    class_id: Mapped[UUID] = mapped_column(
         Uuid,
-        ForeignKey("school_classes.id"),
+        ForeignKey("classes.id", ondelete="RESTRICT"),
         nullable=False,
     )
     subject_id: Mapped[UUID] = mapped_column(
