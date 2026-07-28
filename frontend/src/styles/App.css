@@ -769,6 +769,176 @@
 
 /* Gestion des comptes */
 
+.ajout-compte-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding: 1rem;
+  overflow-y: auto;
+  background: rgb(8 28 61 / 55%);
+}
+
+.ajout-compte-modal {
+  width: min(100%, 34rem);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.ajout-compte-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ajout-compte-header h2,
+.ajout-compte-header p {
+  margin: 0;
+}
+
+.ajout-compte-header p {
+  margin-top: 0.35rem;
+  color: var(--color-text-muted);
+}
+
+.ajout-compte-close {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.ajout-compte-close:hover {
+  background: var(--color-background);
+}
+
+.ajout-compte-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.ajout-compte-field {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.ajout-compte-field input,
+.ajout-compte-field select {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  font: inherit;
+}
+
+.ajout-compte-field input:focus,
+.ajout-compte-field select:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid rgb(0 82 204 / 15%);
+}
+
+.ajout-compte-field small {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.ajout-compte-password {
+  position: relative;
+  display: block;
+}
+
+.ajout-compte-password input {
+  padding-right: 3rem;
+}
+
+.ajout-compte-password button {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.ajout-compte-error {
+  margin: 0;
+  padding: 0.8rem;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.ajout-compte-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.ajout-compte-cancel,
+.ajout-compte-submit {
+  min-height: 3rem;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ajout-compte-cancel {
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}
+
+.ajout-compte-submit {
+  border: 1px solid var(--color-primary);
+  color: white;
+  background: var(--color-primary);
+}
+
+.ajout-compte-cancel:disabled,
+.ajout-compte-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+@media (min-width: 40rem) {
+  .ajout-compte-overlay {
+    place-items: center;
+  }
+
+  .ajout-compte-actions {
+    grid-template-columns: auto auto;
+    justify-content: end;
+  }
+}
+
 .comptes-heading {
   display: flex;
   flex-direction: column;

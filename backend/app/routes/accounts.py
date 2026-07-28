@@ -74,7 +74,7 @@ def post_account(
     db: DatabaseSession,
     current_admin: CurrentAdminDependency,
 ) -> AccountResponse:
-    """Crée un compte administrateur ou enseignant."""
+    """Crée un compte pour l'un des quatre rôles de BlaiseConnect."""
 
     try:
         account = create_account(

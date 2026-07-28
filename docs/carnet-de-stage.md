@@ -48,3 +48,4 @@
 - **25 juillet 2026 — Interface connectée :** l’en-tête conserve une icône ouvrant `UserMenu` avec identité disponible, rôle, profil futur et seconde déconnexion.
 - **28 juillet 2026 — Comptes :** `GET /accounts` retourne désormais le profil non sensible associé à chaque rôle afin d’alimenter les listes et fiches détaillées.
 - **US-004 — Classes :** modèle, contrats et API alignés sur la table `classes` ; aucun archivage indépendant n’est exposé.
+- **US-002 — Comptes :** bouton et formulaire de création activés pour les quatre rôles de BlaiseConnect.

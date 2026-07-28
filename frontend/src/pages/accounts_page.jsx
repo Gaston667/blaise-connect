@@ -12,6 +12,7 @@ import {
   UserX,
   UsersRound,
 } from 'lucide-react'
+import AddAccountModal from '../components/add_account_modal.jsx'
 import { getAccounts } from '../services/account_service'
 
 const PAGE_SIZE = 10
@@ -118,6 +119,7 @@ export default function AccountsPage({ onNavigate }) {
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(1)
   const [statsSlide, setStatsSlide] = useState(0)
+  const [isAddAccountOpen, setIsAddAccountOpen] = useState(false)
 
   useEffect(function loadAccountsEffect() {
     async function loadAccounts() {
@@ -167,6 +169,22 @@ export default function AccountsPage({ onNavigate }) {
 
   function handleAccountsNavigation() {
     onNavigate('accounts')
+  }
+
+  function handleOpenAddAccount() {
+    setIsAddAccountOpen(true)
+  }
+
+  function handleCloseAddAccount() {
+    setIsAddAccountOpen(false)
+  }
+
+  function handleAccountCreated(createdAccount) {
+    setAccounts(function addCreatedAccount(currentAccounts) {
+      return [createdAccount, ...currentAccounts]
+    })
+    setIsAddAccountOpen(false)
+    setCurrentPage(1)
   }
 
   const administratorCount = accounts.filter(isAdministrator).length
@@ -275,7 +293,11 @@ export default function AccountsPage({ onNavigate }) {
             Consultez et gérez les comptes autorisés dans BlaiseConnect.
           </p>
         </div>
-        <button className="comptes-add-button" type="button" disabled>
+        <button
+          className="comptes-add-button"
+          type="button"
+          onClick={handleOpenAddAccount}
+        >
           <Plus aria-hidden="true" size={19} />
           Ajouter un compte
         </button>
@@ -497,6 +519,13 @@ export default function AccountsPage({ onNavigate }) {
           </>
         )}
       </section>
+
+      {isAddAccountOpen && (
+        <AddAccountModal
+          onClose={handleCloseAddAccount}
+          onCreated={handleAccountCreated}
+        />
+      )}
 
     </main>
   )
