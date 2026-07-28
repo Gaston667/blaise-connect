@@ -5,7 +5,7 @@ import {
   Ban,
   ChevronRight,
   FileClock,
-  Trash2,
+  Pencil,
 } from 'lucide-react'
 
 const ROLE_LABELS = {
@@ -88,9 +88,27 @@ function ComingSoonPanel({ label }) {
 /** Affiche les détails complets d'un compte (US suivante). */
 export default function AccountDetailsPage({ account, onNavigate }) {
   const [activeTab, setActiveTab] = useState('account')
+  const [editingPersonal, setEditingPersonal] = useState(false)
+  const [personalForm, setPersonalForm] = useState(account?.profile || {})
 
   function handleBackNavigation() {
     onNavigate('accounts')
+  }
+
+  function startPersonalEditing() {
+    setPersonalForm(account.profile || {})
+    setEditingPersonal(true)
+  }
+
+  function cancelPersonalEditing() {
+    setPersonalForm(account.profile || {})
+    setEditingPersonal(false)
+  }
+
+  function updatePersonalField(event) {
+    const field = event.currentTarget.name
+    const value = event.currentTarget.value
+    setPersonalForm((currentForm) => ({ ...currentForm, [field]: value }))
   }
 
   if (!account) {
@@ -234,7 +252,10 @@ export default function AccountDetailsPage({ account, onNavigate }) {
             </article>
 
             <article className="details-account-column">
-              <h3>Droits d’accès</h3>
+              <div className="details-account-column-heading">
+                <h3>Droits d’accès</h3>
+                <span>Indisponible en V1</span>
+              </div>
               <ul className="details-access-rights">
                 {(ACCESS_RIGHTS[account.role] || []).map((right) => (
                   <li key={right}>
@@ -244,6 +265,38 @@ export default function AccountDetailsPage({ account, onNavigate }) {
                 ))}
               </ul>
             </article>
+          </section>
+
+          <section className="details-panel details-account-security">
+            <h3>Sécurité du compte</h3>
+            <ul className="details-security-list">
+              <li>
+                <span>Mot de passe</span>
+                <span className="details-security-value">
+                  <span className="details-password-dots">••••••••••••</span>
+                  <button type="button" className="details-mini-button" disabled>
+                    Réinitialiser
+                  </button>
+                </span>
+              </li>
+              <li>
+                <span>Authentification à deux facteurs</span>
+                <span className="details-security-value">
+                  {account.two_factor_enabled ? 'Activée' : 'Non activée'}
+                  <button type="button" className="details-mini-button" disabled>
+                    {account.two_factor_enabled ? 'Désactiver' : 'Activer'}
+                  </button>
+                </span>
+              </li>
+              <li>
+                <span>Tentatives de connexion échouées</span>
+                <span>{account.failed_login_attempts ?? 0}</span>
+              </li>
+              <li>
+                <span>Compte verrouillé</span>
+                <span>{locked ? 'Oui' : 'Non'}</span>
+              </li>
+            </ul>
           </section>
 
           {account.role === 'STUDENT' && (
@@ -260,114 +313,71 @@ export default function AccountDetailsPage({ account, onNavigate }) {
       )}
 
       {activeTab === 'personal' && account.role !== 'STUDENT' && (
-        <section className="details-panels">
-          <div className="details-panel details-panel-form">
-            <h3>Informations personnelles</h3>
-            <div className="details-form-grid">
-              <div className="details-field">
-                <label>Prénom</label>
-                <input type="text" value={profile.first_name || ''} disabled readOnly />
-              </div>
-              <div className="details-field">
-                <label>Nom</label>
-                <input type="text" value={profile.last_name || ''} disabled readOnly />
-              </div>
-              <div className="details-field">
-                <label>Date de naissance</label>
-                <input type="text" value={formatDate(profile.birth_date)} disabled readOnly />
-              </div>
-              <div className="details-field">
-                <label>Genre</label>
-                <input
-                  type="text"
-                  value={GENDER_LABELS[profile.gender] || 'Non renseigné'}
-                  disabled
-                  readOnly
-                />
-              </div>
-              <div className="details-field">
-                <label>Téléphone</label>
-                <input type="text" value={profile.phone || ''} disabled readOnly />
-              </div>
-              <div className="details-field">
-                <label>Email personnel</label>
-                <input type="text" value={profile.personal_email || 'Non renseigné'} disabled readOnly />
-              </div>
-              <div className="details-field details-field-full">
-                <label>Adresse</label>
-                <input type="text" value={profile.address || ''} disabled readOnly />
-              </div>
-              <div className="details-field">
-                <label>{qualificationLabel}</label>
-                <input type="text" value={qualificationValue || ''} disabled readOnly />
-              </div>
-              <div className="details-field">
-                <label>Date d'embauche</label>
-                <input type="text" value={formatDate(profile.hire_date)} disabled readOnly />
-              </div>
-            </div>
+        <section className="details-panel sdp-view">
+          <div className="sdp-section-heading">
+            <h2>Informations personnelles</h2>
+            {!editingPersonal && (
+              <button type="button" className="sdp-btn-outline" onClick={startPersonalEditing}>
+                <Pencil aria-hidden="true" size={16} />
+                Modifier
+              </button>
+            )}
           </div>
-
-          <div className="details-panel-side">
-            <div className="details-panel">
-              <h3>Sécurité du compte</h3>
-              <ul className="details-security-list">
-                <li>
-                  <span>Mot de passe</span>
-                  <span className="details-security-value">
-                    <span className="details-password-dots">••••••••••••</span>
-                    <button type="button" className="details-mini-button" disabled>
-                      Réinitialiser
-                    </button>
-                  </span>
-                </li>
-                <li>
-                  <span>Authentification à deux facteurs</span>
-                  <span className="details-security-value">
-                    {account.two_factor_enabled ? 'Activée' : 'Non activée'}
-                    <button type="button" className="details-mini-button" disabled>
-                      {account.two_factor_enabled ? 'Désactiver' : 'Activer'}
-                    </button>
-                  </span>
-                </li>
-                <li>
-                  <span>Tentatives de connexion échouées</span>
-                  <span>{account.failed_login_attempts ?? 0}</span>
-                </li>
-                <li>
-                  <span>Compte verrouillé</span>
-                  <span>{locked ? 'Oui' : 'Non'}</span>
-                </li>
-              </ul>
+          {editingPersonal ? (
+            <div className="sdp-form">
+              <div className="sdp-row">
+                <label>Nom<input name="last_name" value={personalForm.last_name || ''} onChange={updatePersonalField} /></label>
+                <label>Prénom<input name="first_name" value={personalForm.first_name || ''} onChange={updatePersonalField} /></label>
+                <label>
+                  Sexe
+                  <select name="gender" value={personalForm.gender || ''} onChange={updatePersonalField}>
+                    <option value="">—</option>
+                    <option value="FEMALE">Féminin</option>
+                    <option value="MALE">Masculin</option>
+                  </select>
+                </label>
+              </div>
+              <div className="sdp-row">
+                <label>Date de naissance<input type="date" name="birth_date" value={personalForm.birth_date || ''} onChange={updatePersonalField} /></label>
+                <label>Lieu de naissance<input name="birth_place" value={personalForm.birth_place || ''} onChange={updatePersonalField} /></label>
+                <label>Nationalité<input name="nationality" value={personalForm.nationality || ''} onChange={updatePersonalField} /></label>
+              </div>
+              <div className="sdp-row">
+                <label>Téléphone<input name="phone" value={personalForm.phone || ''} onChange={updatePersonalField} /></label>
+                <label>Email<input type="email" name="email" value={personalForm.email || personalForm.personal_email || ''} onChange={updatePersonalField} /></label>
+              </div>
+              <label className="sdp-full">Adresse<input name="address" value={personalForm.address || ''} onChange={updatePersonalField} /></label>
+              <div className="sdp-form-actions">
+                <button type="button" className="sdp-btn-outline" onClick={cancelPersonalEditing}>Annuler</button>
+                <button type="button" className="sdp-btn-primary" disabled>Enregistrer</button>
+              </div>
             </div>
+          ) : (
+            <div className="sdp-personal-grid">
+              <section>
+                <h3>Informations d’identité</h3>
+                <dl>
+                  <div><dt>Nom</dt><dd>{profile.last_name || '—'}</dd></div>
+                  <div><dt>Prénom</dt><dd>{profile.first_name || '—'}</dd></div>
+                  <div><dt>Sexe</dt><dd>{GENDER_LABELS[profile.gender] || '—'}</dd></div>
+                  <div><dt>Date de naissance</dt><dd>{formatDate(profile.birth_date)}</dd></div>
+                  <div><dt>Lieu de naissance</dt><dd>{profile.birth_place || '—'}</dd></div>
+                  <div><dt>Nationalité</dt><dd>{profile.nationality || '—'}</dd></div>
+                  <div><dt>{qualificationLabel}</dt><dd>{qualificationValue || '—'}</dd></div>
+                  <div><dt>Date d’embauche</dt><dd>{formatDate(profile.hire_date)}</dd></div>
+                </dl>
+              </section>
 
-            <div className="details-panel">
-              <h3>Actions rapides</h3>
-              <ul className="details-quick-actions">
-                <li>
-                  <button type="button" disabled>
-                    <Ban aria-hidden="true" size={16} />
-                    Désactiver le compte
-                    <ChevronRight aria-hidden="true" size={16} className="details-quick-action-arrow" />
-                  </button>
-                </li>
-                <li>
-                  <button type="button" disabled>
-                    <FileClock aria-hidden="true" size={16} />
-                    Archiver le compte
-                    <ChevronRight aria-hidden="true" size={16} className="details-quick-action-arrow" />
-                  </button>
-                </li>
-                <li>
-                  <button type="button" className="details-quick-action-danger" disabled>
-                    <Trash2 aria-hidden="true" size={16} />
-                    Supprimer le compte
-                    <ChevronRight aria-hidden="true" size={16} className="details-quick-action-arrow" />
-                  </button>
-                </li>
-              </ul>
+              <section>
+                <h3>Informations de contact</h3>
+                <dl>
+                  <div><dt>Adresse</dt><dd>{profile.address || '—'}</dd></div>
+                  <div><dt>Téléphone</dt><dd>{profile.phone || '—'}</dd></div>
+                  <div><dt>Email</dt><dd>{profile.email || profile.personal_email || '—'}</dd></div>
+                </dl>
+              </section>
             </div>
-          </div>
+          )}
         </section>
       )}
 

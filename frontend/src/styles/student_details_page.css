@@ -261,6 +261,18 @@
   font-size: var(--font-size-lg);
 }
 
+.sdp-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.sdp-section-heading h2 {
+  margin: 0;
+}
+
 .sdp-view h3, .sdp-form h3 {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);

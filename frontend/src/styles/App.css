@@ -1570,6 +1570,26 @@
   border-bottom: var(--border-default);
 }
 
+.details-account-column-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.details-account-column-heading h3 {
+  margin: 0;
+}
+
+.details-account-column-heading span {
+  padding: 0.2rem 0.45rem;
+  color: var(--color-text-muted);
+  background: var(--color-background);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
 .details-account-column h3,
 .details-linked-card h3 {
   margin: 0 0 var(--space-4);
@@ -1610,7 +1630,7 @@
 .details-account-actions {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .details-account-actions h3 {
@@ -1620,10 +1640,10 @@
 .details-account-actions button {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   width: 100%;
-  min-height: 64px;
-  padding: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-2);
   background: var(--color-surface);
   border-radius: var(--radius-md);
   text-align: left;
@@ -1633,12 +1653,14 @@
 .details-account-actions button span {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 0;
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
 }
 
 .details-account-actions button small {
   color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-normal);
 }
 

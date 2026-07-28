@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.account_role import AccountRole
+from app.schemas.account_profile_response import AccountProfileResponse
 from app.schemas.registration_number import RegistrationNumber
 
 
@@ -19,5 +20,10 @@ class AccountResponse(BaseModel):
     registration_number: RegistrationNumber
     role: AccountRole
     is_active: bool
+    failed_login_attempts: int
+    locked_until: datetime | None
+    last_login_at: datetime | None
     archived_at: datetime | None
     created_at: datetime
+    updated_at: datetime
+    profile: AccountProfileResponse | None = None

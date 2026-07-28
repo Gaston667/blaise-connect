@@ -46,3 +46,4 @@
 - **25 juillet 2026 — Conception MVC :** diagramme classé par blocs View vert, Controller orange, contrats rouges, Model bleu et utilitaires gris ; SVG à régénérer.
 - **25 juillet 2026 — US-002 frontend :** interface mobile first découpée en `Sidebar`, `AppHeader`, `LogoutButton` et `MainLayout` ; branchement de `GET /accounts` restant.
 - **25 juillet 2026 — Interface connectée :** l’en-tête conserve une icône ouvrant `UserMenu` avec identité disponible, rôle, profil futur et seconde déconnexion.
+- **28 juillet 2026 — Comptes :** `GET /accounts` retourne désormais le profil non sensible associé à chaque rôle afin d’alimenter les listes et fiches détaillées.

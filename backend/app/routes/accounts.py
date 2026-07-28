@@ -11,6 +11,7 @@ from app.core.authentication import (
 )
 from app.schemas.account_create import AccountCreate
 from app.schemas.account_response import AccountResponse
+from app.schemas.account_profile_response import AccountProfileResponse
 from app.services.account_service import create_account, list_accounts
 
 
@@ -18,6 +19,29 @@ router = APIRouter(
     prefix="/accounts",
     tags=["accounts"],
 )
+
+
+def build_account_response(account, profile) -> AccountResponse:
+    """Construit la réponse sans exposer le hash ni les données sensibles."""
+
+    account_data = {
+        "id": account.id,
+        "registration_number": account.registration_number,
+        "role": account.role,
+        "is_active": account.is_active,
+        "failed_login_attempts": account.failed_login_attempts,
+        "locked_until": account.locked_until,
+        "last_login_at": account.last_login_at,
+        "archived_at": account.archived_at,
+        "created_at": account.created_at,
+        "updated_at": account.updated_at,
+        "profile": (
+            AccountProfileResponse.model_validate(profile)
+            if profile is not None
+            else None
+        ),
+    }
+    return AccountResponse.model_validate(account_data)
 
 
 @router.get(
@@ -32,11 +56,11 @@ def get_accounts(
 ) -> list[AccountResponse]:
     """Retourne les comptes à un administrateur connecté."""
 
-    accounts = list_accounts(db)
+    account_records = list_accounts(db)
 
     return [
-        AccountResponse.model_validate(account)
-        for account in accounts
+        build_account_response(account=account, profile=profile)
+        for account, profile in account_records
     ]
 
 

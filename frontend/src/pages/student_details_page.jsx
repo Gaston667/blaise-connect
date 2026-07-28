@@ -47,7 +47,10 @@ function genderLabel(gender) {
 
 function formatDate(dateValue) {
   if (!dateValue) return '—'
-  return new Intl.DateTimeFormat('fr-FR').format(new Date(`${dateValue}T00:00:00`))
+  const value = String(dateValue)
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('fr-FR').format(date)
 }
 
 export default function StudentDetailsPage({ student, onNavigate }) {
@@ -220,7 +223,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
             <dl className="sdp-summary">
               <div><dt>Matricule</dt><dd>{details.registration_number ?? '—'}</dd></div>
               <div><dt>Sexe</dt><dd>{genderLabel(details.gender)}</dd></div>
-              <div><dt>Date de naissance</dt><dd>{formatDate(details.birth_date)}</dd></div>
+              <div><dt>Dernière modification</dt><dd>{formatDate(details.updated_at)}</dd></div>
               <div><dt>Classe actuelle</dt><dd>{className(details.class_id)}</dd></div>
               <div><dt>Année scolaire</dt><dd>{yearName(details.school_year_id)}</dd></div>
               <div><dt>Date d’inscription</dt><dd>{formatDate(details.admission_date)}</dd></div>
@@ -229,10 +232,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
         </div>
 
         <div className="sdp-header__actions">
-          <button type="button" className="sdp-btn-outline" onClick={() => setEditing((v) => !v)}>
-            <Pencil aria-hidden="true" size={16} />
-            {editing ? 'Annuler' : 'Modifier'}
-          </button>
           <div className="sdp-menu-wrapper">
             <button type="button" className="sdp-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
               Actions
@@ -323,13 +322,19 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                 <div className="sdp-form-actions">
                   <button type="button" className="sdp-btn-outline" onClick={() => { setEditing(false); resetForm(details) }}>Annuler</button>
                   <button type="submit" className="sdp-btn-primary" disabled={saving}>
-                    {saving ? 'Enregistrement…' : '💾 Enregistrer les modifications'}
+                    {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
                   </button>
                 </div>
               </form>
             ) : (
               <div className="sdp-view">
-                <h2>Informations personnelles</h2>
+                <div className="sdp-section-heading">
+                  <h2>Informations personnelles</h2>
+                  <button type="button" className="sdp-btn-outline" onClick={() => setEditing(true)}>
+                    <Pencil aria-hidden="true" size={16} />
+                    Modifier
+                  </button>
+                </div>
                 <div className="sdp-personal-grid">
                   <section>
                     <h3>Informations d’identité</h3>
