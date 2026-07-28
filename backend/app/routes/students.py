@@ -1,13 +1,15 @@
 """Routes HTTP pour consulter et rechercher les élèves (lecture seule)."""
 
+"""Routes HTTP pour consulter et créer des élèves."""
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-
 from app.core.database import get_db
+from app.core.account_already_exists_error import AccountAlreadyExistsError
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
-from app.services.student_service import list_students, get_student
+from app.services.student_service import list_students, get_student, create_student
 from app.schemas.student_response import StudentResponse
+from app.schemas.student_create import StudentCreate
 
 
 router = APIRouter(
@@ -55,4 +57,19 @@ def read_student(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
+    return student
+@router.post("/", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
+def post_student(
+    student_data: StudentCreate,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Crée un nouvel élève (compte + profil + inscription optionnelle)."""
+    try:
+        student = create_student(db=db, data=student_data)
+    except AccountAlreadyExistsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Un compte utilise déjà ce matricule.",
+        ) from error
     return student

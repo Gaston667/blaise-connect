@@ -6,7 +6,11 @@ from sqlalchemy import or_, select, text
 
 from app.models.student import Student
 from app.models.account import Account
-
+from app.core.account_already_exists_error import AccountAlreadyExistsError
+from app.core.security import hash_password
+from app.models.account import Account
+from app.services.account_service import find_account_by_registration_number
+from app.schemas.student_create import StudentCreate
 
 def list_students(
     db: Session,
@@ -172,3 +176,52 @@ def get_student(db: Session, student_id):
         'class_id': row.class_id,
         'school_year_id': row.school_year_id,
     }
+def create_student(db: Session, data: StudentCreate) -> dict:
+    """Crée un compte élève, son profil, et l'inscrit dans une classe si fournie."""
+
+    existing_account = find_account_by_registration_number(
+        db=db, registration_number=data.registration_number
+    )
+    if existing_account is not None:
+        raise AccountAlreadyExistsError(data.registration_number)
+
+    password_hash = hash_password(data.password.get_secret_value())
+    account = Account(
+        registration_number=data.registration_number,
+        password_hash=password_hash,
+        role="STUDENT",
+    )
+    db.add(account)
+    db.flush()
+
+    student = Student(
+        account_id=account.id,
+        first_name=data.first_name,
+        last_name=data.last_name,
+        birth_date=data.birth_date,
+        gender=data.gender,
+        email=data.email,
+        phone=data.phone,
+        address=data.address,
+        admission_date=data.admission_date,
+    )
+    db.add(student)
+    db.flush()
+
+    if data.class_id:
+        start_date = data.enrollment_start_date or data.admission_date
+        db.execute(
+            text(
+                "INSERT INTO student_enrollments (student_id, class_id, start_date) "
+                "VALUES (:student_id, :class_id, :start_date)"
+            ),
+            {
+                "student_id": str(student.id),
+                "class_id": data.class_id,
+                "start_date": start_date,
+            },
+        )
+
+    db.commit()
+
+    return get_student(db=db, student_id=str(student.id))

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listStudents, getStudent } from '../services/students_service.js'
 import '../styles/students_page.css'
+import AddStudentModal from '../components/add_student_modal.jsx'
 const AVATAR_PALETTE = [
   { bg: '#E8ECFB', fg: '#3355DD' },
   { bg: '#FDEBEA', fg: '#D9534F' },
@@ -56,6 +57,7 @@ export default function StudentsPage({ onNavigate }) {
   const [selected, setSelected] = useState(null)
   const [detail, setDetail] = useState(null)
   const [activeTab, setActiveTab] = useState('info')
+  const [showAddModal, setShowAddModal] = useState(false)
 
   useEffect(() => {
     fetchInitialData()
@@ -154,9 +156,9 @@ export default function StudentsPage({ onNavigate }) {
             <span>Élèves</span>
           </nav>
         </div>
-        <button type="button" className="sp-btn-primary">
-          <span className="sp-btn-primary__plus">+</span> Ajouter un élève
-        </button>
+        <button type="button" className="sp-btn-primary" onClick={() => setShowAddModal(true)}>
+  <span className="sp-btn-primary__plus">+</span> Ajouter un élève
+</button>
       </div>
 
       <form onSubmit={handleSearch} className="sp-filters">
@@ -325,6 +327,17 @@ export default function StudentsPage({ onNavigate }) {
           )}
         </aside>
       </div>
+      {showAddModal && (
+  <AddStudentModal
+  classes={classes}
+  schoolYears={schoolYears}
+  onClose={() => setShowAddModal(false)}
+  onCreated={() => {
+    setShowAddModal(false)
+    fetchStudents(page)
+  }}
+/>
+)}
     </main>
   )
 }

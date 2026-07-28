@@ -384,3 +384,130 @@
 @media (max-width: 900px) {
   .sp-body { grid-template-columns: 1fr; }
 }
+.asm-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+}
+
+.asm-modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  width: var(--modal-width-md);
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.asm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-5) var(--space-6);
+  border-bottom: var(--border-width-thin) solid var(--color-divider);
+}
+
+.asm-header h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.asm-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.asm-form {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.asm-row {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.asm-row label, .asm-full {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.asm-form input, .asm-form select {
+  border: var(--border-width-thin) solid var(--input-border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+  height: var(--input-height-sm);
+  font-size: var(--font-size-sm);
+  color: var(--input-text);
+  background: var(--input-bg);
+}
+
+.asm-form input:focus, .asm-form select:focus {
+  outline: none;
+  border-color: var(--input-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.asm-error {
+  background: var(--alert-danger-bg);
+  color: var(--alert-danger-text);
+  border: var(--border-width-thin) solid var(--alert-danger-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.asm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.asm-btn-cancel {
+  background: var(--button-secondary-bg);
+  border: var(--border-width-thin) solid var(--button-secondary-border);
+  color: var(--button-secondary-text);
+  border-radius: var(--radius-md);
+  padding: var(--button-padding-lg);
+  height: var(--button-height-md);
+  cursor: pointer;
+}
+
+.asm-btn-save {
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--button-padding-lg);
+  height: var(--button-height-md);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.asm-btn-save:disabled {
+  background: var(--button-disabled-bg);
+  color: var(--button-disabled-text);
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .asm-row { flex-direction: column; }
+}
