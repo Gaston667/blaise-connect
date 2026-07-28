@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from app.routes.accounts import router as accounts_router
 from app.routes.school_years import router as school_years_router
 from app.routes.reporting_periods import router as reporting_periods_router
+from app.routes.students import router as students_router
+from app.routes.school_classes import router as school_classes_router
 
 
 # Importation des routeurs
@@ -24,3 +26,5 @@ app.include_router(auth_router)
 app.include_router(accounts_router)
 app.include_router(school_years_router)
 app.include_router(reporting_periods_router)
+app.include_router(students_router)
+app.include_router(school_classes_router)

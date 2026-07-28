@@ -8,6 +8,8 @@ import LoginPage from './pages/login_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
 import SchoolYearsPage from './pages/school_years_page.jsx'
 import SchoolYearDetailsPage from './pages/school_year_details_page.jsx'
+import StudentsPage from './pages/students_page.jsx'
+import StudentDetailsPage from './pages/student_details_page.jsx'
 
 /**
  * Composant racine de l'application React.
@@ -69,6 +71,10 @@ export default function App() {
       setSelectedAccount(account)
     }
 
+    if (page === 'student-details') {
+      setSelectedAccount(account)
+    }
+
     setCurrentPage(page)
   }
 
@@ -88,6 +94,13 @@ export default function App() {
       currentPage === 'account-details' && canManageAccounts && selectedAccount
 
     let pageContent = <HomePage account={currentAccount} />
+    if (currentPage === 'students') {
+      pageContent = <StudentsPage onNavigate={handleNavigate} />
+    } else if (currentPage === 'student-details' && selectedAccount) {
+      pageContent = (
+        <StudentDetailsPage student={selectedAccount} onNavigate={handleNavigate} />
+      )
+    }
     if (shouldDisplayAccounts) {
       pageContent = <AccountsPage onNavigate={handleNavigate} />
     } else if (shouldDisplayAccountDetails) {

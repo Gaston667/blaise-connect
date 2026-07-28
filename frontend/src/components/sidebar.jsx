@@ -67,6 +67,20 @@ export default function Sidebar({
           Accueil
         </button>
 
+        <button
+          className={
+            currentPage === 'students' || currentPage === 'student-details'
+              ? 'layout-navigation-item layout-navigation-item-active'
+              : 'layout-navigation-item'
+          }
+          type="button"
+          data-page="students"
+          onClick={handleNavigation}
+        >
+          <UsersRound aria-hidden="true" size={20} />
+          Gestion des élèves
+        </button>
+
        {canManageAccounts ? (
           <button
             className={
