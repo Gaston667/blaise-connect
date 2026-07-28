@@ -2,15 +2,16 @@
 
 from typing import Iterable
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, select, text
+from sqlalchemy import or_, select, text, func
 
+from app.schemas.student_update import StudentUpdate
+from app.schemas.student_create import StudentCreate
 from app.models.student import Student
 from app.models.account import Account
 from app.core.account_already_exists_error import AccountAlreadyExistsError
 from app.core.security import hash_password
-from app.models.account import Account
 from app.services.account_service import find_account_by_registration_number
-from app.schemas.student_create import StudentCreate
+
 
 def list_students(
     db: Session,
@@ -27,7 +28,6 @@ def list_students(
     - `status` filtre sur la colonne `status` si fourni.
     """
 
-    # Use a single SQL query joining current enrollment (if any) and class
     sql = text(
         """
         SELECT
@@ -37,13 +37,18 @@ def list_students(
             s.first_name,
             s.last_name,
             s.birth_date,
+            s.birth_place,
             s.gender,
+            s.nationality,
             s.email,
             s.phone,
             s.address,
+            s.previous_level,
             s.admission_date,
             s.status,
             s.photo_path,
+            s.observations,
+            s.internal_code,
             s.archived_at,
             s.created_at,
             s.updated_at,
@@ -62,7 +67,6 @@ def list_students(
     )
 
     params: dict = {"limit": limit, "offset": offset}
-
     where_clauses: list[str] = []
 
     if q:
@@ -97,13 +101,18 @@ def list_students(
             'first_name': row.first_name,
             'last_name': row.last_name,
             'birth_date': row.birth_date,
+            'birth_place': row.birth_place,
             'gender': row.gender,
+            'nationality': row.nationality,
             'email': row.email,
             'phone': row.phone,
             'address': row.address,
+            'previous_level': row.previous_level,
             'admission_date': row.admission_date,
             'status': row.status,
             'photo_path': row.photo_path,
+            'observations': row.observations,
+            'internal_code': row.internal_code,
             'archived_at': row.archived_at,
             'created_at': row.created_at,
             'updated_at': row.updated_at,
@@ -113,6 +122,7 @@ def list_students(
         results.append(record)
 
     return results
+
 
 def get_student(db: Session, student_id):
     """Renvoie un étudiant par `id` ou `None` si absent. Retourne un dict
@@ -128,13 +138,18 @@ def get_student(db: Session, student_id):
             s.first_name,
             s.last_name,
             s.birth_date,
+            s.birth_place,
             s.gender,
+            s.nationality,
             s.email,
             s.phone,
             s.address,
+            s.previous_level,
             s.admission_date,
             s.status,
             s.photo_path,
+            s.observations,
+            s.internal_code,
             s.archived_at,
             s.created_at,
             s.updated_at,
@@ -163,19 +178,26 @@ def get_student(db: Session, student_id):
         'first_name': row.first_name,
         'last_name': row.last_name,
         'birth_date': row.birth_date,
+        'birth_place': row.birth_place,
         'gender': row.gender,
+        'nationality': row.nationality,
         'email': row.email,
         'phone': row.phone,
         'address': row.address,
+        'previous_level': row.previous_level,
         'admission_date': row.admission_date,
         'status': row.status,
         'photo_path': row.photo_path,
+        'observations': row.observations,
+        'internal_code': row.internal_code,
         'archived_at': row.archived_at,
         'created_at': row.created_at,
         'updated_at': row.updated_at,
         'class_id': row.class_id,
         'school_year_id': row.school_year_id,
     }
+
+
 def create_student(db: Session, data: StudentCreate) -> dict:
     """Crée un compte élève, son profil, et l'inscrit dans une classe si fournie."""
 
@@ -225,3 +247,71 @@ def create_student(db: Session, data: StudentCreate) -> dict:
     db.commit()
 
     return get_student(db=db, student_id=str(student.id))
+
+
+def _apply_status_change(db: Session, student_id: str, new_status: str, admin_account_id, require_current: list[str] | None = None):
+    student = db.get(Student, student_id)
+    if not student:
+        return None
+
+    if require_current and student.status not in require_current:
+        raise ValueError(
+            f"Transition invalide : l'élève est actuellement '{student.status}'."
+        )
+
+    student.status = new_status
+    student.archived_at = func.now() if new_status == "ARCHIVED" else None
+    student.updated_by_account_id = admin_account_id
+    db.commit()
+    return get_student(db=db, student_id=str(student_id))
+
+
+def update_student(db: Session, student_id: str, data: StudentUpdate, admin_account_id) -> dict | None:
+    """Met à jour les champs fournis sur la fiche d'un élève."""
+    student = db.get(Student, student_id)
+    if not student:
+        return None
+
+    updates = data.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(student, field, value)
+
+    student.updated_by_account_id = admin_account_id
+    db.commit()
+    return get_student(db=db, student_id=str(student_id))
+
+
+def archive_student(db: Session, student_id: str, admin_account_id) -> dict | None:
+    """Archive un élève (statut terminal)."""
+    return _apply_status_change(db, student_id, "ARCHIVED", admin_account_id)
+
+
+def deactivate_student(db: Session, student_id: str, admin_account_id) -> dict | None:
+    """Désactive temporairement un élève actif."""
+    return _apply_status_change(db, student_id, "INACTIVE", admin_account_id, require_current=["ACTIVE"])
+
+
+def reactivate_student(db: Session, student_id: str, admin_account_id) -> dict | None:
+    """Réactive un élève inactif ou archivé."""
+    return _apply_status_change(db, student_id, "ACTIVE", admin_account_id, require_current=["INACTIVE", "ARCHIVED"])
+def get_student_status_history(db: Session, student_id: str) -> list[dict]:
+    """Retourne l'historique des changements de statut d'un élève, plus récent en premier."""
+    sql = text(
+        """
+        SELECT h.status, h.changed_at, h.note, a.registration_number as changed_by
+        FROM student_status_history h
+        LEFT JOIN accounts a ON h.changed_by_account_id = a.id
+        WHERE h.student_id = :student_id
+        ORDER BY h.changed_at DESC
+        """
+    )
+    rows = db.execute(sql, {"student_id": student_id}).all()
+    return [
+        {
+            "status": row.status,
+            "changed_at": row.changed_at,
+            "note": row.note,
+            "changed_by": row.changed_by,
+        }
+        for row in rows
+    ]

@@ -25,3 +25,8 @@ class StudentResponse(BaseModel):
     updated_at: datetime
     class_id: UUID | None
     school_year_id: UUID | None
+    birth_place: str | None
+    nationality: str | None
+    previous_level: str | None
+    observations: str | None
+    internal_code: str | None

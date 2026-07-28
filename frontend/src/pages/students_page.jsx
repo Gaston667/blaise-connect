@@ -222,12 +222,11 @@ export default function StudentsPage({ onNavigate }) {
             <tbody>
               {students.map((s) => {
                 const av = avatarStyle(s.last_name)
-                const isSelected = selected?.id === s.id
                 return (
                   <tr
                     key={s.id}
-                    className={isSelected ? 'sp-row sp-row--selected' : 'sp-row'}
-                    onClick={() => selectStudent(s)}
+                    className="sp-row"
+                    onClick={() => onNavigate?.('student-details', s)}
                   >
                     <td>
                       <div className="sp-name-cell">
@@ -263,69 +262,6 @@ export default function StudentsPage({ onNavigate }) {
             <button disabled={page >= pageCount - 1} onClick={() => goToPage(page + 1)}>›</button>
           </div>
         </section>
-
-        <aside className="sp-detail">
-          {detail ? (
-            <>
-              <div className="sp-detail__header">
-                <span
-                  className="sp-avatar sp-avatar--lg"
-                  style={avatarStyle(detail.last_name)}
-                >
-                  {initials(detail.first_name, detail.last_name)}
-                </span>
-                <div>
-                  <div className="sp-detail__name">
-                    {detail.first_name} {detail.last_name}
-                    <StatusBadge status={detail.status} />
-                  </div>
-                  <div className="sp-detail__meta">N° d'identification : {detail.registration_number ?? detail.account_id}</div>
-                  <div className="sp-detail__meta">Classe : {className(detail.class_id)}</div>
-                  <div className="sp-detail__meta">Année scolaire : {yearName(detail.school_year_id)}</div>
-                </div>
-              </div>
-
-              <div className="sp-tabs">
-                <button className={activeTab === 'info' ? 'sp-tab sp-tab--active' : 'sp-tab'} onClick={() => setActiveTab('info')}>Informations</button>
-                <button className={activeTab === 'guardians' ? 'sp-tab sp-tab--active' : 'sp-tab'} onClick={() => setActiveTab('guardians')}>Responsables</button>
-                <button className={activeTab === 'path' ? 'sp-tab sp-tab--active' : 'sp-tab'} onClick={() => setActiveTab('path')}>Parcours scolaire</button>
-              </div>
-
-              {activeTab === 'info' && (
-  <div className="sp-info">
-    <h3>Informations personnelles</h3>
-    <dl>
-      {detail.birth_date && <div><dt>📅 Date de naissance</dt><dd>{detail.birth_date}</dd></div>}
-      {detail.gender && <div><dt>⚧ Sexe</dt><dd>{detail.gender}</dd></div>}
-      {detail.phone && <div><dt>📞 Téléphone</dt><dd>{detail.phone}</dd></div>}
-      {detail.email && <div><dt>✉ Email</dt><dd>{detail.email}</dd></div>}
-      {detail.address && <div><dt>🏠 Adresse</dt><dd>{detail.address}</dd></div>}
-      {!detail.birth_date && !detail.gender && !detail.phone && !detail.email && !detail.address && (
-        <p className="sp-placeholder">Aucune information personnelle renseignée.</p>
-      )}
-    </dl>
-
-    <h3>Informations scolaires</h3>
-    <dl>
-      <div><dt>📅 Date d'inscription</dt><dd>{detail.admission_date ?? '—'}</dd></div>
-      <div><dt>🏫 Classe actuelle</dt><dd>{className(detail.class_id)}</dd></div>
-      <div><dt>⚑ Statut</dt><dd><StatusBadge status={detail.status} /></dd></div>
-    </dl>
-  </div>
-)}
-
-              {activeTab === 'guardians' && <p className="sp-placeholder">Aucun responsable renseigné pour le moment.</p>}
-              {activeTab === 'path' && <p className="sp-placeholder">Parcours scolaire non disponible pour le moment.</p>}
-
-              <div className="sp-readonly-note">
-                ⓘ Cette fiche est en lecture seule.<br />
-                Pour modifier les informations, utilisez les actions disponibles.
-              </div>
-            </>
-          ) : (
-            <p className="sp-placeholder">Sélectionnez un élève pour voir sa fiche.</p>
-          )}
-        </aside>
       </div>
       {showAddModal && (
   <AddStudentModal

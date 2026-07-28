@@ -146,7 +146,6 @@
 
 .sp-body {
   display: grid;
-  grid-template-columns: 1fr 360px;
   gap: var(--space-5);
   align-items: start;
 }

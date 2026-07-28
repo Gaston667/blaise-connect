@@ -4,11 +4,14 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from app.schemas.student_update import StudentUpdate
+from app.services.student_service import update_student, archive_student, deactivate_student, reactivate_student
 from app.core.database import get_db
 from app.core.account_already_exists_error import AccountAlreadyExistsError
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.services.student_service import list_students, get_student, create_student
 from app.schemas.student_response import StudentResponse
+from app.services.student_service import get_student_status_history
 from app.schemas.student_create import StudentCreate
 
 
@@ -73,3 +76,71 @@ def post_student(
             detail="Un compte utilise déjà ce matricule.",
         ) from error
     return student
+@router.patch("/{student_id}", response_model=StudentResponse)
+def patch_student(
+    student_id: str,
+    data: StudentUpdate,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Met à jour les informations d'un élève."""
+    student = update_student(db=db, student_id=student_id, data=data, admin_account_id=current_admin.id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student
+
+
+@router.post("/{student_id}/archive", response_model=StudentResponse)
+def post_archive_student(
+    student_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Archive un élève."""
+    try:
+        student = archive_student(db=db, student_id=student_id, admin_account_id=current_admin.id)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student
+
+
+@router.post("/{student_id}/deactivate", response_model=StudentResponse)
+def post_deactivate_student(
+    student_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Désactive un élève actif."""
+    try:
+        student = deactivate_student(db=db, student_id=student_id, admin_account_id=current_admin.id)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student
+
+
+@router.post("/{student_id}/reactivate", response_model=StudentResponse)
+def post_reactivate_student(
+    student_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Réactive un élève inactif ou archivé."""
+    try:
+        student = reactivate_student(db=db, student_id=student_id, admin_account_id=current_admin.id)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student
+@router.get("/{student_id}/status-history")
+def get_status_history(
+    student_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Historique des changements de statut d'un élève."""
+    return get_student_status_history(db=db, student_id=student_id)
