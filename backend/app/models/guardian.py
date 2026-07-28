@@ -27,17 +27,11 @@ class Guardian(Base):
     )
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
     phone: Mapped[str] = mapped_column(String(30), nullable=False)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     occupation: Mapped[str | None] = mapped_column(String(150), nullable=True)
     employer: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    photo_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    archived_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

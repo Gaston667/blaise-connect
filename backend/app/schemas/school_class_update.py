@@ -16,6 +16,7 @@ class SchoolClassUpdate(BaseModel):
     main_teacher_id: UUID | None = None
     group_label: str | None = Field(default=None, min_length=1, max_length=30)
     capacity: int | None = Field(default=None, gt=0, le=32767)
+    observations: str | None = None
 
     @field_validator("group_label")
     @classmethod

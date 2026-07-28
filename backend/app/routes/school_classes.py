@@ -4,13 +4,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import DBAPIError, IntegrityError
-
+from app.schemas.school_class_overview import SchoolClassOverview
+from app.services.school_class_service import list_school_classes_overview
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.core.postgres_error_message import extract_postgres_error_message
 from app.core.school_class_not_found_error import SchoolClassNotFoundError
 from app.schemas.school_class_create import SchoolClassCreate
 from app.schemas.school_class_response import SchoolClassResponse
 from app.schemas.school_class_update import SchoolClassUpdate
+from app.schemas.school_class_detail import SchoolClassDetail
+from app.services.school_class_service import get_school_class_detail, delete_school_class
+
 from app.services.school_class_service import (
     create_school_class,
     get_school_class_by_id,
@@ -40,7 +44,22 @@ def get_school_classes(
         SchoolClassResponse.model_validate(school_class)
         for school_class in school_classes
     ]
-
+@router.get("/overview", response_model=list[SchoolClassOverview])
+def get_school_classes_overview(
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+    q: str | None = None,
+    school_year_id: str | None = None,
+    class_level_id: str | None = None,
+    status: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[SchoolClassOverview]:
+    """Vue enrichie des classes pour l'écran de gestion (noms, effectif, statut)."""
+    return list_school_classes_overview(
+        db=db, q=q, school_year_id=school_year_id, class_level_id=class_level_id,
+        status=status, limit=limit, offset=offset,
+    )
 
 @router.get(
     "/{school_class_id}",
@@ -133,3 +152,34 @@ def patch_school_class(
         ) from error
 
     return SchoolClassResponse.model_validate(school_class)
+@router.get("/{school_class_id}/detail", response_model=SchoolClassDetail)
+def get_school_class_detail_route(
+    school_class_id: UUID,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Vue détaillée d'une classe avec effectif, professeur et statut."""
+    detail = get_school_class_detail(db=db, school_class_id=str(school_class_id))
+    if not detail:
+        raise HTTPException(status_code=404, detail="Classe introuvable.")
+    return detail
+
+
+@router.delete("/{school_class_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_school_class_route(
+    school_class_id: UUID,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Supprime une classe. Refuse si des élèves ou matières y sont rattachés."""
+    try:
+        get_school_class_by_id(db, school_class_id)
+        delete_school_class(db=db, school_class_id=str(school_class_id))
+    except SchoolClassNotFoundError as error:
+        raise HTTPException(status_code=404, detail="Classe introuvable.") from error
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Impossible de supprimer : des élèves ou matières sont encore rattachés à cette classe.",
+        ) from error

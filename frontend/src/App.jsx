@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-
+import SchoolClassesPage from './pages/school_classes_page.jsx'
 import MainLayout from './layouts/main_layout.jsx'
 import AccountsPage from './pages/accounts_page.jsx'
 import AccountDetailsPage from './pages/account_details_page.jsx'
@@ -10,6 +10,7 @@ import SchoolYearsPage from './pages/school_years_page.jsx'
 import SchoolYearDetailsPage from './pages/school_year_details_page.jsx'
 import StudentsPage from './pages/students_page.jsx'
 import StudentDetailsPage from './pages/student_details_page.jsx'
+import SchoolClassDetailsPage from './pages/school_class_details_page.jsx'
 
 /**
  * Composant racine de l'application React.
@@ -19,6 +20,7 @@ export default function App() {
   const [isSessionLoading, setIsSessionLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState('home')
   const [selectedAccount, setSelectedAccount] = useState(null)
+  const [selectedSchoolClass, setSelectedSchoolClass] = useState(null)
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(null)
 
   /**
@@ -66,8 +68,11 @@ export default function App() {
       'account-details',
       'school-years',
       'school-year-details',
+      'school-classes',
     ]
-
+    if (page === 'school-class-details') {
+      setSelectedSchoolClass(account)
+    } 
     if (pagesReservedToAdmin.includes(page) && currentAccount?.role !== 'ADMIN') {
       setCurrentPage('home')
       return
@@ -80,6 +85,7 @@ export default function App() {
     if (page === 'student-details') {
       setSelectedAccount(account)
     }
+    
 
     if (page === 'school-year-details') {
       setSelectedSchoolYearId(account)
@@ -120,6 +126,10 @@ export default function App() {
           onNavigate={handleNavigate}
         />
       )
+    } else if (currentPage === 'school-classes' && canManageAccounts) {
+      pageContent = <SchoolClassesPage onNavigate={handleNavigate} />
+    } else if (currentPage === 'school-class-details' && canManageAccounts && selectedSchoolClass) {
+      pageContent = <SchoolClassDetailsPage schoolClass={selectedSchoolClass} onNavigate={handleNavigate} />
     } else if (currentPage === 'school-years' && canManageAccounts) {
       pageContent = <SchoolYearsPage onNavigate={handleNavigate} />
     } else if (

@@ -3,10 +3,11 @@ import {
   ContactRound,
   GraduationCap,
   House,
+  Users,
   X,
-} from 'lucide-react'
+} from 'lucide-react' 
 import logo from '../assets/logo-blaise-connect.png.png'
-import LogoutButton from './logout_button.jsx'
+import LogoutButton from '../pages/logout_button.jsx'
 
 
 /**
@@ -118,6 +119,19 @@ export default function Sidebar({
             Années scolaires
           </button>
         ) : null}
+        <button
+          className={
+            currentPage === 'school-classes'
+              ? 'layout-navigation-item layout-navigation-item-active'
+              : 'layout-navigation-item'
+          }
+          type="button"
+          data-page="school-classes"
+          onClick={handleNavigation}
+        >
+          <Users aria-hidden="true" size={20} />
+          Classes
+        </button>
       </nav>
 
       <LogoutButton onLogoutSuccess={onLogoutSuccess} />

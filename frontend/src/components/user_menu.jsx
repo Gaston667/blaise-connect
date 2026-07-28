@@ -1,8 +1,7 @@
 import { UserRound } from 'lucide-react'
 import { useState } from 'react'
 
-import LogoutButton from './logout_button.jsx'
-
+import LogoutButton from '../pages/logout_button.jsx'
 /**
  * Traduit le rôle technique pour l'interface utilisateur.
  */
