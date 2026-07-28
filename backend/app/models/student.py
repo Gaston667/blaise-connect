@@ -43,7 +43,6 @@ class Student(Base):
     nationality: Mapped[str | None] = mapped_column(String(100), nullable=True)
     previous_level: Mapped[str | None] = mapped_column(String(100), nullable=True)
     observations: Mapped[str | None] = mapped_column(Text, nullable=True)
-    internal_code: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
     updated_by_account_id: Mapped[UUID | None] = mapped_column(
         Uuid, ForeignKey("accounts.id"), nullable=True
     )

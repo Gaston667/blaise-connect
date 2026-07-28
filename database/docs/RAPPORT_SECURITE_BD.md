@@ -2,7 +2,7 @@
 
 ## Suppression contrôlée d'une année ouverte
 
-La migration `011_delete_open_school_year.sql` n'accorde aucun droit `DELETE`
+La migration `005_delete_open_school_year.sql` n'accorde aucun droit `DELETE`
 direct à `blaise_app`. Elle expose uniquement une fonction `SECURITY DEFINER`
 qui vérifie le rôle administrateur, refuse les années clôturées, exige le nom
 exact de l'année, supprime ses dépendances dans la transaction courante et

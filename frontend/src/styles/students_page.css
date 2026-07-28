@@ -1,5 +1,8 @@
 .sp-main {
-  padding: var(--space-8) var(--space-10);
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin-inline: auto;
+  padding: var(--space-5) var(--space-4);
   font-family: var(--font-family-base);
   color: var(--color-text-primary);
   background: var(--color-background);
@@ -7,8 +10,9 @@
 
 .sp-topbar {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
 
@@ -21,15 +25,17 @@
 
 .sp-breadcrumb {
   display: flex;
+  align-items: center;
   gap: var(--space-2);
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
 }
 
 .sp-breadcrumb button {
   background: none;
   border: none;
-  color: var(--color-text-muted);
+  color: var(--color-primary);
   cursor: pointer;
   padding: 0;
   font-size: var(--font-size-sm);
@@ -37,6 +43,11 @@
 
 .sp-breadcrumb button:hover {
   color: var(--color-text-link-hover);
+  text-decoration: underline;
+}
+
+.sp-breadcrumb-current {
+  color: var(--color-text-secondary);
 }
 
 .sp-btn-primary {
@@ -59,11 +70,15 @@
 .sp-btn-primary:active { background: var(--button-primary-bg-active); }
 
 .sp-filters {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: var(--space-3);
-  align-items: stretch;
   margin-bottom: var(--space-5);
-  flex-wrap: wrap;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
 }
 
 .sp-search {
@@ -73,9 +88,10 @@
   background: var(--input-bg);
   border: var(--border-width-thin) solid var(--input-border);
   border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-4);
+  padding: 0 var(--space-4);
   flex: 1;
   min-width: 220px;
+  height: var(--input-height-sm);
 }
 
 .sp-search:focus-within {
@@ -110,6 +126,7 @@
   background: var(--input-bg);
   color: var(--input-text);
   height: var(--input-height-sm);
+  width: 100%;
 }
 
 .sp-filters select:focus {
@@ -140,6 +157,10 @@
   color: var(--button-secondary-text);
   font-size: var(--font-size-sm);
   transition: background var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--input-height-sm);
 }
 
 .sp-btn-reset:hover { background: var(--button-secondary-bg-hover); }
@@ -162,10 +183,18 @@
   padding: var(--space-4) var(--space-5);
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
+  border-bottom: var(--border-width-thin) solid var(--table-border);
+}
+
+.sp-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
 }
 
 .sp-table {
   width: 100%;
+  min-width: 1050px;
   border-collapse: collapse;
 }
 
@@ -194,6 +223,11 @@
 
 .sp-row:hover { background: var(--table-row-hover-bg); }
 .sp-row--selected { background: var(--table-row-selected-bg); }
+
+.sp-registration-number {
+  color: var(--color-primary) !important;
+  font-weight: var(--font-weight-semibold);
+}
 
 .sp-row__chevron {
   color: var(--color-text-disabled);
@@ -380,8 +414,27 @@
   font-size: var(--font-size-sm);
 }
 
-@media (max-width: 900px) {
-  .sp-body { grid-template-columns: 1fr; }
+@media (min-width: 700px) {
+  .sp-filters {
+    grid-template-columns: minmax(260px, 2fr) repeat(2, minmax(160px, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .sp-main {
+    padding: var(--space-8) var(--space-10);
+  }
+
+  .sp-topbar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .sp-filters {
+    grid-template-columns: minmax(280px, 2fr) repeat(3, minmax(150px, 1fr)) auto auto;
+    align-items: stretch;
+  }
 }
 .asm-overlay {
   position: fixed;

@@ -1,11 +1,25 @@
 import { useEffect, useState } from 'react'
 import {
+  ChartNoAxesColumnIncreasing,
+  ChevronDown,
+  ChevronRight,
+  ClipboardCheck,
+  Clock3,
+  FileText,
+  FolderOpen,
+  GraduationCap,
+  Info,
+  Pencil,
+  Upload,
+  UserRound,
+  UsersRound,
+} from 'lucide-react'
+import {
   getStudent,
   updateStudent,
   archiveStudent,
   deactivateStudent,
   reactivateStudent,
-  getStudentStatusHistory,
 } from '../services/students_service.js'
 import '../styles/student_details_page.css'
 
@@ -25,19 +39,77 @@ function initials(first, last) {
   return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase()
 }
 
+function genderLabel(gender) {
+  if (gender === 'MALE' || gender === 'M') return 'Masculin'
+  if (gender === 'FEMALE' || gender === 'F') return 'Féminin'
+  return '—'
+}
+
+function formatDate(dateValue) {
+  if (!dateValue) return '—'
+  return new Intl.DateTimeFormat('fr-FR').format(new Date(`${dateValue}T00:00:00`))
+}
+
 export default function StudentDetailsPage({ student, onNavigate }) {
   const [details, setDetails] = useState(student)
-  const [history, setHistory] = useState([])
   const [classes, setClasses] = useState([])
   const [schoolYears, setSchoolYears] = useState([])
-  const [activeTab, setActiveTab] = useState('info')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
   const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [photoFailed, setPhotoFailed] = useState(false)
+  const [activeTab, setActiveTab] = useState('personal')
+
+  function handleHomeNavigation() {
+    onNavigate?.('home')
+  }
+
+  function handleStudentsNavigation() {
+    onNavigate?.('students')
+  }
+
+  function handlePhotoError() {
+    setPhotoFailed(true)
+  }
+
+  function showPersonalInformation() {
+    setActiveTab('personal')
+  }
+
+  function showSchoolInformation() {
+    setActiveTab('school')
+  }
+
+  function showGuardians() {
+    setActiveTab('guardians')
+  }
+
+  function showDocuments() {
+    setActiveTab('documents')
+  }
+
+  function handleGuardianNavigation(event) {
+    const guardianId = event.currentTarget.dataset.guardianId
+    const guardian = (details.guardians ?? []).find(
+      (item) => String(item.id) === guardianId,
+    )
+
+    if (guardian) {
+      onNavigate?.('guardian-details', guardian)
+    }
+  }
+
+  function handleGuardianKeyDown(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleGuardianNavigation(event)
+    }
+  }
 
   useEffect(() => {
+    setPhotoFailed(false)
     load()
     // Recharge uniquement lorsque l'élève sélectionné change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -46,14 +118,12 @@ export default function StudentDetailsPage({ student, onNavigate }) {
   async function load() {
     if (!student?.id) return
     try {
-      const [full, hist, yearsRes, classesRes] = await Promise.all([
+      const [full, yearsRes, classesRes] = await Promise.all([
         getStudent(student.id),
-        getStudentStatusHistory(student.id),
         import('../services/school_year_service.js').then((m) => m.getSchoolYears()),
         import('../services/school_class_service.js').then((m) => m.getSchoolClasses()),
       ])
       setDetails(full)
-      setHistory(hist)
       setSchoolYears(yearsRes)
       setClasses(classesRes)
       resetForm(full)
@@ -73,9 +143,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
       phone: d.phone ?? '',
       email: d.email ?? '',
       address: d.address ?? '',
-      previous_level: d.previous_level ?? '',
-      admission_date: d.admission_date ?? '',
-      observations: d.observations ?? '',
     })
   }
 
@@ -125,33 +192,51 @@ export default function StudentDetailsPage({ student, onNavigate }) {
 
   return (
     <main className="sdp-main">
-      <nav className="sdp-breadcrumb">
-        <button type="button" onClick={() => onNavigate?.('students')}>← Élèves</button>
-        <span>›</span>
-        <span>Détail de l'élève</span>
+      <h1 className="sdp-page-title">Dossier de l’élève</h1>
+      <nav className="sdp-breadcrumb" aria-label="Fil d’Ariane">
+        <button type="button" onClick={handleHomeNavigation}>Accueil</button>
+        <ChevronRight aria-hidden="true" size={14} />
+        <button type="button" onClick={handleStudentsNavigation}>Élèves</button>
+        <ChevronRight aria-hidden="true" size={14} />
+        <span className="sdp-breadcrumb-current">Détail de l’élève</span>
       </nav>
 
       <div className="sdp-header">
         <div className="sdp-header__identity">
-          <span className="sdp-avatar">{initials(details.first_name, details.last_name)}</span>
+          <span className="sdp-avatar">
+            {details.photo_path && !photoFailed ? (
+              <img
+                src={details.photo_path}
+                alt={`Photo de ${details.first_name} ${details.last_name}`}
+                onError={handlePhotoError}
+              />
+            ) : initials(details.first_name, details.last_name)}
+          </span>
           <div>
             <h1>{details.first_name} {details.last_name}</h1>
-            <div className="sdp-header__meta">N° d'identification : {details.registration_number ?? details.account_id}</div>
             <div className="sdp-header__badges">
               <StatusBadge status={details.status} />
-              <span className="sdp-chip">{className(details.class_id)}</span>
-              <span className="sdp-chip">Année {yearName(details.school_year_id)}</span>
             </div>
+            <dl className="sdp-summary">
+              <div><dt>Matricule</dt><dd>{details.registration_number ?? '—'}</dd></div>
+              <div><dt>Sexe</dt><dd>{genderLabel(details.gender)}</dd></div>
+              <div><dt>Date de naissance</dt><dd>{formatDate(details.birth_date)}</dd></div>
+              <div><dt>Classe actuelle</dt><dd>{className(details.class_id)}</dd></div>
+              <div><dt>Année scolaire</dt><dd>{yearName(details.school_year_id)}</dd></div>
+              <div><dt>Date d’inscription</dt><dd>{formatDate(details.admission_date)}</dd></div>
+            </dl>
           </div>
         </div>
 
         <div className="sdp-header__actions">
           <button type="button" className="sdp-btn-outline" onClick={() => setEditing((v) => !v)}>
-            ✎ {editing ? 'Annuler' : 'Modifier'}
+            <Pencil aria-hidden="true" size={16} />
+            {editing ? 'Annuler' : 'Modifier'}
           </button>
           <div className="sdp-menu-wrapper">
             <button type="button" className="sdp-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
-              Actions ▾
+              Actions
+              <ChevronDown aria-hidden="true" size={16} />
             </button>
             {menuOpen && (
               <div className="sdp-menu">
@@ -174,17 +259,42 @@ export default function StudentDetailsPage({ student, onNavigate }) {
 
       <div className="sdp-body">
         <section className="sdp-content">
-          <div className="sdp-tabs">
-            <button className={activeTab === 'info' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'} onClick={() => setActiveTab('info')}>Informations personnelles</button>
-            <button className={activeTab === 'school' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'} onClick={() => setActiveTab('school')}>Scolarité</button>
-            <button className={activeTab === 'guardians' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'} onClick={() => setActiveTab('guardians')}>Responsables légaux</button>
-            <button className={activeTab === 'grades' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'} onClick={() => setActiveTab('grades')}>Notes et évaluations</button>
-            <button className={activeTab === 'absences' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'} onClick={() => setActiveTab('absences')}>Absences et retards</button>
-            <button className={activeTab === 'docs' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'} onClick={() => setActiveTab('docs')}>Documents</button>
-          </div>
+          <nav className="sdp-tabs" aria-label="Rubriques du dossier élève">
+            <button
+              type="button"
+              className={activeTab === 'personal' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'}
+              onClick={showPersonalInformation}
+            >
+              <UserRound aria-hidden="true" size={17} />
+              Informations personnelles
+            </button>
+            <button
+              type="button"
+              className={activeTab === 'school' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'}
+              onClick={showSchoolInformation}
+            >
+              <GraduationCap aria-hidden="true" size={18} />
+              Scolarité
+            </button>
+            <button
+              type="button"
+              className={activeTab === 'guardians' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'}
+              onClick={showGuardians}
+            >
+              <UsersRound aria-hidden="true" size={18} />
+              Responsables légaux
+            </button>
+            <button
+              type="button"
+              className={activeTab === 'documents' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'}
+              onClick={showDocuments}
+            >
+              <FolderOpen aria-hidden="true" size={18} />
+              Documents
+            </button>
+          </nav>
 
-          {activeTab === 'info' && (
-            editing ? (
+          {activeTab === 'personal' && (editing ? (
               <form onSubmit={handleSave} className="sdp-form">
                 <h3>Informations personnelles</h3>
                 <div className="sdp-row">
@@ -194,8 +304,8 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                     Sexe
                     <select value={form.gender} onChange={(e) => update('gender', e.target.value)}>
                       <option value="">—</option>
-                      <option value="F">Féminin</option>
-                      <option value="M">Masculin</option>
+                      <option value="FEMALE">Féminin</option>
+                      <option value="MALE">Masculin</option>
                     </select>
                   </label>
                 </div>
@@ -210,16 +320,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                 </div>
                 <label className="sdp-full">Adresse<input value={form.address} onChange={(e) => update('address', e.target.value)} /></label>
 
-                <h3>Informations complémentaires</h3>
-                <div className="sdp-row">
-                  <label>Niveau d'étude précédent<input value={form.previous_level} onChange={(e) => update('previous_level', e.target.value)} /></label>
-                  <label>Date d'admission<input type="date" value={form.admission_date ?? ''} onChange={(e) => update('admission_date', e.target.value)} /></label>
-                </div>
-                <label className="sdp-full">
-                  Observations
-                  <textarea rows={3} value={form.observations} onChange={(e) => update('observations', e.target.value)} />
-                </label>
-
                 <div className="sdp-form-actions">
                   <button type="button" className="sdp-btn-outline" onClick={() => { setEditing(false); resetForm(details) }}>Annuler</button>
                   <button type="submit" className="sdp-btn-primary" disabled={saving}>
@@ -229,81 +329,196 @@ export default function StudentDetailsPage({ student, onNavigate }) {
               </form>
             ) : (
               <div className="sdp-view">
-                <h3>Informations personnelles</h3>
-                <dl>
-                  <div><dt>Date de naissance</dt><dd>{details.birth_date ?? '—'}</dd></div>
-                  <div><dt>Lieu de naissance</dt><dd>{details.birth_place ?? '—'}</dd></div>
-                  <div><dt>Sexe</dt><dd>{details.gender ?? '—'}</dd></div>
-                  <div><dt>Nationalité</dt><dd>{details.nationality ?? '—'}</dd></div>
-                  <div><dt>Téléphone</dt><dd>{details.phone ?? '—'}</dd></div>
-                  <div><dt>Email</dt><dd>{details.email ?? '—'}</dd></div>
-                  <div><dt>Adresse</dt><dd>{details.address ?? '—'}</dd></div>
-                </dl>
-                <h3>Informations complémentaires</h3>
-                <dl>
-                  <div><dt>Niveau d'étude précédent</dt><dd>{details.previous_level ?? '—'}</dd></div>
-                  <div><dt>Date d'admission</dt><dd>{details.admission_date ?? '—'}</dd></div>
-                  <div><dt>Observations</dt><dd>{details.observations ?? '—'}</dd></div>
-                </dl>
+                <h2>Informations personnelles</h2>
+                <div className="sdp-personal-grid">
+                  <section>
+                    <h3>Informations d’identité</h3>
+                    <dl>
+                      <div><dt>Nom</dt><dd>{details.last_name}</dd></div>
+                      <div><dt>Prénom</dt><dd>{details.first_name}</dd></div>
+                      <div><dt>Sexe</dt><dd>{genderLabel(details.gender)}</dd></div>
+                      <div><dt>Date de naissance</dt><dd>{formatDate(details.birth_date)}</dd></div>
+                      <div><dt>Lieu de naissance</dt><dd>{details.birth_place ?? '—'}</dd></div>
+                      <div><dt>Nationalité</dt><dd>{details.nationality ?? '—'}</dd></div>
+                    </dl>
+                  </section>
+
+                  <section>
+                    <h3>Informations de contact</h3>
+                    <dl>
+                      <div><dt>Adresse</dt><dd>{details.address ?? '—'}</dd></div>
+                      <div><dt>Téléphone</dt><dd>{details.phone ?? '—'}</dd></div>
+                      <div><dt>Email</dt><dd>{details.email ?? '—'}</dd></div>
+                    </dl>
+                  </section>
+                </div>
               </div>
-            )
-          )}
+          ))}
 
           {activeTab === 'school' && (
-            <div className="sdp-view">
-              <h3>Scolarité</h3>
-              <dl>
-                <div><dt>Classe actuelle</dt><dd>{className(details.class_id)}</dd></div>
-                <div><dt>Année scolaire</dt><dd>{yearName(details.school_year_id)}</dd></div>
-                <div><dt>Date d'admission</dt><dd>{details.admission_date ?? '—'}</dd></div>
-              </dl>
+            <div className="sdp-school">
+              <h2>Année scolaire en cours : {yearName(details.school_year_id)}</h2>
+
+              <div className="sdp-school-stats">
+                <article>
+                  <UserRound aria-hidden="true" size={22} />
+                  <div><span>Absences</span><strong>—</strong></div>
+                </article>
+                <article>
+                  <Clock3 aria-hidden="true" size={22} />
+                  <div><span>Retards</span><strong>—</strong></div>
+                </article>
+                <article>
+                  <ClipboardCheck aria-hidden="true" size={22} />
+                  <div><span>Évaluations notées</span><strong>—</strong></div>
+                </article>
+                <article>
+                  <ChartNoAxesColumnIncreasing aria-hidden="true" size={22} />
+                  <div><span>Moyenne générale</span><strong>— /20</strong></div>
+                </article>
+              </div>
+
+              <div className="sdp-school-tables">
+                <section>
+                  <h3>Notes de l’année en cours</h3>
+                  <p className="sdp-placeholder">
+                    Les notes seront affichées lorsque cette fonctionnalité sera disponible.
+                  </p>
+                </section>
+
+                <section>
+                  <h3>Historique scolaire</h3>
+                  <div className="sdp-school-table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Année scolaire</th>
+                          <th>Classe</th>
+                          <th>Statut</th>
+                          <th>Moyenne générale</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>{yearName(details.school_year_id)}</td>
+                          <td>{className(details.class_id)}</td>
+                          <td><span className="sdp-school-status">En cours</span></td>
+                          <td>—</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
             </div>
           )}
-          {activeTab === 'guardians' && <p className="sdp-placeholder">Aucun responsable renseigné pour le moment.</p>}
-          {activeTab === 'grades' && <p className="sdp-placeholder">Notes et évaluations non disponibles pour le moment.</p>}
-          {activeTab === 'absences' && <p className="sdp-placeholder">Absences et retards non disponibles pour le moment.</p>}
-          {activeTab === 'docs' && <p className="sdp-placeholder">Aucun document pour le moment.</p>}
+
+          {activeTab === 'guardians' && (
+            <div className="sdp-guardians">
+              <h2>Responsables légaux</h2>
+              <p>Les personnes responsables de cet élève.</p>
+
+              {(details.guardians ?? []).length === 0 ? (
+                <p className="sdp-placeholder">
+                  Aucun responsable légal n’est actuellement associé à cet élève.
+                </p>
+              ) : (
+                <div className="sdp-guardians-table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Lien</th>
+                        <th>Nom et prénom</th>
+                        <th>Téléphone</th>
+                        <th>Email</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {details.guardians.map((guardian) => (
+                        <tr
+                          key={guardian.id}
+                          role="link"
+                          tabIndex={0}
+                          data-guardian-id={guardian.id}
+                          onClick={handleGuardianNavigation}
+                          onKeyDown={handleGuardianKeyDown}
+                        >
+                          <td>{guardian.relationship_label ?? guardian.relationship_type ?? '—'}</td>
+                          <td>{guardian.first_name} {guardian.last_name}</td>
+                          <td>{guardian.phone ?? '—'}</td>
+                          <td>{guardian.email ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'documents' && (
+            <div className="sdp-documents">
+              <div className="sdp-documents-header">
+                <div>
+                  <h2>Documents</h2>
+                  <p>Liste des documents associés à cet élève.</p>
+                </div>
+                <button type="button" disabled title="Fonctionnalité à venir">
+                  <Upload aria-hidden="true" size={16} />
+                  Téléverser un document
+                </button>
+              </div>
+
+              <div className="sdp-document-filters">
+                <button type="button" className="sdp-document-filter-active">
+                  Tous ({(details.documents ?? []).length})
+                </button>
+                <button type="button">Administratifs (0)</button>
+                <button type="button">Scolaires (0)</button>
+              </div>
+
+              <div className="sdp-documents-table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Document</th>
+                      <th>Catégorie</th>
+                      <th>Date d’ajout</th>
+                      <th>Taille</th>
+                      <th>Téléversé par</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(details.documents ?? []).length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="sdp-documents-empty">
+                          <FileText aria-hidden="true" size={24} />
+                          Aucun document associé à cet élève.
+                        </td>
+                      </tr>
+                    ) : (
+                      details.documents.map((document) => (
+                        <tr key={document.id}>
+                          <td>{document.name}</td>
+                          <td>{document.category ?? '—'}</td>
+                          <td>{formatDate(document.created_at)}</td>
+                          <td>{document.size_label ?? '—'}</td>
+                          <td>{document.uploaded_by_name ?? '—'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="sdp-documents-note">
+                <Info aria-hidden="true" size={16} />
+                Les documents téléversés devront rester lisibles et à jour.
+              </p>
+            </div>
+          )}
         </section>
 
-        <aside className="sdp-sidebar">
-          <div className="sdp-card">
-            <h4>Informations actuelles</h4>
-            <div className="sdp-fact"><span>Classe actuelle</span><strong>{className(details.class_id)}</strong></div>
-            <div className="sdp-fact"><span>Année scolaire</span><strong>{yearName(details.school_year_id)}</strong></div>
-            <div className="sdp-fact"><span>Statut</span><StatusBadge status={details.status} /></div>
-            <div className="sdp-fact"><span>Admission</span><strong>{details.admission_date ?? '—'}</strong></div>
-            {details.internal_code && (
-              <div className="sdp-fact"><span>Code interne</span><strong>{details.internal_code}</strong></div>
-            )}
-          </div>
-
-          <div className="sdp-card">
-            <h4>Historique du statut</h4>
-            {history.length === 0 ? (
-              <p className="sdp-placeholder">Aucun changement enregistré.</p>
-            ) : (
-              <ul className="sdp-history">
-                {history.map((h, i) => (
-                  <li key={i}>
-                    <span className={`sdp-dot ${STATUS_CLASS[h.status] ?? ''}`} />
-                    <div>
-                      <strong>{STATUS_LABEL[h.status] ?? h.status}</strong>
-                      <div className="sdp-history__date">
-                        {new Date(h.changed_at).toLocaleDateString('fr-FR')} à {new Date(h.changed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="sdp-card">
-            <h4>Dernière modification</h4>
-            <div className="sdp-fact"><span>👤</span><strong>Administrateur</strong></div>
-            <div className="sdp-fact"><span>📅</span><strong>{new Date(details.updated_at).toLocaleString('fr-FR')}</strong></div>
-          </div>
-        </aside>
       </div>
     </main>
   )

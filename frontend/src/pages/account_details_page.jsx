@@ -4,23 +4,22 @@ import {
   ArrowLeft,
   Ban,
   ChevronRight,
-  Clock,
   FileClock,
-  Key,
-  Mail,
-  Pencil,
-  Phone,
   Trash2,
 } from 'lucide-react'
 
 const ROLE_LABELS = {
   ADMIN: 'Administrateur',
   TEACHER: 'Enseignant',
+  STUDENT: 'Élève',
+  GUARDIAN: 'Responsable',
 }
 
 const ROLE_BADGE_CLASSES = {
   ADMIN: 'comptes-role-badge-admin',
   TEACHER: 'comptes-role-badge-teacher',
+  STUDENT: 'comptes-role-badge-student',
+  GUARDIAN: 'comptes-role-badge-guardian',
 }
 
 const GENDER_LABELS = {
@@ -29,12 +28,21 @@ const GENDER_LABELS = {
 }
 
 const TABS = [
-  { key: 'personal', label: 'Informations personnelles' },
-  { key: 'roles', label: 'Rôles et permissions' },
-  { key: 'classes', label: 'Classes et matières' },
-  { key: 'activity', label: 'Activité récente' },
-  { key: 'journal', label: 'Journal des actions' },
+  { key: 'account', label: 'Informations du compte' },
+  { key: 'personal', label: 'Identité personnelle' },
 ]
+
+const ACCESS_RIGHTS = {
+  STUDENT: [
+    'Tableau de bord',
+    'Consulter ses informations',
+    'Consulter ses notes',
+    'Consulter ses absences',
+  ],
+  TEACHER: ['Tableau de bord', 'Gérer ses classes', 'Saisir les notes', 'Gérer les absences'],
+  ADMIN: ['Tableau de bord', 'Gestion des comptes', 'Gestion scolaire', 'Paramètres'],
+  GUARDIAN: ['Tableau de bord', 'Consulter les informations de ses enfants'],
+}
 
 function isInactive(account) {
   return !account.is_active || account.archived_at !== null
@@ -79,7 +87,7 @@ function ComingSoonPanel({ label }) {
 
 /** Affiche les détails complets d'un compte (US suivante). */
 export default function AccountDetailsPage({ account, onNavigate }) {
-  const [activeTab, setActiveTab] = useState('personal')
+  const [activeTab, setActiveTab] = useState('account')
 
   function handleBackNavigation() {
     onNavigate('accounts')
@@ -126,21 +134,6 @@ export default function AccountDetailsPage({ account, onNavigate }) {
             </nav>
           </div>
         </div>
-
-        <div className="details-heading-actions">
-          <button type="button" className="details-action-secondary" disabled>
-            <Key aria-hidden="true" size={16} />
-            Réinitialiser le mot de passe
-          </button>
-          <button type="button" className="details-action-secondary" disabled>
-            <Ban aria-hidden="true" size={16} />
-            Désactiver le compte
-          </button>
-          <button type="button" className="details-action-primary" disabled>
-            <Pencil aria-hidden="true" size={16} />
-            Modifier
-          </button>
-        </div>
       </header>
 
       <section className="details-summary-card">
@@ -150,25 +143,6 @@ export default function AccountDetailsPage({ account, onNavigate }) {
           </span>
           <div>
             <h2>{fullName}</h2>
-            <span className={`comptes-role-badge ${ROLE_BADGE_CLASSES[account.role] || ''}`}>
-              {ROLE_LABELS[account.role] || account.role}
-            </span>
-            <p className="details-summary-line">
-              <Mail aria-hidden="true" size={15} />
-              {profile.email || '—'}
-            </p>
-            <p className="details-summary-line">
-              <Phone aria-hidden="true" size={15} />
-              {profile.phone || '—'}
-            </p>
-            <p className="details-summary-line">
-              <Clock aria-hidden="true" size={15} />
-              Date de création : {formatDateTime(account.created_at)}
-            </p>
-            <p className="details-summary-line">
-              <Activity aria-hidden="true" size={15} />
-              Dernière connexion : {formatDateTime(account.last_login_at)}
-            </p>
             <span
               className={`comptes-status ${
                 inactive ? 'comptes-status-inactive' : 'comptes-status-active'
@@ -182,7 +156,7 @@ export default function AccountDetailsPage({ account, onNavigate }) {
 
         <dl className="details-summary-facts">
           <div>
-            <dt>Identifiant (matricule)</dt>
+            <dt>Matricule</dt>
             <dd>{account.registration_number}</dd>
           </div>
           <div>
@@ -190,30 +164,22 @@ export default function AccountDetailsPage({ account, onNavigate }) {
             <dd>{ROLE_LABELS[account.role] || account.role}</dd>
           </div>
           <div>
-            <dt>Statut</dt>
-            <dd>
-              <span className={inactive ? 'details-badge-danger' : 'details-badge-success'}>
-                {inactive ? 'Inactif' : 'Actif'}
-              </span>
-            </dd>
+            <dt>Date de création</dt>
+            <dd>{formatDate(account.created_at)}</dd>
           </div>
           <div>
-            <dt>Compte</dt>
-            <dd>
-              <span className={inactive ? 'details-badge-danger' : 'details-badge-success'}>
-                {inactive ? 'Inactif' : 'Actif'}
-              </span>
-            </dd>
+            <dt>Créé par</dt>
+            <dd>{account.created_by_name || '—'}</dd>
           </div>
           <div>
-            <dt>Email</dt>
-            <dd>{profile.email || '—'}</dd>
+            <dt>Dernière connexion</dt>
+            <dd>{formatDateTime(account.last_login_at)}</dd>
           </div>
         </dl>
       </section>
 
       <nav className="details-tabs" aria-label="Sections du compte">
-        {TABS.map((tab) => (
+        {TABS.filter((tab) => account.role !== 'STUDENT' || tab.key !== 'personal').map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -226,7 +192,74 @@ export default function AccountDetailsPage({ account, onNavigate }) {
         ))}
       </nav>
 
-      {activeTab === 'personal' && (
+      {activeTab === 'account' && (
+        <>
+          <section className="details-account-grid">
+            <article className="details-account-column">
+              <h3>Informations du compte</h3>
+              <dl>
+                <div><dt>Matricule</dt><dd>{account.registration_number}</dd></div>
+                <div><dt>Rôle</dt><dd>{ROLE_LABELS[account.role] || account.role}</dd></div>
+                <div><dt>Statut</dt><dd>{inactive ? 'Inactif' : 'Actif'}</dd></div>
+                <div><dt>Date de création</dt><dd>{formatDate(account.created_at)}</dd></div>
+                <div><dt>Créé par</dt><dd>{account.created_by_name || '—'}</dd></div>
+                <div><dt>Dernière connexion</dt><dd>{formatDateTime(account.last_login_at)}</dd></div>
+              </dl>
+            </article>
+
+            <article className="details-account-column">
+              <h3>Statut du compte</h3>
+              <dl>
+                <div><dt>Compte verrouillé</dt><dd>{locked ? 'Oui' : 'Non'}</dd></div>
+                <div><dt>Verrouillé jusqu’au</dt><dd>{formatDateTime(account.locked_until)}</dd></div>
+                <div><dt>Compte archivé</dt><dd>{account.archived_at ? 'Oui' : 'Non'}</dd></div>
+                <div><dt>Archivé le</dt><dd>{formatDateTime(account.archived_at)}</dd></div>
+              </dl>
+            </article>
+
+            <article className="details-account-column details-account-actions">
+              <h3>Actions</h3>
+              <button type="button" className="details-account-action-danger" disabled>
+                <Ban aria-hidden="true" size={18} />
+                <span>Désactiver<small>Empêche la connexion</small></span>
+              </button>
+              <button type="button" className="details-account-action-warning" disabled>
+                <FileClock aria-hidden="true" size={18} />
+                <span>Archiver<small>Conserve les données sans accès</small></span>
+              </button>
+              <button type="button" className="details-account-action-success" disabled>
+                <Activity aria-hidden="true" size={18} />
+                <span>Activer<small>Rétablit l’accès au compte</small></span>
+              </button>
+            </article>
+
+            <article className="details-account-column">
+              <h3>Droits d’accès</h3>
+              <ul className="details-access-rights">
+                {(ACCESS_RIGHTS[account.role] || []).map((right) => (
+                  <li key={right}>
+                    <span>{right}</span>
+                    <strong>Autorisé</strong>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          </section>
+
+          {account.role === 'STUDENT' && (
+            <section className="details-linked-card">
+              <h3>Informations liées</h3>
+              <div>
+                <p><span>Élève</span><strong>{fullName}</strong></p>
+                <p><span>Classe actuelle</span><strong>{profile.class_name || '—'}</strong></p>
+                <p><span>Année scolaire</span><strong>{profile.school_year_name || '—'}</strong></p>
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      {activeTab === 'personal' && account.role !== 'STUDENT' && (
         <section className="details-panels">
           <div className="details-panel details-panel-form">
             <h3>Informations personnelles</h3>

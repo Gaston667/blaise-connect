@@ -1,6 +1,7 @@
 -- Suppression contrôlée d'une année scolaire non clôturée.
 -- Cette fonction centralise la cascade sans accorder DELETE à blaise_app.
 
+-- MIGRATION 005.
 CREATE TABLE school_year_deletion_audits (
     id uuid
         CONSTRAINT pk_school_year_deletion_audits PRIMARY KEY

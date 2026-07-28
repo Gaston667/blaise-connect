@@ -256,6 +256,7 @@ export default function AccountsPage({ onNavigate }) {
     <main className="comptes-main">
       <header className="comptes-heading">
         <div>
+          <h1 className="comptes-title">Gestion des comptes</h1>
           <nav className="comptes-breadcrumb" aria-label="Fil d’Ariane">
             <button type="button" onClick={handleHomeNavigation}>
               Accueil
@@ -270,7 +271,6 @@ export default function AccountsPage({ onNavigate }) {
               Comptes
             </button>
           </nav>
-          <h1 className="comptes-title">Gestion des comptes</h1>
           <p className="comptes-description">
             Consultez et gérez les comptes autorisés dans BlaiseConnect.
           </p>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronRight, Search } from 'lucide-react'
 import { listStudents } from '../services/students_service.js'
 import '../styles/students_page.css'
 import AddStudentModal from '../components/add_student_modal.jsx'
@@ -18,6 +19,26 @@ function avatarStyle(name) {
 
 function initials(first, last) {
   return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase()
+}
+
+function formatDate(dateValue) {
+  if (!dateValue) {
+    return '—'
+  }
+
+  return new Intl.DateTimeFormat('fr-FR').format(new Date(`${dateValue}T00:00:00`))
+}
+
+function genderLabel(gender) {
+  if (gender === 'MALE') {
+    return 'M'
+  }
+
+  if (gender === 'FEMALE') {
+    return 'F'
+  }
+
+  return '—'
 }
 
 const STATUS_LABEL = {
@@ -133,11 +154,11 @@ export default function StudentsPage({ onNavigate }) {
     <main className="sp-main">
       <div className="sp-topbar">
         <div>
-          <h1 className="sp-title">Gestion des élèves</h1>
-          <nav className="sp-breadcrumb">
+          <h1 className="sp-title">Élèves</h1>
+          <nav className="sp-breadcrumb" aria-label="Fil d’Ariane">
             <button type="button" onClick={() => onNavigate?.('home')}>Accueil</button>
-            <span>›</span>
-            <span>Élèves</span>
+            <ChevronRight aria-hidden="true" size={14} />
+            <span className="sp-breadcrumb-current">Élèves</span>
           </nav>
         </div>
         <button type="button" className="sp-btn-primary" onClick={() => setShowAddModal(true)}>
@@ -147,15 +168,14 @@ export default function StudentsPage({ onNavigate }) {
 
       <form onSubmit={handleSearch} className="sp-filters">
         <div className="sp-search">
-          <span className="sp-search__icon">⌕</span>
+          <Search className="sp-search__icon" aria-hidden="true" size={17} />
           <div>
             <input
               type="search"
-              placeholder="Rechercher un élève..."
+              placeholder="Nom, prénom ou matricule..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <span className="sp-search__hint">Nom, prénom ou n° d'identification</span>
           </div>
         </div>
 
@@ -189,18 +209,22 @@ export default function StudentsPage({ onNavigate }) {
       <div className="sp-body">
         <section className="sp-list">
           <div className="sp-list__meta">
-            {loading ? 'Chargement…' : `Affichage de ${total === 0 ? 0 : page * PAGE_SIZE + 1} à ${Math.min(total, (page + 1) * PAGE_SIZE)} sur ${total} élèves`}
+            {loading ? 'Chargement…' : `Total : ${total} élèves`}
           </div>
 
-          <table className="sp-table">
+          <div className="sp-table-wrapper">
+            <table className="sp-table">
             <thead>
               <tr>
-                <th>Nom et prénom</th>
-                <th>N° d'identification</th>
+                <th>Matricule</th>
+                <th>Photo</th>
+                <th>Nom</th>
+                <th>Prénom</th>
+                <th>Sexe</th>
                 <th>Classe</th>
                 <th>Année scolaire</th>
                 <th>Statut</th>
-                <th />
+                <th>Date d’inscription</th>
               </tr>
             </thead>
             <tbody>
@@ -212,24 +236,27 @@ export default function StudentsPage({ onNavigate }) {
                     className="sp-row"
                     onClick={() => onNavigate?.('student-details', s)}
                   >
-                    <td>
-                      <div className="sp-name-cell">
-                        <span className="sp-avatar" style={{ background: av.bg, color: av.fg }}>
-                          {initials(s.first_name, s.last_name)}
-                        </span>
-                        {s.first_name} {s.last_name}
-                      </div>
+                    <td className="sp-registration-number">
+                      {s.registration_number ?? '—'}
                     </td>
-                    <td>{s.registration_number ?? s.account_id}</td>
+                    <td>
+                      <span className="sp-avatar" style={{ background: av.bg, color: av.fg }}>
+                        {initials(s.first_name, s.last_name)}
+                      </span>
+                    </td>
+                    <td>{s.last_name}</td>
+                    <td>{s.first_name}</td>
+                    <td>{genderLabel(s.gender)}</td>
                     <td>{className(s.class_id)}</td>
                     <td>{yearName(s.school_year_id)}</td>
                     <td><StatusBadge status={s.status} /></td>
-                    <td className="sp-row__chevron">›</td>
+                    <td>{formatDate(s.admission_date)}</td>
                   </tr>
                 )
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
 
           <div className="sp-pagination">
             <button disabled={page === 0} onClick={() => goToPage(page - 1)}>‹</button>

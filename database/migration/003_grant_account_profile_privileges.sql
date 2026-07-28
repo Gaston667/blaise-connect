@@ -12,13 +12,13 @@ GRANT SELECT ON TABLE
     students,
     teachers,
     administrators,
-    guardians
+    guardians,
+    student_status_history
 TO blaise_app;
 
 GRANT INSERT (
-    registration_number,
-    password_hash,
-    role
+    registration_number, password_hash, role,
+    locked_until, last_login_at, archived_at
 ) ON accounts TO blaise_app;
 
 GRANT UPDATE (
@@ -33,12 +33,16 @@ GRANT UPDATE (
 
 GRANT INSERT (
     account_id, first_name, last_name, birth_date, gender,
-    email, phone, address, admission_date, status, photo_path, archived_at
+    email, phone, address, admission_date, status, photo_path,
+    birth_place, nationality, previous_level, observations,
+    updated_by_account_id, archived_at
 ) ON students TO blaise_app;
 
 GRANT UPDATE (
     first_name, last_name, birth_date, gender,
-    email, phone, address, admission_date, status, photo_path, archived_at
+    email, phone, address, admission_date, status, photo_path,
+    birth_place, nationality, previous_level, observations,
+    updated_by_account_id, archived_at
 ) ON students TO blaise_app;
 
 GRANT INSERT (
@@ -73,7 +77,8 @@ GRANT UPDATE (
 
 GRANT INSERT (
     account_id,
-    session_token_hash
+    session_token_hash,
+    revoked_at
 ) ON auth_sessions TO blaise_app;
 
 GRANT UPDATE (
@@ -87,7 +92,8 @@ REVOKE DELETE ON TABLE
     students,
     teachers,
     administrators,
-    guardians
+    guardians,
+    student_status_history
 FROM blaise_app;
 
 COMMIT;

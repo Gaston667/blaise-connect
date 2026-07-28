@@ -8,7 +8,7 @@
 --   - students, teachers, administrators, guardians : profils utilisateurs
 --
 -- Principaux concepts :
---   1. Matricule : identifiant unique au format [a-z][a-z0-9]{6} (ex: a123456, b456789)
+--   1. Matricule : a, e, u ou p suivi de six chiffres (ex: a123456)
 --   2. Rôles : STUDENT, TEACHER, ADMIN, GUARDIAN (fixe après création)
 --   3. Triggers : automatisation et validation des données
 --   4. Contraintes : intégrité référentielle et métier
@@ -43,7 +43,7 @@ CREATE TABLE accounts (
     -- Clé primaire : UUID généré aléatoirement
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    -- Matricule unique : 1 lettre minuscule + 6 caractères alphanumériques (7 chars total)
+    -- Matricule unique : a, e, u ou p + 6 chiffres (7 caractères).
     -- Validé par CHECK contraint (voir ci-dessous)
     registration_number varchar(50) NOT NULL UNIQUE,
 
@@ -79,12 +79,9 @@ CREATE TABLE accounts (
     CONSTRAINT ck_accounts_role
         CHECK (role IN ('STUDENT', 'TEACHER', 'ADMIN', 'GUARDIAN')),
 
-    -- Format du matricule : 1 lettre minuscule suivi de 6 caractères alphanumériques
-    -- Regex : ^[a-z][a-z0-9]{6}$
-    -- Conformes : a000001, b123abc, c999def
-    -- Non-conformes : A000001 (majuscule), a00001 (trop court), 0000001 (commence par chiffre)
+    -- a = administrateur, e = enseignant, u = élève, p = responsable.
     CONSTRAINT ck_accounts_registration_number
-        CHECK (registration_number ~ '^[a-z][a-z0-9]{6}$'),
+        CHECK (registration_number ~ '^[aeup][0-9]{6}$'),
 
     -- Le hash du mot de passe doit faire au minimum 20 caractères
     -- (un bcrypt valide fait environ 60 caractères)
@@ -132,6 +129,11 @@ CREATE TABLE students (
     admission_date date NOT NULL,
     status student_status_enum NOT NULL DEFAULT 'ACTIVE',
     photo_path varchar(500),
+    birth_place varchar(150),
+    nationality varchar(100),
+    previous_level varchar(100),
+    observations text,
+    updated_by_account_id uuid,
     archived_at timestamptz,
 
     -- Audit
@@ -143,6 +145,11 @@ CREATE TABLE students (
     -- Clé étrangère : le compte doit exister
     CONSTRAINT fk_students_account
         FOREIGN KEY (account_id)
+        REFERENCES accounts(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_students_updated_by_account
+        FOREIGN KEY (updated_by_account_id)
         REFERENCES accounts(id)
         ON DELETE RESTRICT,
 
@@ -310,6 +317,30 @@ CREATE TABLE auth_sessions (
 CREATE INDEX idx_auth_sessions_account_id
     ON auth_sessions (account_id);
 
+CREATE TABLE student_status_history (
+    id uuid
+        CONSTRAINT pk_student_status_history PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+    student_id uuid NOT NULL,
+    status student_status_enum NOT NULL,
+    changed_at timestamptz NOT NULL DEFAULT now(),
+    changed_by_account_id uuid,
+    note text,
+
+    CONSTRAINT fk_student_status_history_student
+        FOREIGN KEY (student_id)
+        REFERENCES students(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_student_status_history_changed_by
+        FOREIGN KEY (changed_by_account_id)
+        REFERENCES accounts(id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX idx_student_status_history_student_id
+    ON student_status_history (student_id, changed_at DESC);
+
 CREATE UNIQUE INDEX uq_teachers_email_ci
     ON teachers (lower(email))
     WHERE email IS NOT NULL;
@@ -356,6 +387,37 @@ CREATE TRIGGER trg_guardians_set_updated_at
 BEFORE UPDATE ON guardians
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
+
+CREATE OR REPLACE FUNCTION log_student_status_change()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+    IF TG_OP = 'INSERT'
+       OR NEW.status IS DISTINCT FROM OLD.status
+    THEN
+        INSERT INTO public.student_status_history (
+            student_id,
+            status,
+            changed_by_account_id
+        )
+        VALUES (
+            NEW.id,
+            NEW.status,
+            NEW.updated_by_account_id
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_students_log_status_change
+AFTER INSERT OR UPDATE OF status ON students
+FOR EACH ROW
+EXECUTE FUNCTION log_student_status_change();
 
 
 -- =========================================================

@@ -1,4 +1,10 @@
-import { CalendarRange, House, UsersRound, X } from 'lucide-react'
+import {
+  CalendarRange,
+  ContactRound,
+  GraduationCap,
+  House,
+  X,
+} from 'lucide-react'
 import logo from '../assets/logo-blaise-connect.png.png'
 import LogoutButton from './logout_button.jsx'
 
@@ -77,8 +83,8 @@ export default function Sidebar({
           data-page="students"
           onClick={handleNavigation}
         >
-          <UsersRound aria-hidden="true" size={20} />
-          Gestion des élèves
+          <GraduationCap aria-hidden="true" size={20} />
+          Élèves
         </button>
 
        {canManageAccounts ? (
@@ -92,7 +98,7 @@ export default function Sidebar({
             data-page="accounts"
             onClick={handleNavigation}
           >
-            <UsersRound aria-hidden="true" size={20} />
+            <ContactRound aria-hidden="true" size={20} />
             Gestion des comptes
           </button>
         ) : null}

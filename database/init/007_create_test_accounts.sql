@@ -9,29 +9,48 @@ BEGIN;
 
 -- 1. Comptes : 4 administrateurs, 10 enseignants, 30 élèves,
 --    30 responsables.
-INSERT INTO accounts (registration_number, password_hash, role)
+-- Répartition actuelle : 3 ADMIN, 7 TEACHER, 10 STUDENT et 10 GUARDIAN.
+INSERT INTO accounts (
+    registration_number,
+    password_hash,
+    role,
+    is_active,
+    failed_login_attempts,
+    locked_until,
+    last_login_at,
+    archived_at,
+    created_at,
+    updated_at
+)
 SELECT
     account_prefix || lpad(account_number::text, 6, '0'),
     '$argon2id$v=19$m=65536,t=3,p=4$fdzl7sb+dyZM9pHYxntmkw$52e5qk6b3tG8l+6BGx7tG997wmj9NNhOnr2MDm+M7bg',
-    account_role
+    account_role,
+    true,
+    0,
+    NULL,
+    TIMESTAMPTZ '2026-07-28 08:00:00+00' + account_number * INTERVAL '5 minutes',
+    NULL,
+    TIMESTAMPTZ '2026-07-01 08:00:00+00',
+    TIMESTAMPTZ '2026-07-28 08:00:00+00'
 FROM (
     SELECT 'a', account_number, 'ADMIN'
-    FROM generate_series(1, 4) AS account_number
+    FROM generate_series(1, 3) AS account_number
 
     UNION ALL
 
     SELECT 'e', account_number, 'TEACHER'
-    FROM generate_series(1, 10) AS account_number
+    FROM generate_series(1, 7) AS account_number
 
     UNION ALL
 
     SELECT 'u', account_number, 'STUDENT'
-    FROM generate_series(1, 30) AS account_number
+    FROM generate_series(1, 10) AS account_number
 
     UNION ALL
 
     SELECT 'p', account_number, 'GUARDIAN'
-    FROM generate_series(1, 30) AS account_number
+    FROM generate_series(1, 10) AS account_number
 ) AS generated_accounts(account_prefix, account_number, account_role)
 ON CONFLICT (registration_number) DO NOTHING;
 
@@ -40,21 +59,35 @@ INSERT INTO administrators (
     account_id,
     first_name,
     last_name,
+    gender,
     email,
+    phone,
+    address,
     hire_date,
-    job_title
+    job_title,
+    photo_path,
+    archived_at,
+    created_at,
+    updated_at
 )
 SELECT
     accounts.id,
-    'Admin',
-    'Test ' || substring(accounts.registration_number FROM 2),
+    (ARRAY['Aminata', 'Mamadou', 'Fatoumata'])[profile_number],
+    (ARRAY['Diallo', 'Camara', 'Bah'])[profile_number],
+    (ARRAY['FEMALE', 'MALE', 'FEMALE'])[profile_number],
     accounts.registration_number || '@blaiseconnect.test',
-    DATE '2026-07-01',
-    CASE accounts.registration_number
-        WHEN 'a000001' THEN 'Direction'
-        ELSE 'Administration'
-    END
+    '+224620100' || lpad(profile_number::text, 3, '0'),
+    profile_number || ' avenue de la Direction, Conakry',
+    DATE '2020-09-01' + profile_number,
+    (ARRAY['Directrice', 'Gestionnaire scolaire', 'Secrétaire'])[profile_number],
+    '/photos/administrators/' || accounts.registration_number || '.jpg',
+    NULL,
+    now(),
+    now()
 FROM accounts
+JOIN LATERAL (
+    SELECT substring(accounts.registration_number FROM 2)::integer
+) AS profile(profile_number) ON true
 WHERE accounts.role = 'ADMIN'
 ON CONFLICT (account_id) DO NOTHING;
 
@@ -63,18 +96,37 @@ INSERT INTO teachers (
     account_id,
     first_name,
     last_name,
+    birth_date,
+    gender,
     email,
+    phone,
+    address,
     hire_date,
-    qualification
+    qualification,
+    photo_path,
+    archived_at,
+    created_at,
+    updated_at
 )
 SELECT
     accounts.id,
-    'Enseignant',
-    'Test ' || substring(accounts.registration_number FROM 2),
+    (ARRAY['Ibrahima', 'Mariama', 'Ousmane', 'Aïssatou', 'Alpha', 'Kadiatou', 'Moussa'])[profile_number],
+    (ARRAY['Sylla', 'Condé', 'Barry', 'Keita', 'Sow', 'Touré', 'Camara'])[profile_number],
+    DATE '1980-01-10' + (profile_number * 700),
+    CASE WHEN profile_number % 2 = 0 THEN 'FEMALE' ELSE 'MALE' END,
     accounts.registration_number || '@blaiseconnect.test',
-    DATE '2026-07-01',
-    'Qualification fictive'
+    '+224621200' || lpad(profile_number::text, 3, '0'),
+    profile_number || ' rue des Enseignants, Conakry',
+    DATE '2018-09-01' + (profile_number * 30),
+    (ARRAY['Licence Mathématiques', 'Master Lettres', 'Licence Anglais', 'Master Histoire', 'Licence Biologie', 'Master Informatique', 'Licence Physique'])[profile_number],
+    '/photos/teachers/' || accounts.registration_number || '.jpg',
+    NULL,
+    now(),
+    now()
 FROM accounts
+JOIN LATERAL (
+    SELECT substring(accounts.registration_number FROM 2)::integer
+) AS profile(profile_number) ON true
 WHERE accounts.role = 'TEACHER'
 ON CONFLICT (account_id) DO NOTHING;
 
@@ -84,18 +136,51 @@ INSERT INTO students (
     first_name,
     last_name,
     birth_date,
+    gender,
+    email,
+    phone,
+    address,
     admission_date,
-    status
+    status,
+    photo_path,
+    birth_place,
+    nationality,
+    previous_level,
+    observations,
+    updated_by_account_id,
+    archived_at,
+    created_at,
+    updated_at
 )
 SELECT
     accounts.id,
-    'Eleve',
-    'Test ' || substring(accounts.registration_number FROM 2),
-    DATE '2012-01-01'
-        + (substring(accounts.registration_number FROM 2)::integer % 365),
+    (ARRAY['Abdoulaye', 'Hawa', 'Mohamed', 'Nènè', 'Sékou', 'Mariam', 'Amadou', 'Fanta', 'Lamine', 'Aminata'])[profile_number],
+    (ARRAY['Diallo', 'Bah', 'Camara', 'Keita', 'Condé', 'Sylla', 'Sow', 'Barry', 'Touré', 'Cissé'])[profile_number],
+    DATE '2011-01-01' + (profile_number * 95),
+    CASE WHEN profile_number % 2 = 0 THEN 'FEMALE' ELSE 'MALE' END,
+    accounts.registration_number || '@eleve.blaiseconnect.test',
+    '+224622300' || lpad(profile_number::text, 3, '0'),
+    profile_number || ' quartier scolaire, Conakry',
     DATE '2026-09-01',
-    'ACTIVE'
+    'ACTIVE',
+    '/photos/students/' || accounts.registration_number || '.jpg',
+    (ARRAY['Conakry', 'Kindia', 'Labé', 'Kankan', 'Mamou', 'Boké', 'Faranah', 'Nzérékoré', 'Coyah', 'Dubréka'])[profile_number],
+    'Guinéenne',
+    (ARRAY['CM2', 'CM2', 'SIXIEME', 'SIXIEME', 'CINQUIEME', 'CINQUIEME', 'CM2', 'SIXIEME', 'CINQUIEME', 'CM2'])[profile_number],
+    'Dossier fictif de développement',
+    administrator_account.id,
+    NULL,
+    now(),
+    now()
 FROM accounts
+JOIN LATERAL (
+    SELECT substring(accounts.registration_number FROM 2)::integer
+) AS profile(profile_number) ON true
+CROSS JOIN (
+    SELECT id
+    FROM accounts
+    WHERE registration_number = 'a000001'
+) AS administrator_account
 WHERE accounts.role = 'STUDENT'
 ON CONFLICT (account_id) DO NOTHING;
 
@@ -104,19 +189,35 @@ INSERT INTO guardians (
     account_id,
     first_name,
     last_name,
+    gender,
     email,
     phone,
-    occupation
+    address,
+    occupation,
+    employer,
+    photo_path,
+    archived_at,
+    created_at,
+    updated_at
 )
 SELECT
     accounts.id,
-    'Responsable',
-    'Test ' || substring(accounts.registration_number FROM 2),
+    (ARRAY['Boubacar', 'Aïcha', 'Lansana', 'M’Mah', 'Aboubacar', 'Hadja', 'Sory', 'Ramatoulaye', 'Fodé', 'Kadiatou'])[profile_number],
+    (ARRAY['Diallo', 'Bah', 'Camara', 'Keita', 'Condé', 'Sylla', 'Sow', 'Barry', 'Touré', 'Cissé'])[profile_number],
+    CASE WHEN profile_number % 2 = 0 THEN 'FEMALE' ELSE 'MALE' END,
     accounts.registration_number || '@blaiseconnect.test',
-    '+224600'
-        || lpad(substring(accounts.registration_number FROM 2), 6, '0'),
-    'Profession fictive'
+    '+224623400' || lpad(profile_number::text, 3, '0'),
+    profile_number || ' quartier des Familles, Conakry',
+    (ARRAY['Commerçant', 'Infirmière', 'Chauffeur', 'Couturière', 'Ingénieur', 'Enseignante', 'Agriculteur', 'Comptable', 'Technicien', 'Pharmacienne'])[profile_number],
+    (ARRAY['Indépendant', 'Hôpital communal', 'Transport urbain', 'Atelier familial', 'Société guinéenne', 'École primaire', 'Exploitation familiale', 'Cabinet comptable', 'Entreprise locale', 'Pharmacie centrale'])[profile_number],
+    '/photos/guardians/' || accounts.registration_number || '.jpg',
+    NULL,
+    now(),
+    now()
 FROM accounts
+JOIN LATERAL (
+    SELECT substring(accounts.registration_number FROM 2)::integer
+) AS profile(profile_number) ON true
 WHERE accounts.role = 'GUARDIAN'
 ON CONFLICT (account_id) DO NOTHING;
 
