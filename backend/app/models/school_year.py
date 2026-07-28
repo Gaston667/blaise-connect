@@ -47,11 +47,13 @@ class SchoolYear(Base):
     closed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+        server_default=text("NULL"),
     )
     closed_by_account_id: Mapped[UUID | None] = mapped_column(
         Uuid,
         ForeignKey("accounts.id", ondelete="RESTRICT"),
         nullable=True,
+        server_default=text("NULL"),
     )
 
     created_at: Mapped[datetime] = mapped_column(

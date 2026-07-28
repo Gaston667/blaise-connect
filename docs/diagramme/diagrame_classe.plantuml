@@ -21,14 +21,15 @@ package "VUE - React" #E8F5E9 {
   class "pages/login_page.jsx" as LoginPage
   class "pages/home_page.jsx" as HomePage
   class "pages/accounts_page.jsx" as AccountsPage
-  class "pages/school_years_page.jsx" as SchoolYearsPage <<préparé US-003>>
+  class "pages/school_years_page.jsx" as SchoolYearsPage
+  class "pages/school_year_details_page.jsx" as SchoolYearDetailsPage
   class "pages/school_classes_page.jsx" as SchoolClassesPage <<préparé US-004>>
   class "pages/subjects_page.jsx" as SubjectsPage <<préparé US-005>>
   class "pages/teachers_page.jsx" as TeachersPage <<préparé US-006>>
 
   class "services/auth_service.js" as FrontAuthService
   class "services/account_service.js" as FrontAccountService
-  class "services/school_year_service.js" as FrontSchoolYearService <<préparé>>
+  class "services/school_year_service.js" as FrontSchoolYearService
   class "services/school_class_service.js" as FrontSchoolClassService <<préparé>>
   class "services/subject_service.js" as FrontSubjectService <<préparé>>
   class "services/teacher_service.js" as FrontTeacherService <<préparé>>
@@ -37,7 +38,8 @@ package "VUE - React" #E8F5E9 {
 package "CONTROLEUR - FastAPI" #FFF3E0 {
   class "routes/auth.py" as AuthRoutes
   class "routes/accounts.py" as AccountRoutes
-  class "routes/school_years.py" as SchoolYearRoutes <<non activé>>
+  class "routes/school_years.py" as SchoolYearRoutes
+  class "routes/reporting_periods.py" as ReportingPeriodRoutes
   class "routes/school_classes.py" as SchoolClassRoutes <<non activé>>
   class "routes/subjects.py" as SubjectRoutes <<non activé>>
   class "routes/teachers.py" as TeacherRoutes <<non activé>>
@@ -45,7 +47,8 @@ package "CONTROLEUR - FastAPI" #FFF3E0 {
   class "services/auth_service.py" as AuthService
   class "services/session_service.py" as SessionService
   class "services/account_service.py" as AccountService
-  class "services/school_year_service.py" as SchoolYearService <<à implémenter>>
+  class "services/school_year_service.py" as SchoolYearService
+  class "services/reporting_period_service.py" as ReportingPeriodService
   class "services/school_class_service.py" as SchoolClassService <<à implémenter>>
   class "services/subject_service.py" as SubjectService <<à implémenter>>
   class "services/teacher_service.py" as TeacherService <<à implémenter>>
@@ -57,10 +60,18 @@ package "CONTRATS - Pydantic" #FFEBEE {
   class AccountCreate
   class AccountUpdate
   class AccountResponse
-  class SchoolYearCreate <<préparé>>
-  class SchoolYearResponse <<préparé>>
-  class SchoolPeriodCreate <<préparé>>
-  class SchoolPeriodResponse <<préparé>>
+  class SchoolYearCreate
+  class SchoolYearUpdate
+  class SchoolYearDetailsUpdate
+  class SchoolYearPeriodUpdate
+  class SchoolYearResponse
+  class SchoolYearDetailsResponse
+  class SchoolYearDeletionConfirmation
+  class SchoolYearDeletionPreview
+  class SchoolYearDeletionResponse
+  class ReportingPeriodCreate
+  class ReportingPeriodUpdate
+  class ReportingPeriodResponse
   class SchoolClassCreate <<préparé>>
   class SchoolClassUpdate <<préparé>>
   class SchoolClassResponse <<préparé>>
@@ -77,8 +88,8 @@ package "CONTRATS - Pydantic" #FFEBEE {
 package "MODELE - SQLAlchemy" #E3F2FD {
   class Account
   class AuthSession
-  class SchoolYear <<préparé>>
-  class SchoolPeriod <<préparé>>
+  class SchoolYear
+  class SchoolPeriod
   class SchoolClass <<préparé>>
   class Subject <<préparé>>
   class ClassSubject <<préparé>>
@@ -91,12 +102,18 @@ package "UTILITAIRES - Core" #ECEFF1 {
   class Database
   class AccountLockedError
   class AccountAlreadyExistsError
+  class SchoolYearNotFoundError
+  class SchoolYearAlreadyClosedError
+  class SchoolYearPeriodsMismatchError
+  class ReportingPeriodNotFoundError
+  class SchoolYearConfirmationMismatchError
 }
 
 App --> LoginPage
 App --> HomePage
 App --> AccountsPage
-App ..> SchoolYearsPage : futur
+App --> SchoolYearsPage
+App --> SchoolYearDetailsPage
 App ..> SchoolClassesPage : futur
 App ..> SubjectsPage : futur
 App ..> TeachersPage : futur
@@ -104,13 +121,15 @@ App ..> TeachersPage : futur
 LoginPage --> FrontAuthService
 AccountsPage --> FrontAccountService
 SchoolYearsPage ..> FrontSchoolYearService
+SchoolYearDetailsPage --> FrontSchoolYearService
 SchoolClassesPage ..> FrontSchoolClassService
 SubjectsPage ..> FrontSubjectService
 TeachersPage ..> FrontTeacherService
 
 FrontAuthService ..> AuthRoutes : HTTP
 FrontAccountService ..> AccountRoutes : HTTP
-FrontSchoolYearService ..> SchoolYearRoutes : HTTP futur
+FrontSchoolYearService ..> SchoolYearRoutes : HTTP
+FrontSchoolYearService ..> ReportingPeriodRoutes : HTTP
 FrontSchoolClassService ..> SchoolClassRoutes : HTTP futur
 FrontSubjectService ..> SubjectRoutes : HTTP futur
 FrontTeacherService ..> TeacherRoutes : HTTP futur
@@ -119,6 +138,7 @@ AuthRoutes --> AuthService
 AuthRoutes --> SessionService
 AccountRoutes --> AccountService
 SchoolYearRoutes ..> SchoolYearService
+ReportingPeriodRoutes --> ReportingPeriodService
 SchoolClassRoutes ..> SchoolClassService
 SubjectRoutes ..> SubjectService
 TeacherRoutes ..> TeacherService
@@ -127,6 +147,8 @@ AccountService --> Account
 SessionService --> AuthSession
 SchoolYearService ..> SchoolYear
 SchoolYearService ..> SchoolPeriod
+ReportingPeriodService --> SchoolPeriod
+ReportingPeriodService --> SchoolYearService
 SchoolClassService ..> SchoolClass
 SubjectService ..> Subject
 SubjectService ..> ClassSubject

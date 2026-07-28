@@ -10,9 +10,11 @@ from sqlalchemy.orm import Session
 from app.models.school_period import SchoolPeriod
 from app.models.school_year import SchoolYear
 from app.schemas.reporting_period_create import ReportingPeriodCreate
+from app.schemas.reporting_period_update import ReportingPeriodUpdate
 from app.services.reporting_period_service import (
     compute_next_period_start_date,
     create_reporting_period,
+    update_reporting_period,
 )
 
 
@@ -92,3 +94,43 @@ class TestCreateReportingPeriod(TestCase):
         self.db.add.assert_called_once_with(period)
         self.db.commit.assert_called_once()
         self.db.refresh.assert_called_once_with(period)
+
+
+class TestUpdateReportingPeriod(TestCase):
+    """Vérifie la modification d'une frontière entre deux périodes."""
+
+    def test_update_moves_next_period_start(self) -> None:
+        """Le début de la période suivante suit la nouvelle date de fin."""
+
+        db = Mock(spec=Session)
+        period_id = uuid4()
+        school_year_id = uuid4()
+        period = SchoolPeriod(
+            id=period_id,
+            school_year_id=school_year_id,
+            name="Période 1",
+            start_date=date(2026, 9, 1),
+            end_date=date(2026, 12, 18),
+        )
+        next_period = SchoolPeriod(
+            id=uuid4(),
+            school_year_id=school_year_id,
+            name="Période 2",
+            start_date=date(2026, 12, 19),
+            end_date=date(2027, 3, 30),
+        )
+        db.get.return_value = period
+        db.scalar.return_value = next_period
+
+        result = update_reporting_period(
+            db,
+            period_id,
+            ReportingPeriodUpdate(
+                name="Premier trimestre",
+                end_date=date(2026, 12, 20),
+            ),
+        )
+
+        self.assertEqual(result.name, "Premier trimestre")
+        self.assertEqual(next_period.start_date, date(2026, 12, 21))
+        db.commit.assert_called_once()

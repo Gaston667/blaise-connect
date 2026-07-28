@@ -39,6 +39,8 @@ export default function StudentDetailsPage({ student, onNavigate }) {
 
   useEffect(() => {
     load()
+    // Recharge uniquement lorsque l'élève sélectionné change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [student?.id])
 
   async function load() {

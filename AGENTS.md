@@ -78,7 +78,11 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - L'année scolaire n'est donc pas répétée dans `student_enrollments` : elle se déduit de la classe.
 - Une inscription représente le passage d'un élève dans une classe.
 - À la clôture d'une année, le système renseigne automatiquement la fin des inscriptions encore ouvertes.
-- Les anciennes inscriptions, notes, absences et bulletins ne sont pas supprimés.
+- Les anciennes inscriptions, notes, absences et bulletins d'une année clôturée
+  ne sont jamais supprimés.
+- Exception validée : un administrateur peut supprimer définitivement une année
+  non clôturée et toutes ses données dépendantes après avoir saisi exactement le
+  nom de l'année dans une confirmation forte. L'opération est atomique et auditée.
 
 ### 3.4 Périodes et bulletins
 
@@ -497,6 +501,10 @@ Politique par défaut :
 - préférer `is_active`, `archived_at` ou une date de fin à la suppression physique ;
 - ne jamais utiliser un `CASCADE` large susceptible de supprimer l'historique scolaire ;
 - toute suppression exceptionnelle de données réelles doit être explicitement autorisée et auditée.
+- La suppression d'une année scolaire est l'unique cascade métier large validée :
+  elle est interdite après clôture, exige la saisie exacte du nom, passe par une
+  fonction PostgreSQL contrôlée et supprime atomiquement toutes les données
+  rattachées. Un audit indépendant de l'année supprimée doit être conservé.
 
 ### 6.4 Immutabilité
 

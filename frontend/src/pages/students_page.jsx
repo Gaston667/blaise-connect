@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { listStudents, getStudent } from '../services/students_service.js'
+import { listStudents } from '../services/students_service.js'
 import '../styles/students_page.css'
 import AddStudentModal from '../components/add_student_modal.jsx'
 const AVATAR_PALETTE = [
@@ -54,14 +54,7 @@ export default function StudentsPage({ onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [classes, setClasses] = useState([])
   const [schoolYears, setSchoolYears] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [detail, setDetail] = useState(null)
-  const [activeTab, setActiveTab] = useState('info')
   const [showAddModal, setShowAddModal] = useState(false)
-
-  useEffect(() => {
-    fetchInitialData()
-  }, [])
 
   async function fetchStudents(pageIndex = page) {
     setLoading(true)
@@ -77,9 +70,6 @@ export default function StudentsPage({ onNavigate }) {
       const rows = Array.isArray(data) ? data : data.items ?? []
       setStudents(rows)
       setTotal(Array.isArray(data) ? rows.length : data.total ?? rows.length)
-      if (rows.length && !selected) {
-        selectStudent(rows[0])
-      }
     } catch (e) {
       console.error(e)
     } finally {
@@ -104,6 +94,12 @@ export default function StudentsPage({ onNavigate }) {
     }
   }
 
+  useEffect(function loadInitialDataEffect() {
+    Promise.resolve().then(fetchInitialData)
+    // Le chargement initial ne doit être exécuté qu'au montage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function handleSearch(e) {
     e.preventDefault()
     setPage(0)
@@ -122,18 +118,6 @@ export default function StudentsPage({ onNavigate }) {
   function goToPage(next) {
     setPage(next)
     fetchStudents(next)
-  }
-
-  async function selectStudent(s) {
-    setSelected(s)
-    setActiveTab('info')
-    try {
-      const full = await getStudent(s.id)
-      setDetail(full)
-    } catch (e) {
-      console.error(e)
-      setDetail(s)
-    }
   }
 
   function className(id) {

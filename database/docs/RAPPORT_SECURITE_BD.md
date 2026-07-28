@@ -1,5 +1,13 @@
 # Rapport de sécurité de la base de données
 
+## Suppression contrôlée d'une année ouverte
+
+La migration `011_delete_open_school_year.sql` n'accorde aucun droit `DELETE`
+direct à `blaise_app`. Elle expose uniquement une fonction `SECURITY DEFINER`
+qui vérifie le rôle administrateur, refuse les années clôturées, exige le nom
+exact de l'année, supprime ses dépendances dans la transaction courante et
+conserve les comptages dans `school_year_deletion_audits`.
+
 ## Périmètre
 
 - **Projet :** BlaiseConnect
@@ -103,6 +111,11 @@ Le script `database/init/007_create_test_accounts.sql` prépare 74 comptes :
 | `TEACHER` | `e000001` à `e000010` | 10 |
 | `STUDENT` | `u000001` à `u000030` | 30 |
 | `GUARDIAN` | `p000001` à `p000030` | 30 |
+
+Le même script crée leurs profils fictifs, une année scolaire avec trois
+périodes, trois classes, six matières avec coefficients et les inscriptions
+des trente élèves. Les affectations, évaluations et notes ne sont pas simulées
+tant que leurs tables ne sont pas créées par des migrations versionnées.
 
 Ils utilisent uniquement en développement le mot de passe commun `test@1234`, stocké dans PostgreSQL sous forme de hash Argon2. Le mot de passe en clair n'est jamais enregistré dans `accounts`.
 

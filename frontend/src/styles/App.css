@@ -1351,6 +1351,29 @@
   color: var(--color-danger);
 }
 
+.comptes-title + .comptes-breadcrumb {
+  margin: var(--space-2) 0 0;
+}
+
+.details-action-primary:not(:disabled),
+.details-action-secondary:not(:disabled) {
+  cursor: pointer;
+}
+
+.school-years-create-form {
+  padding: var(--space-4);
+  border-bottom: var(--border-default);
+}
+
+.school-years-create-form .details-field-full:last-child {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.details-badge-info {
+  color: var(--color-primary);
+}
+
 .details-tabs {
   display: flex;
   gap: var(--space-2);
@@ -1485,6 +1508,17 @@
   cursor: not-allowed;
 }
 
+.details-technical-value {
+  max-width: 18rem;
+  overflow-wrap: anywhere;
+  font-family: monospace;
+  font-size: var(--font-size-xs);
+}
+
+.details-mini-button:not(:disabled) {
+  cursor: pointer;
+}
+
 .details-quick-actions li button {
   width: 100%;
   display: flex;
@@ -1522,6 +1556,10 @@
 @media (min-width: 640px) {
   .details-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .school-years-create-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1610,5 +1648,192 @@
     flex-direction: row;
     align-items: flex-start;
     justify-content: space-between;
+  }
+}
+/* Années scolaires : interactions communes, pensées mobile-first. */
+.comptes-table-row-clickable {
+  cursor: pointer;
+}
+
+.comptes-table-row-clickable:hover {
+  background: var(--color-primary-lighter);
+}
+
+.comptes-table-row-locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.details-summary-card .details-summary-facts {
+  width: 100%;
+  padding-top: 0;
+  border-top: 0;
+  border-left: 0;
+}
+
+.school-year-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.school-year-header-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.school-year-global-form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.school-year-global-form h2 {
+  margin: 0 0 var(--space-4);
+  color: var(--color-secondary);
+  font-size: var(--font-size-md);
+}
+
+.school-year-period-edit-list {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.school-year-period-edit-list fieldset {
+  min-width: 0;
+  padding: var(--space-4);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.school-year-period-edit-list fieldset:disabled {
+  opacity: 0.65;
+}
+
+.school-year-period-edit-list legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.school-year-global-form-actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-3);
+}
+
+.school-year-global-form-actions button {
+  min-height: 44px;
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.details-mini-button-danger {
+  color: var(--color-danger);
+}
+
+.school-year-delete-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 55%);
+}
+
+.school-year-delete-dialog {
+  width: min(100%, 34rem);
+  max-height: calc(100vh - var(--space-8));
+  overflow-y: auto;
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.school-year-delete-dialog h2 {
+  margin: var(--space-3) 0;
+  color: var(--color-secondary);
+  font-size: var(--font-size-lg);
+}
+
+.school-year-delete-warning-icon,
+.school-year-delete-warning {
+  color: var(--color-danger);
+}
+
+.school-year-delete-dialog ul {
+  padding-left: var(--space-5);
+}
+
+.school-year-delete-dialog form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.school-year-delete-dialog label {
+  font-weight: var(--font-weight-semibold);
+}
+
+.school-year-delete-dialog input {
+  min-height: 44px;
+  padding-inline: var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.school-year-delete-dialog-actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-3);
+}
+
+.school-year-delete-dialog-actions button {
+  min-height: 44px;
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.school-year-delete-confirm-button {
+  color: white;
+  background: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  cursor: pointer;
+}
+
+.school-year-delete-confirm-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (min-width: 48rem) {
+  .details-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .school-year-header-actions {
+    justify-content: flex-end;
+    margin-top: 0;
+  }
+
+  .school-year-global-form-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  .school-year-delete-dialog-actions {
+    flex-direction: row;
+    justify-content: flex-end;
   }
 }

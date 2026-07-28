@@ -19,6 +19,7 @@ export default function App() {
   const [isSessionLoading, setIsSessionLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState('home')
   const [selectedAccount, setSelectedAccount] = useState(null)
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(null)
 
   /**
    * Recherche une session existante au premier affichage.
@@ -60,7 +61,12 @@ export default function App() {
    * sélectionné quand on navigue vers 'account-details'.
    */
   function handleNavigate(page, account) {
-    const pagesReservedToAdmin = ['accounts', 'account-details', 'school-years']
+    const pagesReservedToAdmin = [
+      'accounts',
+      'account-details',
+      'school-years',
+      'school-year-details',
+    ]
 
     if (pagesReservedToAdmin.includes(page) && currentAccount?.role !== 'ADMIN') {
       setCurrentPage('home')
@@ -73,6 +79,10 @@ export default function App() {
 
     if (page === 'student-details') {
       setSelectedAccount(account)
+    }
+
+    if (page === 'school-year-details') {
+      setSelectedSchoolYearId(account)
     }
 
     setCurrentPage(page)
@@ -110,8 +120,19 @@ export default function App() {
           onNavigate={handleNavigate}
         />
       )
-    }else if (currentPage === 'school-years' && canManageAccounts) {
+    } else if (currentPage === 'school-years' && canManageAccounts) {
       pageContent = <SchoolYearsPage onNavigate={handleNavigate} />
+    } else if (
+      currentPage === 'school-year-details' &&
+      canManageAccounts &&
+      selectedSchoolYearId
+    ) {
+      pageContent = (
+        <SchoolYearDetailsPage
+          schoolYearId={selectedSchoolYearId}
+          onNavigate={handleNavigate}
+        />
+      )
     }
 
     return (

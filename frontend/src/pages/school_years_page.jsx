@@ -1,97 +1,59 @@
 import { useEffect, useState } from 'react'
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
+
 import {
-  Ban,
-  Calendar,
-  CalendarClock,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  Info,
-  Plus,
-  Star,
-} from 'lucide-react'
-import {
-  closeSchoolYear,
-  createReportingPeriod,
   createSchoolYear,
-  getReportingPeriods,
   getSchoolYears,
-  setCurrentSchoolYear,
 } from '../services/school_year_service'
 
 const PAGE_SIZE = 10
 
+/** Formate une date ISO pour l'affichage français. */
 function formatDate(dateValue) {
   if (!dateValue) return '—'
+
   const date = new Date(dateValue)
   if (Number.isNaN(date.getTime())) return '—'
+
   return date.toLocaleDateString('fr-FR')
 }
-/** Déduit un type indicatif de période à partir de sa durée en jours. */
-function getPeriodTypeLabel(startDate, endDate) {
-  if (!startDate || !endDate) return '—'
 
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '—'
-
-  const durationInDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1
-
-  if (durationInDays <= 35) return 'Mois'
-  if (durationInDays <= 100) return 'Trimestre'
-  if (durationInDays <= 190) return 'Semestre'
-  return 'Année'
-}
-
+/** Retourne le libellé correspondant à l'état de l'année. */
 function getYearStatusLabel(schoolYear) {
-  if (schoolYear.closed_at !== null) return 'Clôturée'
-  return 'En cours'
+  if (schoolYear.closed_at) return 'Clôturée'
+  if (schoolYear.is_current) return 'Courante'
+  return 'Ouverte'
 }
 
-/** Affiche la gestion des années scolaires et de leurs périodes de bulletin. */
+/** Retourne la classe de couleur correspondant à l'état de l'année. */
+function getYearStatusClassName(schoolYear) {
+  if (schoolYear.closed_at) return 'details-badge-danger'
+  if (schoolYear.is_current) return 'details-badge-success'
+  return 'details-badge-info'
+}
+
+/** Affiche la liste des années scolaires administrables. */
 export default function SchoolYearsPage({ onNavigate }) {
   const [schoolYears, setSchoolYears] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [activeTab, setActiveTab] = useState('years')
   const [currentPage, setCurrentPage] = useState(1)
-
-  const [isYearFormOpen, setIsYearFormOpen] = useState(false)
-  const [yearFormData, setYearFormData] = useState({
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [formData, setFormData] = useState({
     name: '',
     start_date: '',
     end_date: '',
   })
-  const [yearFormError, setYearFormError] = useState('')
-  const [isYearSubmitting, setIsYearSubmitting] = useState(false)
-  const [pendingActionId, setPendingActionId] = useState(null)
 
-  const [selectedYearId, setSelectedYearId] = useState(null)
-  const [periods, setPeriods] = useState([])
-  const [isPeriodsLoading, setIsPeriodsLoading] = useState(false)
-  const [isPeriodFormOpen, setIsPeriodFormOpen] = useState(false)
-  const [periodFormData, setPeriodFormData] = useState({ name: '', end_date: '' })
-  const [periodFormError, setPeriodFormError] = useState('')
-  const [isPeriodSubmitting, setIsPeriodSubmitting] = useState(false)
+  /** Charge les années depuis FastAPI. */
+  async function loadSchoolYears() {
+    setIsLoading(true)
+    setErrorMessage('')
 
-  useEffect(function loadSchoolYearsEffect() {
-    reloadSchoolYears()
-  }, [])
-
-  useEffect(
-    function loadPeriodsForSelectedYearEffect() {
-      if (selectedYearId) loadPeriods(selectedYearId)
-    },
-    [selectedYearId],
-  )
-
-  async function reloadSchoolYears() {
     try {
-      const data = await getSchoolYears()
-      setSchoolYears(data)
-
-      const currentYear = data.find((year) => year.is_current)
-      setSelectedYearId((previous) => previous || currentYear?.id || data[0]?.id || null)
+      setSchoolYears(await getSchoolYears())
     } catch (error) {
       setErrorMessage(error.message)
     } finally {
@@ -99,114 +61,106 @@ export default function SchoolYearsPage({ onNavigate }) {
     }
   }
 
-  async function loadPeriods(yearId) {
-    setIsPeriodsLoading(true)
-    try {
-      setPeriods(await getReportingPeriods(yearId))
-    } catch (error) {
-      setErrorMessage(error.message)
-    } finally {
-      setIsPeriodsLoading(false)
-    }
-  }
+  useEffect(function loadSchoolYearsEffect() {
+    Promise.resolve().then(loadSchoolYears)
+    // Le chargement initial doit être effectué une seule fois.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  function handleYearFormFieldChange(event) {
+  /** Met à jour un champ du formulaire. */
+  function handleFormFieldChange(event) {
     const { name, value } = event.target
-    setYearFormData((previous) => ({ ...previous, [name]: value }))
+    setFormData(function updateFormData(previousData) {
+      return { ...previousData, [name]: value }
+    })
   }
 
-  async function handleCreateYearSubmit(event) {
+  /** Crée une année puis recharge la liste. */
+  async function handleCreateSubmit(event) {
     event.preventDefault()
-    setYearFormError('')
-    setIsYearSubmitting(true)
+    setFormError('')
+    setIsSubmitting(true)
 
     try {
-      await createSchoolYear(yearFormData)
-      setYearFormData({ name: '', start_date: '', end_date: '' })
-      setIsYearFormOpen(false)
-      await reloadSchoolYears()
+      await createSchoolYear(formData)
+      setFormData({ name: '', start_date: '', end_date: '' })
+      setIsFormOpen(false)
+      await loadSchoolYears()
     } catch (error) {
-      setYearFormError(error.message)
+      setFormError(error.message)
     } finally {
-      setIsYearSubmitting(false)
+      setIsSubmitting(false)
     }
   }
 
-  async function handleSetCurrent(schoolYearId) {
-    setPendingActionId(schoolYearId)
-    setErrorMessage('')
-
-    try {
-      await setCurrentSchoolYear(schoolYearId)
-      await reloadSchoolYears()
-    } catch (error) {
-      setErrorMessage(error.message)
-    } finally {
-      setPendingActionId(null)
-    }
+  /** Ouvre la fiche de l'année sélectionnée. */
+  function handleSchoolYearSelection(schoolYearId) {
+    onNavigate('school-year-details', schoolYearId)
   }
 
-  async function handleCloseYear(schoolYearId) {
-    setPendingActionId(schoolYearId)
-    setErrorMessage('')
-
-    try {
-      await closeSchoolYear(schoolYearId)
-      await reloadSchoolYears()
-    } catch (error) {
-      setErrorMessage(error.message)
-    } finally {
-      setPendingActionId(null)
-    }
+  /** Affiche la page précédente. */
+  function handlePreviousPage() {
+    setCurrentPage(function selectPreviousPage(page) {
+      return Math.max(1, page - 1)
+    })
   }
 
-  function handleViewYearPeriods(schoolYearId) {
-    setSelectedYearId(schoolYearId)
-    setActiveTab('periods')
+  /** Affiche la page suivante. */
+  function handleNextPage() {
+    setCurrentPage(function selectNextPage(page) {
+      return Math.min(totalPages, page + 1)
+    })
   }
 
-  function handlePeriodFormFieldChange(event) {
-    const { name, value } = event.target
-    setPeriodFormData((previous) => ({ ...previous, [name]: value }))
+  /** Ouvre ou ferme le formulaire de création. */
+  function handleToggleCreateForm() {
+    setIsFormOpen(function toggleForm(open) {
+      return !open
+    })
   }
 
-  async function handleCreatePeriodSubmit(event) {
-    event.preventDefault()
-    setPeriodFormError('')
-    setIsPeriodSubmitting(true)
-
-    try {
-      await createReportingPeriod(selectedYearId, periodFormData)
-      setPeriodFormData({ name: '', end_date: '' })
-      setIsPeriodFormOpen(false)
-      await loadPeriods(selectedYearId)
-    } catch (error) {
-      setPeriodFormError(error.message)
-    } finally {
-      setIsPeriodSubmitting(false)
-    }
+  /** Retourne vers la page d'accueil. */
+  function handleHomeNavigation() {
+    onNavigate('home')
   }
 
   const totalPages = Math.max(1, Math.ceil(schoolYears.length / PAGE_SIZE))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const pageStart = (safeCurrentPage - 1) * PAGE_SIZE
-  const paginatedYears = schoolYears.slice(pageStart, pageStart + PAGE_SIZE)
-  const selectedYear = schoolYears.find((year) => year.id === selectedYearId)
-  const isSelectedYearClosed = selectedYear?.closed_at != null
+  const visibleSchoolYears = schoolYears.slice(
+    pageStart,
+    pageStart + PAGE_SIZE,
+  )
 
   return (
     <main className="comptes-main">
       <header className="comptes-heading">
         <div>
+          <h1 className="comptes-title">Années scolaires</h1>
           <nav className="comptes-breadcrumb" aria-label="Fil d’Ariane">
-            <button type="button" onClick={() => onNavigate('home')}>
+            <button type="button" onClick={handleHomeNavigation}>
               Accueil
             </button>
             <ChevronRight aria-hidden="true" size={14} />
-            <span className="comptes-breadcrumb-current">Années et périodes scolaires</span>
+            <span className="comptes-breadcrumb-current">
+              Années scolaires
+            </span>
           </nav>
-          <h1 className="comptes-title">Années et périodes scolaires</h1>
+          <p className="comptes-description">
+            Consultez et organisez les années scolaires de l’établissement.
+          </p>
         </div>
+
+        <button
+          type="button"
+          className="details-action-primary"
+          onClick={handleToggleCreateForm}
+        >
+          {isFormOpen
+            ? <X aria-hidden="true" size={16} />
+            : <Plus aria-hidden="true" size={16} />}
+          {isFormOpen ? 'Annuler' : 'Ajouter une année'}
+        </button>
       </header>
 
       {errorMessage && (
@@ -215,488 +169,149 @@ export default function SchoolYearsPage({ onNavigate }) {
         </p>
       )}
 
-      <nav className="details-tabs" aria-label="Sections">
-        <button
-          type="button"
-          className={`details-tab ${activeTab === 'years' ? 'details-tab-active' : ''}`}
-          onClick={() => setActiveTab('years')}
-        >
-          <Calendar aria-hidden="true" size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-          Années scolaires
-        </button>
-        <button
-          type="button"
-          className={`details-tab ${activeTab === 'periods' ? 'details-tab-active' : ''}`}
-          onClick={() => setActiveTab('periods')}
-        >
-          <CalendarClock aria-hidden="true" size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-          Périodes scolaires
-        </button>
-      </nav>
-
-      {activeTab === 'years' && (
-        <>
-          <section className="comptes-list" aria-label="Liste des années scolaires">
-            <div className="comptes-toolbar" style={{ justifyContent: 'space-between' }}>
-              <h3 style={{ margin: 0 }}>Années scolaires</h3>
-              <button
-                type="button"
-                className="details-action-primary"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setIsYearFormOpen((open) => !open)}
-              >
-                <Plus aria-hidden="true" size={16} />
-                {isYearFormOpen ? 'Annuler' : 'Ajouter une année scolaire'}
-              </button>
+      <section
+        className="comptes-list"
+        aria-label="Liste des années scolaires"
+      >
+        {isFormOpen && (
+          <form
+            className="details-form-grid school-years-create-form"
+            onSubmit={handleCreateSubmit}
+          >
+            <div className="details-field">
+              <label htmlFor="school-year-name">Nom</label>
+              <input
+                id="school-year-name"
+                name="name"
+                type="text"
+                placeholder="2026-2027"
+                value={formData.name}
+                onChange={handleFormFieldChange}
+                required
+              />
             </div>
 
-            {isYearFormOpen && (
-              <form
-                className="details-form-grid"
-                onSubmit={handleCreateYearSubmit}
-                style={{ padding: 'var(--space-4)', borderBottom: 'var(--border-default)' }}
-              >
-                <div className="details-field">
-                  <label htmlFor="school-year-name">Nom</label>
-                  <input
-                    id="school-year-name"
-                    name="name"
-                    type="text"
-                    placeholder="2026-2027"
-                    value={yearFormData.name}
-                    onChange={handleYearFormFieldChange}
-                    required
-                  />
-                </div>
-                <div className="details-field">
-                  <label htmlFor="school-year-start">Date de début</label>
-                  <input
-                    id="school-year-start"
-                    name="start_date"
-                    type="date"
-                    value={yearFormData.start_date}
-                    onChange={handleYearFormFieldChange}
-                    required
-                  />
-                </div>
-                <div className="details-field">
-                  <label htmlFor="school-year-end">Date de fin</label>
-                  <input
-                    id="school-year-end"
-                    name="end_date"
-                    type="date"
-                    value={yearFormData.end_date}
-                    onChange={handleYearFormFieldChange}
-                    required
-                  />
-                </div>
-
-                {yearFormError && (
-                  <p className="comptes-error details-field-full" role="alert">
-                    {yearFormError}
-                  </p>
-                )}
-
-                <div className="details-field-full">
-                  <button
-                    type="submit"
-                    className="details-action-primary"
-                    disabled={isYearSubmitting}
-                    style={{ cursor: isYearSubmitting ? 'wait' : 'pointer' }}
-                  >
-                    {isYearSubmitting ? 'Création…' : 'Créer l’année scolaire'}
-                  </button>
-                </div>
-
-              </form>
-            )}
-
-            {isLoading ? (
-              <p className="comptes-table-status">Chargement des années scolaires…</p>
-            ) : schoolYears.length === 0 ? (
-              <div className="comptes-empty-state">
-                <Calendar aria-hidden="true" size={28} />
-                <p>Aucune année scolaire pour le moment.</p>
-              </div>
-            ) : (
-              <>
-                <div className="comptes-table-wrapper">
-                  <table className="comptes-table">
-                    <thead>
-                      <tr>
-                        <th>Nom de l'année</th>
-                        <th>Date de début</th>
-                        <th>Date de fin</th>
-                        <th>Statut</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedYears.map((schoolYear) => {
-                        const isClosed = schoolYear.closed_at !== null
-                        const isPending = pendingActionId === schoolYear.id
-
-                        return (
-                          <tr key={schoolYear.id}>
-                            <td>
-                              <div className="comptes-table-identity">
-                                {schoolYear.is_current && (
-                                  <span
-                                    className="comptes-role-badge comptes-role-badge-admin"
-                                    style={{ marginRight: 'var(--space-2)' }}
-                                  >
-                                    Actuelle
-                                  </span>
-                                )}
-                                <span>{schoolYear.name}</span>
-                              </div>
-                            </td>
-                            <td>{formatDate(schoolYear.start_date)}</td>
-                            <td>{formatDate(schoolYear.end_date)}</td>
-                            <td>
-                              <span
-                                className={
-                                  isClosed
-                                    ? 'details-badge-danger'
-                                    : 'details-badge-success'
-                                }
-                              >
-                                {getYearStatusLabel(schoolYear)}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="comptes-actions">
-                                <button
-                                  type="button"
-                                  className="comptes-action-button comptes-action-edit"
-                                  title="Voir les périodes"
-                                  onClick={() => handleViewYearPeriods(schoolYear.id)}
-                                >
-                                  <Eye aria-hidden="true" size={16} />
-                                </button>
-                                {!isClosed && !schoolYear.is_current && (
-                                  <button
-                                    type="button"
-                                    className="comptes-action-button comptes-action-edit"
-                                    title="Définir comme année courante"
-                                    disabled={isPending}
-                                    onClick={() => handleSetCurrent(schoolYear.id)}
-                                  >
-                                    <Star aria-hidden="true" size={16} />
-                                  </button>
-                                )}
-                                {!isClosed && (
-                                  <button
-                                    type="button"
-                                    className="comptes-action-button comptes-action-delete"
-                                    title="Clôturer l'année"
-                                    disabled={isPending}
-                                    onClick={() => handleCloseYear(schoolYear.id)}
-                                  >
-                                    <Ban aria-hidden="true" size={16} />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="comptes-pagination">
-                  <p className="comptes-pagination-info">
-                    Affichage de {pageStart + 1} à{' '}
-                    {Math.min(pageStart + PAGE_SIZE, schoolYears.length)} sur{' '}
-                    {schoolYears.length} années scolaires
-                  </p>
-                  <div className="comptes-pagination-controls">
-                    <button
-                      type="button"
-                      className="comptes-pagination-button"
-                      onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                      disabled={safeCurrentPage === 1}
-                      aria-label="Page précédente"
-                    >
-                      <ChevronLeft aria-hidden="true" size={16} />
-                    </button>
-                    <span className="comptes-pagination-button comptes-pagination-button-active">
-                      {safeCurrentPage}
-                    </span>
-                    <button
-                      type="button"
-                      className="comptes-pagination-button"
-                      onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                      disabled={safeCurrentPage === totalPages}
-                      aria-label="Page suivante"
-                    >
-                      <ChevronRight aria-hidden="true" size={16} />
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </section>
-          <section className="comptes-list" aria-label="Périodes de l'année courante" style={{ marginTop: 'var(--space-5)' }}>
-            <div className="comptes-toolbar" style={{ justifyContent: 'space-between' }}>
-              <h3 style={{ margin: 0 }}>
-                Périodes {selectedYear ? `de l'année ${selectedYear.is_current ? 'en cours ' : ''}(${selectedYear.name})` : ''}
-              </h3>
-              {!isSelectedYearClosed && selectedYearId && (
-                <button
-                  type="button"
-                  className="details-action-primary"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setIsPeriodFormOpen((open) => !open)}
-                >
-                  <Plus aria-hidden="true" size={16} />
-                  {isPeriodFormOpen ? 'Annuler' : 'Ajouter une période'}
-                </button>
-              )}
+            <div className="details-field">
+              <label htmlFor="school-year-start">Date de début</label>
+              <input
+                id="school-year-start"
+                name="start_date"
+                type="date"
+                value={formData.start_date}
+                onChange={handleFormFieldChange}
+                required
+              />
             </div>
 
-            {isPeriodFormOpen && (
-              <form
-                className="details-form-grid"
-                onSubmit={handleCreatePeriodSubmit}
-                style={{ padding: 'var(--space-4)', borderBottom: 'var(--border-default)' }}
-              >
-                <div className="details-field">
-                  <label htmlFor="period-name-years-tab">Nom</label>
-                  <input
-                    id="period-name-years-tab"
-                    name="name"
-                    type="text"
-                    placeholder="1er Trimestre"
-                    value={periodFormData.name}
-                    onChange={handlePeriodFormFieldChange}
-                    required
-                  />
-                </div>
-                <div className="details-field">
-                  <label htmlFor="period-end-years-tab">Date de fin</label>
-                  <input
-                    id="period-end-years-tab"
-                    name="end_date"
-                    type="date"
-                    value={periodFormData.end_date}
-                    onChange={handlePeriodFormFieldChange}
-                    required
-                  />
-                </div>
-
-                {periodFormError && (
-                  <p className="comptes-error details-field-full" role="alert">
-                    {periodFormError}
-                  </p>
-                )}
-
-                <div className="details-field-full">
-                  <button
-                    type="submit"
-                    className="details-action-primary"
-                    disabled={isPeriodSubmitting}
-                    style={{ cursor: isPeriodSubmitting ? 'wait' : 'pointer' }}
-                  >
-                    {isPeriodSubmitting ? 'Création…' : 'Créer la période'}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {isPeriodsLoading ? (
-              <p className="comptes-table-status">Chargement des périodes…</p>
-            ) : periods.length === 0 ? (
-              <div className="comptes-empty-state">
-                <CalendarClock aria-hidden="true" size={28} />
-                <p>Aucune période définie pour cette année.</p>
-              </div>
-            ) : (
-              <div className="comptes-table-wrapper">
-                <table className="comptes-table">
-                  <thead>
-                    <tr>
-                      <th>Nom de la période</th>
-                      <th>Date de début</th>
-                      <th>Date de fin</th>
-                      <th>Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {periods.map((period) => (
-                      <tr key={period.id}>
-                        <td>{period.name}</td>
-                        <td>{formatDate(period.start_date)}</td>
-                        <td>{formatDate(period.end_date)}</td>
-                      <td>{getPeriodTypeLabel(period.start_date, period.end_date)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-3)',
-                padding: 'var(--space-4)',
-                margin: 'var(--space-4)',
-                background: 'var(--color-primary-lighter)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--color-text-secondary)',
-                fontSize: 'var(--font-size-sm)',
-              }}
-            >
-              <Info aria-hidden="true" size={18} />
-              Les périodes permettent d'organiser les évaluations et la génération des bulletins.
+            <div className="details-field">
+              <label htmlFor="school-year-end">Date de fin</label>
+              <input
+                id="school-year-end"
+                name="end_date"
+                type="date"
+                value={formData.end_date}
+                onChange={handleFormFieldChange}
+                required
+              />
             </div>
-          </section>
-        </>
-      )}
 
-      {activeTab === 'periods' && (
-        <section className="comptes-list" aria-label="Périodes de l'année sélectionnée">
-          <div className="comptes-toolbar" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-            <div>
-              <h3 style={{ margin: 0 }}>
-                Périodes {selectedYear ? `de l'année ${selectedYear.is_current ? 'en cours ' : ''}(${selectedYear.name})` : ''}
-              </h3>
-              {schoolYears.length > 1 && (
-                <select
-                  className="comptes-filter-select"
-                  style={{ marginTop: 'var(--space-2)' }}
-                  value={selectedYearId || ''}
-                  onChange={(event) => setSelectedYearId(event.target.value)}
-                >
-                  {schoolYears.map((year) => (
-                    <option key={year.id} value={year.id}>
-                      {year.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            {!isSelectedYearClosed && selectedYearId && (
-              <button
-                type="button"
-                className="details-action-primary"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setIsPeriodFormOpen((open) => !open)}
-              >
-                <Plus aria-hidden="true" size={16} />
-                {isPeriodFormOpen ? 'Annuler' : 'Ajouter une période'}
-              </button>
-            )}
-          </div>
-
-          {isPeriodFormOpen && (
-            <form
-              className="details-form-grid"
-              onSubmit={handleCreatePeriodSubmit}
-              style={{ padding: 'var(--space-4)', borderBottom: 'var(--border-default)' }}
-            >
-              <div className="details-field">
-                <label htmlFor="period-name">Nom</label>
-                <input
-                  id="period-name"
-                  name="name"
-                  type="text"
-                  placeholder="1er Trimestre"
-                  value={periodFormData.name}
-                  onChange={handlePeriodFormFieldChange}
-                  required
-                />
-              </div>
-              <div className="details-field">
-                <label htmlFor="period-end">Date de fin</label>
-                <input
-                  id="period-end"
-                  name="end_date"
-                  type="date"
-                  value={periodFormData.end_date}
-                  onChange={handlePeriodFormFieldChange}
-                  required
-                />
-              </div>
-              <p
-                className="details-field details-field-full"
-                style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}
-              >
-                La date de début sera calculée automatiquement (début de l'année, ou lendemain de la période précédente).
+            {formError && (
+              <p className="comptes-error details-field-full" role="alert">
+                {formError}
               </p>
+            )}
 
-              {periodFormError && (
-                <p className="comptes-error details-field-full" role="alert">
-                  {periodFormError}
-                </p>
-              )}
-
-              <div className="details-field-full">
-                <button
-                  type="submit"
-                  className="details-action-primary"
-                  disabled={isPeriodSubmitting}
-                  style={{ cursor: isPeriodSubmitting ? 'wait' : 'pointer' }}
-                >
-                  {isPeriodSubmitting ? 'Création…' : 'Créer la période'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {isPeriodsLoading ? (
-            <p className="comptes-table-status">Chargement des périodes…</p>
-          ) : periods.length === 0 ? (
-            <div className="comptes-empty-state">
-              <CalendarClock aria-hidden="true" size={28} />
-              <p>Aucune période définie pour cette année.</p>
+            <div className="details-field-full">
+              <button
+                type="submit"
+                className="details-action-primary"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Création…' : 'Créer l’année'}
+              </button>
             </div>
-          ) : (
+          </form>
+        )}
+
+        {isLoading ? (
+          <p className="comptes-table-status">Chargement des années…</p>
+        ) : schoolYears.length === 0 ? (
+          <div className="comptes-empty-state">
+            <p>Aucune année scolaire enregistrée.</p>
+          </div>
+        ) : (
+          <>
             <div className="comptes-table-wrapper">
               <table className="comptes-table">
                 <thead>
                   <tr>
-                    <th>Nom de la période</th>
+                    <th>Année</th>
                     <th>Date de début</th>
                     <th>Date de fin</th>
-                    <th>Type</th>
+                    <th>Statut</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {periods.map((period) => (
-                    <tr key={period.id}>
-                      <td>{period.name}</td>
-                      <td>{formatDate(period.start_date)}</td>
-                      <td>{formatDate(period.end_date)}</td>
-                      <td>{getPeriodTypeLabel(period.start_date, period.end_date)}</td>
-                    </tr>
-                  ))}
+                  {visibleSchoolYears.map(function renderSchoolYear(schoolYear) {
+                    return (
+                      <tr
+                        key={schoolYear.id}
+                        className="comptes-table-row-clickable"
+                        onClick={() =>
+                          handleSchoolYearSelection(schoolYear.id)
+                        }
+                      >
+                        <td>{schoolYear.name}</td>
+                        <td>{formatDate(schoolYear.start_date)}</td>
+                        <td>{formatDate(schoolYear.end_date)}</td>
+                        <td>
+                          <span className={getYearStatusClassName(schoolYear)}>
+                            {getYearStatusLabel(schoolYear)}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
-          )}
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-3)',
-              padding: 'var(--space-4)',
-              margin: 'var(--space-4)',
-              background: 'var(--color-primary-lighter)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--color-text-secondary)',
-              fontSize: 'var(--font-size-sm)',
-            }}
-          >
-            <Info aria-hidden="true" size={18} />
-            Les périodes permettent d'organiser les évaluations et la génération des bulletins.
-          </div>
-        </section>
-      )}
+            <div className="comptes-pagination">
+              <p className="comptes-pagination-info">
+                Affichage de {pageStart + 1} à{' '}
+                {Math.min(pageStart + PAGE_SIZE, schoolYears.length)} sur{' '}
+                {schoolYears.length} années
+              </p>
+
+              <div className="comptes-pagination-controls">
+                <button
+                  type="button"
+                  className="comptes-pagination-button"
+                  onClick={handlePreviousPage}
+                  disabled={safeCurrentPage === 1}
+                  aria-label="Page précédente"
+                >
+                  <ChevronLeft aria-hidden="true" size={16} />
+                </button>
+
+                <span className="comptes-pagination-button comptes-pagination-button-active">
+                  {safeCurrentPage}
+                </span>
+
+                <button
+                  type="button"
+                  className="comptes-pagination-button"
+                  onClick={handleNextPage}
+                  disabled={safeCurrentPage === totalPages}
+                  aria-label="Page suivante"
+                >
+                  <ChevronRight aria-hidden="true" size={16} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
     </main>
   )
 }

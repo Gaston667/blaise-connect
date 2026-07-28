@@ -12,10 +12,14 @@ from app.core.reporting_period_not_found_error import (
 from app.core.school_year_not_found_error import SchoolYearNotFoundError
 from app.schemas.reporting_period_create import ReportingPeriodCreate
 from app.schemas.reporting_period_response import ReportingPeriodResponse
+from app.schemas.reporting_period_update import ReportingPeriodUpdate
 from app.services.reporting_period_service import (
     create_reporting_period,
+    get_reporting_period_by_id,
     list_reporting_periods,
+    update_reporting_period,
 )
+from app.services.school_year_service import get_school_year_by_id
 
 router = APIRouter(
     prefix="/school-years/{school_year_id}/reporting-periods",
@@ -34,6 +38,14 @@ def get_reporting_periods(
     current_admin: CurrentAdminDependency,
 ) -> list[ReportingPeriodResponse]:
     """Retourne les périodes d'une année scolaire, ordonnées par date."""
+
+    try:
+        get_school_year_by_id(db, school_year_id)
+    except SchoolYearNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Année scolaire introuvable.",
+        ) from error
 
     reporting_periods = list_reporting_periods(db, school_year_id)
 
@@ -77,3 +89,42 @@ def post_reporting_period(
         ) from error
 
     return ReportingPeriodResponse.model_validate(reporting_period)
+
+
+@router.patch(
+    "/{reporting_period_id}",
+    response_model=ReportingPeriodResponse,
+    status_code=status.HTTP_200_OK,
+)
+def patch_reporting_period(
+    school_year_id: UUID,
+    reporting_period_id: UUID,
+    period_data: ReportingPeriodUpdate,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+) -> ReportingPeriodResponse:
+    """Modifie une période et ajuste la suivante dans la même transaction."""
+
+    try:
+        reporting_period = get_reporting_period_by_id(db, reporting_period_id)
+        if reporting_period.school_year_id != school_year_id:
+            raise ReportingPeriodNotFoundError(reporting_period_id)
+
+        updated_period = update_reporting_period(
+            db,
+            reporting_period_id,
+            period_data,
+        )
+    except ReportingPeriodNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Période scolaire introuvable.",
+        ) from error
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=extract_postgres_error_message(error),
+        ) from error
+
+    return ReportingPeriodResponse.model_validate(updated_period)

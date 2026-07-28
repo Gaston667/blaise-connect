@@ -1,4 +1,16 @@
 # Carnet de stage — BlaiseConnect
+- **28 juillet 2026 — Correction US-003 :** création d’année réparée sans étendre les privilèges SQL de `blaise_app`.
+- **28 juillet 2026 — Liste des années :** en-tête, fil d’Ariane et formulaire de création réalignés en mobile-first.
+- **28 juillet 2026 — Interface US-003 :** statuts d’année distingués visuellement entre ouverte, courante et clôturée.
+- **28 juillet 2026 — Interface US-003 :** identifiants techniques masqués et actions déplacées dans l’en-tête de la fiche année.
+- **28 juillet 2026 — Décision D-021 :** suppression complète d’une année ouverte ajoutée avec confirmation du nom, transaction et audit.
+- **28 juillet 2026 — US-003 :** sauvegarde année/périodes rendue atomique, contrats nettoyés et diagrammes MVC actualisés.
+- **28 juillet 2026 — Fiche année :** tous les champs techniques et métier des années et périodes sont maintenant visibles en consultation.
+- **28 juillet 2026 — Fiche année :** résumé et actions réorganisés ; formulaire global ajouté pour modifier l’année et ses périodes.
+- **28 juillet 2026 — Navigation US-003 :** tableau des périodes retiré de la liste ; la fiche d'une année regroupe désormais son résumé et ses périodes.
+- **28 juillet 2026 — Frontend US-003 :** onglet Périodes retiré et rôle transversal des périodes clarifié dans l'interface.
+- **28 juillet 2026 — Données fictives :** seed 007 enrichi avec profils, année, périodes, classes, matières, coefficients et inscriptions ; ancien script PowerShell supprimé.
+- **28 juillet 2026 — US-003 :** gestion des années et périodes terminée ; modification des frontières, navigation, tests backend, lint et build frontend validés.
 - **20 juillet 2026 — Sprint 1 :** prise en main du dépôt et lecture des documents du projet.
 - Les User Stories actives sont US-001, US-002 et US-025.
 - **26 juillet 2026 - Planning Sprint 2 :** fichiers métier renseignés pour US-003 à US-006 et fichiers transversaux de conception ajoutés au Sprint Planning.

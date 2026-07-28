@@ -41,6 +41,8 @@ services:
       - ./database/migration/006_grant_account_insert_nullable_columns.sql:/docker-entrypoint-initdb.d/006_grant_account_insert_nullable_columns.sql:ro
       # Ajoute les comptes fictifs après la création complète du schéma.
       - ./database/init/007_create_test_accounts.sql:/docker-entrypoint-initdb.d/007_create_test_accounts.sql:ro
+      # Ajoute la suppression contrôlée des années non clôturées.
+      - ./database/migration/011_delete_open_school_year.sql:/docker-entrypoint-initdb.d/011_delete_open_school_year.sql:ro
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
     healthcheck:
       # pg_isready utilise l'utilisateur et la base définis dans .env.

@@ -19,7 +19,9 @@ export async function listStudents({ q = null, status = null, class_id = null, s
     try {
       const body = await res.json()
       if (body && body.detail) err = body.detail
-    } catch {}
+    } catch {
+      // Le message générique est conservé si la réponse n'est pas du JSON.
+    }
     throw new Error(err)
   }
 
@@ -33,7 +35,9 @@ const res = await fetch(`${STUDENTS_API_URL}${id}`, { credentials: 'include' })
     try {
       const body = await res.json()
       if (body && body.detail) err = body.detail
-    } catch {}
+    } catch {
+      // Le message générique est conservé si la réponse n'est pas du JSON.
+    }
     throw new Error(err)
   }
   return await res.json()
@@ -51,7 +55,9 @@ export async function createStudent(payload) {
     try {
       const body = await res.json()
       if (body && body.detail) err = body.detail
-    } catch {}
+    } catch {
+      // Le message générique est conservé si la réponse n'est pas du JSON.
+    }
     throw new Error(err)
   }
 
@@ -66,7 +72,9 @@ export async function updateStudent(id, payload) {
   })
   if (!res.ok) {
     let err = 'Échec de la mise à jour'
-    try { const body = await res.json(); if (body?.detail) err = body.detail } catch {}
+    try { const body = await res.json(); if (body?.detail) err = body.detail } catch {
+      // Le message générique est conservé si la réponse n'est pas du JSON.
+    }
     throw new Error(err)
   }
   return await res.json()
@@ -79,7 +87,9 @@ async function postAction(id, action) {
   })
   if (!res.ok) {
     let err = `Échec de l'action "${action}"`
-    try { const body = await res.json(); if (body?.detail) err = body.detail } catch {}
+    try { const body = await res.json(); if (body?.detail) err = body.detail } catch {
+      // Le message générique est conservé si la réponse n'est pas du JSON.
+    }
     throw new Error(err)
   }
   return await res.json()

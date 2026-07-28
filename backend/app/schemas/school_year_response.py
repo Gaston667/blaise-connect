@@ -19,3 +19,4 @@ class SchoolYearResponse(BaseModel):
     closed_at: datetime | None
     closed_by_account_id: UUID | None
     created_at: datetime
+    updated_at: datetime

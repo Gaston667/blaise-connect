@@ -42,7 +42,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 |---|---|---|---|---|---|
 | US-001 | Authentification | Se connecter et se déconnecter | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-002 | Comptes et droits | Gérer les comptes et leurs rôles | Indispensable pour le MVP | M | 🟥 À faire |
-| US-003 | Années scolaires | Gérer les années et périodes scolaires | Indispensable pour le MVP | M | 🟥 À faire |
+| US-003 | Années scolaires | Gérer les années et périodes scolaires | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-004 | Classes | Gérer les classes du lycée | Indispensable pour le MVP | M | 🟥 À faire |
 | US-005 | Matières | Gérer les matières et coefficients | Indispensable pour le MVP | M | 🟥 À faire |
 | US-006 | Enseignants | Gérer les enseignants | Indispensable pour le MVP | M | 🟥 À faire |
@@ -117,12 +117,12 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** créer et consulter les années scolaires ainsi que leurs périodes.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À étudier.
-- **Règles de gestion :** les données historiques restent attachées à leur année ; une année peut être courante sans période ; l'administrateur choisit la fin de chaque période et son début est calculé à partir de l'année ou de la période précédente.
-- **Critères d’acceptation :** une année peut être créée et activée sans période ; les périodes sont ajoutées progressivement sans chevauchement ni trou ; une année utilisée ne peut pas être supprimée sans contrôle ; l’historique reste consultable.
+- **Statut :** Terminé.
+- **Règles de gestion :** les données historiques restent attachées à leur année ; une année peut être courante sans période ; l'administrateur choisit la fin de chaque période et son début est calculé à partir de l'année ou de la période précédente ; une année non clôturée peut être supprimée avec toutes ses dépendances après confirmation forte ; une année clôturée ne peut jamais être supprimée.
+- **Critères d’acceptation :** une année peut être créée et activée sans période ; les périodes sont ajoutées progressivement sans chevauchement ni trou ; avant une suppression, les dépendances sont comptées et l'administrateur doit saisir exactement le nom de l'année ; la suppression complète est atomique et auditée ; l’historique d’une année clôturée reste consultable.
 - **Dépendances :** décision QD-5.
-- **Tâches techniques :** modèles année et période ; API ; écrans de gestion ; contraintes de dates ; tests.
-- **Cas d’erreur :** années en doublon, périodes qui se chevauchent, dates incohérentes, suppression d’une année utilisée.
+- **Tâches techniques :** modèles année et période ; API ; écrans de gestion ; contraintes de dates ; suppression PostgreSQL contrôlée ; confirmation frontend ; tests.
+- **Cas d’erreur :** années en doublon, périodes qui se chevauchent, dates incohérentes, nom de confirmation incorrect, tentative de suppression d’une année clôturée.
 - **Estimation :** M.
 
 ### US-004 — Gérer les classes

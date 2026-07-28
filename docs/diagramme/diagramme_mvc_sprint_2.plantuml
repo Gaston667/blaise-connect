@@ -10,17 +10,34 @@ skinparam linetype ortho
 package "VUE - React" #E8F5E9 {
   class "pages/school_years_page.jsx" as SchoolYearsPage {
     - schoolYears
-    - periods
     - isLoading
     - errorMessage
     + loadSchoolYears()
     + handleCreateSchoolYear(data)
-    + handleCreateSchoolPeriod(data)
+    + handleSchoolYearSelection(id)
+  }
+  class "pages/school_year_details_page.jsx" as SchoolYearDetailsPage {
+    - schoolYear
+    - periods
+    - isEditingYear
+    + loadDetails()
+    + handleYearFormSubmit(event)
+    + handleSetCurrentYear()
+    + handleCloseCurrentYear()
+    + handleDeleteSchoolYear(event)
   }
   class "services/school_year_service.js" as FrontSchoolYearService {
-    + listSchoolYears()
+    + getSchoolYears()
+    + getSchoolYear(id)
     + createSchoolYear(data)
-    + createSchoolPeriod(yearId, data)
+    + updateSchoolYearDetails(id, data)
+    + setCurrentSchoolYear(id)
+    + closeSchoolYear(id)
+    + getReportingPeriods(yearId)
+    + createReportingPeriod(yearId, data)
+    + updateReportingPeriod(yearId, periodId, data)
+    + getSchoolYearDeletionPreview(id)
+    + deleteSchoolYear(id, confirmationName)
   }
 
   class "pages/school_classes_page.jsx" as SchoolClassesPage {
@@ -69,16 +86,37 @@ package "VUE - React" #E8F5E9 {
 package "CONTROLEUR - FastAPI" #FFF3E0 {
   class "routes/school_years.py" as SchoolYearRoutes {
     + get_school_years(db, admin)
+    + get_school_year(id, db, admin)
     + post_school_year(data, db, admin)
     + patch_school_year(id, data, db, admin)
-    + post_school_period(id, data, db, admin)
+    + patch_school_year_details(id, data, db, admin)
+    + post_set_current_school_year(id, db, admin)
+    + post_close_school_year(id, db, admin)
+    + get_deletion_preview(id, db, admin)
+    + delete_school_year(id, confirmation, db, admin)
+  }
+  class "routes/reporting_periods.py" as ReportingPeriodRoutes {
+    + get_reporting_periods(yearId, db, admin)
+    + post_reporting_period(yearId, data, db, admin)
+    + patch_reporting_period(yearId, periodId, data, db, admin)
   }
   class "services/school_year_service.py" as SchoolYearService {
     + list_school_years(db)
+    + get_school_year_by_id(db, id)
     + create_school_year(db, data)
     + update_school_year(db, id, data)
-    + create_school_period(db, yearId, data)
-    + validate_school_period_dates(db, yearId, data)
+    + update_school_year_details(db, id, data)
+    + set_current_school_year(db, id)
+    + close_school_year(db, id, adminId)
+    + get_school_year_deletion_preview(db, id)
+    + delete_open_school_year(db, id, name, adminId)
+  }
+  class "services/reporting_period_service.py" as ReportingPeriodService {
+    + list_reporting_periods(db, yearId)
+    + get_reporting_period_by_id(db, id)
+    + compute_next_period_start_date(db, yearId)
+    + create_reporting_period(db, data)
+    + update_reporting_period(db, id, data)
   }
 
   class "routes/school_classes.py" as SchoolClassRoutes {
@@ -125,9 +163,17 @@ package "CONTROLEUR - FastAPI" #FFF3E0 {
 
 package "CONTRATS - Pydantic" #FFEBEE {
   class SchoolYearCreate
+  class SchoolYearUpdate
+  class SchoolYearDetailsUpdate
+  class SchoolYearPeriodUpdate
   class SchoolYearResponse
-  class SchoolPeriodCreate
-  class SchoolPeriodResponse
+  class SchoolYearDetailsResponse
+  class ReportingPeriodCreate
+  class ReportingPeriodUpdate
+  class ReportingPeriodResponse
+  class SchoolYearDeletionConfirmation
+  class SchoolYearDeletionPreview
+  class SchoolYearDeletionResponse
   class SchoolClassCreate
   class SchoolClassUpdate
   class SchoolClassResponse
@@ -195,22 +241,27 @@ package "MODELE - SQLAlchemy" #E3F2FD {
 }
 
 SchoolYearsPage --> FrontSchoolYearService
+SchoolYearDetailsPage --> FrontSchoolYearService
 SchoolClassesPage --> FrontSchoolClassService
 SubjectsPage --> FrontSubjectService
 TeachersPage --> FrontTeacherService
 
-FrontSchoolYearService ..> SchoolYearRoutes : HTTP futur
+FrontSchoolYearService ..> SchoolYearRoutes : HTTP
+FrontSchoolYearService ..> ReportingPeriodRoutes : HTTP
 FrontSchoolClassService ..> SchoolClassRoutes : HTTP futur
 FrontSubjectService ..> SubjectRoutes : HTTP futur
 FrontTeacherService ..> TeacherRoutes : HTTP futur
 
 SchoolYearRoutes ..> SchoolYearService
+ReportingPeriodRoutes --> ReportingPeriodService
 SchoolClassRoutes ..> SchoolClassService
 SubjectRoutes ..> SubjectService
 TeacherRoutes ..> TeacherService
 
 SchoolYearService ..> SchoolYear
 SchoolYearService ..> SchoolPeriod
+ReportingPeriodService --> SchoolPeriod
+ReportingPeriodService --> SchoolYearService
 SchoolClassService ..> SchoolClass
 SubjectService ..> Subject
 SubjectService ..> ClassSubject
@@ -222,9 +273,9 @@ SchoolClass "1" -- "0..*" ClassSubject
 Subject "1" -- "0..*" ClassSubject
 
 note bottom
-État de préparation :
-- routes non montées dans main.py ;
-- nouvelle séquence consolidée 001 à 004 créée mais non exécutée ;
+État US-003 :
+- routes montées dans main.py et protégées par le rôle administrateur ;
+- modification globale année/périodes atomique avec verrouillage FOR UPDATE ;
 - périodes progressives : fin choisie, début calculé, année active autorisée sans période (D-004/D-005) ;
 - coefficients configurables validés par D-016 ;
 - règles d'arrondi encore à confirmer avant US-015.
