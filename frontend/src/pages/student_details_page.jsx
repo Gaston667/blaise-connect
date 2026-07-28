@@ -22,6 +22,12 @@ import {
   reactivateStudent,
 } from '../services/students_service.js'
 import '../styles/student_details_page.css'
+const RELATIONSHIP_ICON_CLASS = {
+  PERE: 'sdp-guardian-icon--pere',
+  MERE: 'sdp-guardian-icon--mere',
+  TUTEUR: 'sdp-guardian-icon--tuteur',
+  AUTRE: 'sdp-guardian-icon--autre',
+}
 
 const STATUS_LABEL = { ACTIVE: 'Actif', INACTIVE: 'Inactif', ARCHIVED: 'Archivé' }
 const STATUS_CLASS = { ACTIVE: 'sdp-badge--active', INACTIVE: 'sdp-badge--inactive', ARCHIVED: 'sdp-badge--archived' }
@@ -443,7 +449,14 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                           onClick={handleGuardianNavigation}
                           onKeyDown={handleGuardianKeyDown}
                         >
-                          <td>{guardian.relationship_label ?? guardian.relationship_type ?? '—'}</td>
+                            <td>
+  <span className="sdp-guardian-link">
+    <span className={`sdp-guardian-icon ${RELATIONSHIP_ICON_CLASS[guardian.relationship] ?? ''}`}>
+      <UserRound aria-hidden="true" size={14} />
+    </span>
+    {guardian.relationship_label ?? guardian.relationship_type ?? '—'}
+  </span>
+</td>
                           <td>{guardian.first_name} {guardian.last_name}</td>
                           <td>{guardian.phone ?? '—'}</td>
                           <td>{guardian.email ?? '—'}</td>

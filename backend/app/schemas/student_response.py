@@ -29,3 +29,4 @@ class StudentResponse(BaseModel):
     nationality: str | None
     previous_level: str | None
     observations: str | None
+    guardians: list[dict] = []
