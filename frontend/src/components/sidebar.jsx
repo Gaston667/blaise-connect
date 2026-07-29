@@ -1,11 +1,6 @@
-import {
-  CalendarRange,
-  ContactRound,
-  GraduationCap,
-  House,
-  Users,
-  X,
-} from 'lucide-react' 
+
+import { CalendarRange, ContactRound, GraduationCap, House, Users, Presentation, X } 
+from 'lucide-react' 
 import logo from '../assets/logo-blaise-connect.png.png'
 import LogoutButton from '../pages/logout_button.jsx'
 
@@ -133,6 +128,15 @@ export default function Sidebar({
         >
           <Users aria-hidden="true" size={20} />
           Classes
+        </button>
+        <button
+          className={currentPage === 'teachers' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+          type="button"
+          data-page="teachers"
+          onClick={handleNavigation}
+        >
+          <Presentation aria-hidden="true" size={20} />
+          Enseignants
         </button>
       </nav>
 
