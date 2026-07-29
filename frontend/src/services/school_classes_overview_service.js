@@ -30,6 +30,26 @@ export async function getSchoolClassDetail(id) {
   return await res.json()
 }
 
+export async function createSchoolClass(payload) {
+  const res = await fetch('/api/school-classes', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    let message = 'Échec de la création de la classe'
+    try {
+      const body = await res.json()
+      if (body?.detail) message = body.detail
+    } catch {
+      // Le message générique reste utilisé lorsque la réponse n'est pas du JSON.
+    }
+    throw new Error(message)
+  }
+  return await res.json()
+}
+
 export async function updateSchoolClass(id, payload) {
   const res = await fetch(`/api/school-classes/${id}`, {
     method: 'PATCH',
@@ -55,4 +75,26 @@ export async function deleteSchoolClass(id) {
     try { const body = await res.json(); if (body?.detail) err = body.detail } catch {}
     throw new Error(err)
   }
+}
+
+export async function getSchoolClassSubjects(id, { q = '', isActive = '' } = {}) {
+  const params = new URLSearchParams()
+  if (q) params.append('q', q)
+  if (isActive !== '') params.append('is_active', isActive)
+
+  const res = await fetch(
+    `/api/school-classes/${id}/subjects?${params.toString()}`,
+    { credentials: 'include' },
+  )
+  if (!res.ok) {
+    let message = 'Échec du chargement des matières'
+    try {
+      const body = await res.json()
+      if (body?.detail) message = body.detail
+    } catch {
+      // Le message générique est conservé si la réponse n'est pas du JSON.
+    }
+    throw new Error(message)
+  }
+  return await res.json()
 }

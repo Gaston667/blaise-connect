@@ -91,7 +91,9 @@ export default function Sidebar({
        {canManageAccounts ? (
           <button
             className={
-              currentPage === 'accounts' || currentPage === 'account-details'
+              currentPage === 'accounts' ||
+              currentPage === 'account-details' ||
+              currentPage === 'account-new'
                 ? 'layout-navigation-item layout-navigation-item-active'
                 : 'layout-navigation-item'
             }

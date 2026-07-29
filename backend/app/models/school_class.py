@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from uuid import UUID
-from sqlalchemy import DateTime, ForeignKey, SmallInteger, String, Text, Uuid, func, text
+from sqlalchemy import DateTime, ForeignKey, SmallInteger, String, Uuid, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base import Base
@@ -39,7 +39,6 @@ class SchoolClass(Base):
     )
     group_label: Mapped[str] = mapped_column(String(30), nullable=False)
     capacity: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
-    observations: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

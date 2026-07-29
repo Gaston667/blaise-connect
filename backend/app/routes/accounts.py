@@ -9,10 +9,10 @@ from app.core.authentication import (
     CurrentAdminDependency,
     DatabaseSession,
 )
-from app.schemas.account_create import AccountCreate
+from app.schemas.account_complete_create import AccountCompleteCreate
 from app.schemas.account_response import AccountResponse
 from app.schemas.account_profile_response import AccountProfileResponse
-from app.services.account_service import create_account, list_accounts
+from app.services.account_service import create_account_with_profile, list_accounts
 
 
 router = APIRouter(
@@ -70,16 +70,16 @@ def get_accounts(
     status_code=status.HTTP_201_CREATED,
 )
 def post_account(
-    account_data: AccountCreate,
+    account_data: AccountCompleteCreate,
     db: DatabaseSession,
     current_admin: CurrentAdminDependency,
 ) -> AccountResponse:
     """Crée un compte pour l'un des quatre rôles de BlaiseConnect."""
 
     try:
-        account = create_account(
+        account, profile = create_account_with_profile(
             db=db,
-            account_data=account_data,
+            creation_data=account_data,
         )
     except AccountAlreadyExistsError as error:
         raise HTTPException(
@@ -87,4 +87,4 @@ def post_account(
             detail="Un compte utilise déjà ce matricule.",
         ) from error
 
-    return AccountResponse.model_validate(account)
+    return build_account_response(account=account, profile=profile)

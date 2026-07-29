@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
+import { Search } from 'lucide-react'
 import { getSchoolYears } from '../services/school_year_service.js'
-import { getClassLevels, getTeachers, getSchoolClassesOverview } from '../services/school_classes_overview_service.js'
+import {
+  createSchoolClass,
+  getClassLevels,
+  getTeachers,
+  getSchoolClassesOverview,
+} from '../services/school_classes_overview_service.js'
 import '../styles/school_classes_page.css'
 const AVATAR_PALETTE = [
   { bg: '#E8ECFB', fg: '#3355DD' },
@@ -22,6 +28,10 @@ function levelInitials(name, groupLabel) {
   return `${short}${groupLabel ?? ''}`
 }
 
+function teacherInitials(teacher) {
+  return `${teacher.first_name?.[0] ?? ''}${teacher.last_name?.[0] ?? ''}`.toUpperCase()
+}
+
 const STATUS_LABEL = { ACTIVE: 'Actif', ARCHIVEE: 'Archivée' }
 const STATUS_CLASS = { ACTIVE: 'scp-badge--active', ARCHIVEE: 'scp-badge--archived' }
 
@@ -35,6 +45,13 @@ function StatusBadge({ status }) {
 }
 
 const PAGE_SIZE = 10
+const EMPTY_CLASS_FORM = {
+  school_year_id: '',
+  class_level_id: '',
+  main_teacher_id: '',
+  group_label: '',
+  capacity: '',
+}
 
 export default function SchoolClassesPage({ onNavigate }) {
   const [query, setQuery] = useState('')
@@ -47,6 +64,14 @@ export default function SchoolClassesPage({ onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [schoolYears, setSchoolYears] = useState([])
   const [classLevels, setClassLevels] = useState([])
+  const [teachers, setTeachers] = useState([])
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [classForm, setClassForm] = useState(EMPTY_CLASS_FORM)
+  const [createError, setCreateError] = useState('')
+  const [confirmationMessage, setConfirmationMessage] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [showTeacherPicker, setShowTeacherPicker] = useState(false)
+  const [teacherQuery, setTeacherQuery] = useState('')
 
   useEffect(() => {
     fetchInitialData()
@@ -75,9 +100,14 @@ export default function SchoolClassesPage({ onNavigate }) {
   async function fetchInitialData() {
     setLoading(true)
     try {
-      const [years, levels] = await Promise.all([getSchoolYears(), getClassLevels()])
+      const [years, levels, teacherList] = await Promise.all([
+        getSchoolYears(),
+        getClassLevels(),
+        getTeachers(),
+      ])
       setSchoolYears(years)
       setClassLevels(levels)
+      setTeachers(teacherList)
       await fetchClasses(0)
     } catch (e) {
       console.error(e)
@@ -106,29 +136,67 @@ export default function SchoolClassesPage({ onNavigate }) {
     fetchClasses(next)
   }
 
-  function handleExport() {
-    const header = ['Classe', 'Niveau', 'Groupe', 'Année scolaire', 'Professeur principal', 'Élèves', 'Capacité', 'Statut']
-    const rows = classes.map((c) => [
-      `${c.level_name} ${c.group_label}`,
-      c.level_name,
-      c.group_label,
-      c.school_year_name,
-      c.teacher_name,
-      c.student_count,
-      c.capacity ?? '',
-      STATUS_LABEL[c.status] ?? c.status,
-    ])
-    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n')
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'classes.csv'
-    a.click()
-    URL.revokeObjectURL(url)
+  function openCreateModal() {
+    setClassForm(EMPTY_CLASS_FORM)
+    setCreateError('')
+    setTeacherQuery('')
+    setShowCreateModal(true)
+  }
+
+  function closeCreateModal() {
+    if (!creating) setShowCreateModal(false)
+  }
+
+  function updateClassForm(event) {
+    const { name, value } = event.target
+    setClassForm((currentForm) => ({ ...currentForm, [name]: value }))
+  }
+
+  function openTeacherPicker() {
+    setTeacherQuery('')
+    setShowTeacherPicker(true)
+  }
+
+  function closeTeacherPicker() {
+    setShowTeacherPicker(false)
+  }
+
+  function selectTeacher(teacherId) {
+    setClassForm((currentForm) => ({ ...currentForm, main_teacher_id: teacherId }))
+    setShowTeacherPicker(false)
+  }
+
+  async function handleCreateClass(event) {
+    event.preventDefault()
+    if (!classForm.main_teacher_id) {
+      setCreateError('Veuillez sélectionner un professeur principal.')
+      return
+    }
+    setCreating(true)
+    setCreateError('')
+    try {
+      await createSchoolClass({
+        ...classForm,
+        capacity: classForm.capacity ? Number(classForm.capacity) : null,
+      })
+      setShowCreateModal(false)
+      setConfirmationMessage('La classe a été créée avec succès.')
+      setPage(0)
+      await fetchClasses(0)
+    } catch (error) {
+      setCreateError(error.message)
+    } finally {
+      setCreating(false)
+    }
   }
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const selectedTeacher = teachers.find((teacher) => teacher.id === classForm.main_teacher_id)
+  const normalizedTeacherQuery = teacherQuery.trim().toLowerCase()
+  const filteredTeachers = teachers.filter((teacher) => {
+    const searchableText = `${teacher.first_name} ${teacher.last_name} ${teacher.registration_number}`.toLowerCase()
+    return searchableText.includes(normalizedTeacherQuery)
+  })
 
   return (
     <main className="scp-main">
@@ -141,23 +209,27 @@ export default function SchoolClassesPage({ onNavigate }) {
             <span>Classes</span>
           </nav>
         </div>
-        <button type="button" className="scp-btn-primary" disabled title="Fonctionnalité à venir">
+        <button type="button" className="scp-btn-primary" onClick={openCreateModal}>
           <span className="scp-btn-primary__plus">+</span> Ajouter une classe
         </button>
       </div>
 
+      {confirmationMessage && (
+        <div className="scp-confirmation" role="status">
+          <span>{confirmationMessage}</span>
+          <button type="button" onClick={() => setConfirmationMessage('')} aria-label="Fermer">×</button>
+        </div>
+      )}
+
       <form onSubmit={handleSearch} className="scp-filters">
         <div className="scp-search">
           <span className="scp-search__icon">⌕</span>
-          <div>
-            <input
-              type="search"
-              placeholder="Rechercher une classe..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <span className="scp-search__hint">Nom, niveau ou groupe</span>
-          </div>
+          <input
+            type="search"
+            placeholder="Rechercher une classe..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         </div>
 
         <select value={schoolYearId} onChange={(e) => setSchoolYearId(e.target.value)}>
@@ -191,9 +263,6 @@ export default function SchoolClassesPage({ onNavigate }) {
           <span>
             {loading ? 'Chargement…' : `Affichage de ${classes.length === 0 ? 0 : page * PAGE_SIZE + 1} à ${page * PAGE_SIZE + classes.length} classes`}
           </span>
-          <button type="button" className="scp-btn-export" onClick={handleExport} disabled={classes.length === 0}>
-            ⬇ Exporter
-          </button>
         </div>
 
         <table className="scp-table">
@@ -252,6 +321,130 @@ export default function SchoolClassesPage({ onNavigate }) {
           <button disabled={page >= pageCount - 1} onClick={() => goToPage(page + 1)}>›</button>
         </div>
       </section>
+
+      {showCreateModal && (
+        <div className="scp-modal-backdrop" role="presentation" onMouseDown={closeCreateModal}>
+          <section
+            className="scp-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scp-create-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="scp-modal__header">
+              <div>
+                <h2 id="scp-create-title">Ajouter une classe</h2>
+                <p>Renseignez les informations de la nouvelle classe.</p>
+              </div>
+              <button type="button" onClick={closeCreateModal} aria-label="Fermer">×</button>
+            </div>
+
+            <form className="scp-modal__form" onSubmit={handleCreateClass}>
+              <label>
+                Année scolaire *
+                <select name="school_year_id" value={classForm.school_year_id} onChange={updateClassForm} required>
+                  <option value="">Sélectionner une année</option>
+                  {schoolYears.map((year) => <option key={year.id} value={year.id}>{year.name}</option>)}
+                </select>
+              </label>
+
+              <label>
+                Niveau *
+                <select name="class_level_id" value={classForm.class_level_id} onChange={updateClassForm} required>
+                  <option value="">Sélectionner un niveau</option>
+                  {classLevels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}
+                </select>
+              </label>
+
+              <label>
+                Groupe *
+                <input name="group_label" value={classForm.group_label} onChange={updateClassForm} maxLength="30" placeholder="Exemple : A" required />
+              </label>
+
+              <label>
+                Capacité
+                <input name="capacity" type="number" min="1" max="32767" value={classForm.capacity} onChange={updateClassForm} placeholder="Exemple : 30" />
+              </label>
+
+              <div className="scp-modal__wide-field scp-teacher-field">
+                <span>Professeur principal *</span>
+                <button type="button" className="scp-teacher-select" onClick={openTeacherPicker}>
+                  {selectedTeacher ? (
+                    <>
+                      <span className="scp-teacher-avatar">{teacherInitials(selectedTeacher)}</span>
+                      <span>
+                        <strong>{selectedTeacher.first_name} {selectedTeacher.last_name}</strong>
+                        <small>Matricule : {selectedTeacher.registration_number}</small>
+                      </span>
+                    </>
+                  ) : (
+                    <span>Sélectionner un enseignant</span>
+                  )}
+                  <Search className="scp-teacher-select__icon" size={18} aria-hidden="true" />
+                </button>
+              </div>
+
+              {createError && <p className="scp-modal__error" role="alert">{createError}</p>}
+
+              <div className="scp-modal__actions">
+                <button type="button" className="scp-btn-reset" onClick={closeCreateModal}>Annuler</button>
+                <button type="submit" className="scp-btn-primary" disabled={creating}>
+                  {creating ? 'Création…' : 'Créer la classe'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {showTeacherPicker && (
+        <div className="scp-teacher-picker-backdrop" role="presentation" onMouseDown={closeTeacherPicker}>
+          <section
+            className="scp-teacher-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scp-teacher-picker-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="scp-teacher-picker__header">
+              <div>
+                <h2 id="scp-teacher-picker-title">Choisir le professeur principal</h2>
+                <p>Recherchez un enseignant par nom, prénom ou matricule.</p>
+              </div>
+              <button type="button" className="scp-btn-reset" onClick={closeTeacherPicker}>Fermer</button>
+            </div>
+
+            <div className="scp-teacher-picker__search">
+              <span>⌕</span>
+              <input
+                type="search"
+                value={teacherQuery}
+                onChange={(event) => setTeacherQuery(event.target.value)}
+                placeholder="Nom ou matricule..."
+                autoFocus
+              />
+            </div>
+
+            <div className="scp-teacher-picker__list">
+              {filteredTeachers.map((teacher) => (
+                <button
+                  key={teacher.id}
+                  type="button"
+                  className={teacher.id === classForm.main_teacher_id ? 'scp-teacher-option scp-teacher-option--selected' : 'scp-teacher-option'}
+                  onClick={() => selectTeacher(teacher.id)}
+                >
+                  <span className="scp-teacher-avatar">{teacherInitials(teacher)}</span>
+                  <span>
+                    <strong>{teacher.first_name} {teacher.last_name}</strong>
+                    <small>Matricule : {teacher.registration_number}</small>
+                  </span>
+                </button>
+              ))}
+              {filteredTeachers.length === 0 && <p className="scp-teacher-picker__empty">Aucun enseignant trouvé.</p>}
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   )
 }

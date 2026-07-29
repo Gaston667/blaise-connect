@@ -128,6 +128,9 @@ export default function AccountDetailsPage({ account, onNavigate }) {
   const qualificationLabel = account.role === 'TEACHER' ? 'Spécialité / Qualification' : 'Fonction'
   const qualificationValue =
     account.role === 'TEACHER' ? profile.qualification : profile.job_title
+  const canShowPersonalIdentity = account.role === 'ADMIN'
+  const visibleActiveTab =
+    activeTab === 'personal' && !canShowPersonalIdentity ? 'account' : activeTab
 
   return (
     <main className="comptes-main">
@@ -197,20 +200,20 @@ export default function AccountDetailsPage({ account, onNavigate }) {
       </section>
 
       <nav className="details-tabs" aria-label="Sections du compte">
-        {TABS.filter((tab) => account.role !== 'STUDENT' || tab.key !== 'personal').map((tab) => (
+        {TABS.filter((tab) => tab.key !== 'personal' || canShowPersonalIdentity).map((tab) => (
           <button
             key={tab.key}
             type="button"
-            className={`details-tab ${activeTab === tab.key ? 'details-tab-active' : ''}`}
+            className={`details-tab ${visibleActiveTab === tab.key ? 'details-tab-active' : ''}`}
             onClick={() => setActiveTab(tab.key)}
-            aria-current={activeTab === tab.key}
+            aria-current={visibleActiveTab === tab.key}
           >
             {tab.label}
           </button>
         ))}
       </nav>
 
-      {activeTab === 'account' && (
+      {visibleActiveTab === 'account' && (
         <>
           <section className="details-account-grid">
             <article className="details-account-column">
@@ -312,7 +315,7 @@ export default function AccountDetailsPage({ account, onNavigate }) {
         </>
       )}
 
-      {activeTab === 'personal' && account.role !== 'STUDENT' && (
+      {visibleActiveTab === 'personal' && canShowPersonalIdentity && (
         <section className="details-panel sdp-view">
           <div className="sdp-section-heading">
             <h2>Informations personnelles</h2>

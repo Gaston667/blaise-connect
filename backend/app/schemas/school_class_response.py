@@ -17,4 +17,3 @@ class SchoolClassResponse(BaseModel):
     capacity: int | None
     created_at: datetime
     updated_at: datetime
-    observations: str | None

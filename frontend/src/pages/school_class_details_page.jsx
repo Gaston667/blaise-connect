@@ -1,9 +1,37 @@
 import { useEffect, useState } from 'react'
-import { getSchoolClassDetail, updateSchoolClass, deleteSchoolClass } from '../services/school_classes_overview_service.js'
+import {
+  CalendarDays,
+  CalendarPlus,
+  CircleCheck,
+  BookOpen,
+  GraduationCap,
+  Layers,
+  Lock,
+  Mail,
+  Phone,
+  Search,
+  School,
+  UserRoundCheck,
+  Users,
+} from 'lucide-react'
+import {
+  deleteSchoolClass,
+  getClassLevels,
+  getSchoolClassDetail,
+  getSchoolClassSubjects,
+  getTeachers,
+  updateSchoolClass,
+} from '../services/school_classes_overview_service.js'
+import { listStudents } from '../services/students_service.js'
 import './../styles/school_class_details_page.css'
 
 const STATUS_LABEL = { ACTIVE: 'Actif', ARCHIVEE: 'Archivée' }
 const STATUS_CLASS = { ACTIVE: 'scd-badge--active', ARCHIVEE: 'scd-badge--archived' }
+const STUDENT_STATUS_LABEL = {
+  ACTIVE: 'Actif',
+  INACTIVE: 'Inactif',
+  ARCHIVED: 'Archivé',
+}
 
 function StatusBadge({ status }) {
   return (
@@ -32,10 +60,35 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [classLevels, setClassLevels] = useState([])
+  const [teachers, setTeachers] = useState([])
+  const [teacherPickerOpen, setTeacherPickerOpen] = useState(false)
+  const [teacherSearch, setTeacherSearch] = useState('')
+  const [students, setStudents] = useState([])
+  const [studentSearch, setStudentSearch] = useState('')
+  const [studentStatus, setStudentStatus] = useState('')
+  const [studentsLoading, setStudentsLoading] = useState(false)
+  const [subjects, setSubjects] = useState([])
+  const [subjectSearch, setSubjectSearch] = useState('')
+  const [subjectStatus, setSubjectStatus] = useState('')
+  const [subjectsLoading, setSubjectsLoading] = useState(false)
 
   useEffect(() => {
     load()
+    loadFormOptions()
   }, [schoolClass?.id])
+
+  useEffect(function loadClassStudentsEffect() {
+    if (activeTab === 'students') {
+      loadClassStudents()
+    }
+  }, [activeTab, schoolClass?.id])
+
+  useEffect(function loadClassSubjectsEffect() {
+    if (activeTab === 'subjects') {
+      loadClassSubjects()
+    }
+  }, [activeTab, schoolClass?.id])
 
   async function load() {
     if (!schoolClass?.id) return
@@ -50,10 +103,99 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
 
   function resetForm(d) {
     setForm({
+      class_level_id: d.class_level_id ?? '',
       group_label: d.group_label ?? '',
       capacity: d.capacity ?? '',
-      observations: d.observations ?? '',
+      main_teacher_id: d.main_teacher_id ?? '',
     })
+  }
+
+  async function loadFormOptions() {
+    try {
+      const [availableLevels, availableTeachers] = await Promise.all([
+        getClassLevels(),
+        getTeachers(),
+      ])
+      setClassLevels(availableLevels)
+      setTeachers(availableTeachers)
+    } catch (loadError) {
+      console.error(loadError)
+    }
+  }
+
+  async function loadClassStudents(filters = {}) {
+    if (!schoolClass?.id) return
+    const query = filters.q ?? studentSearch
+    const status = filters.status ?? studentStatus
+    setStudentsLoading(true)
+    setError('')
+    try {
+      const result = await listStudents({
+        q: query || null,
+        status: status || null,
+        class_id: schoolClass.id,
+        limit: 100,
+        offset: 0,
+      })
+      setStudents(Array.isArray(result) ? result : result.items ?? [])
+    } catch (loadError) {
+      setError(loadError.message)
+    } finally {
+      setStudentsLoading(false)
+    }
+  }
+
+  async function loadClassSubjects(filters = {}) {
+    if (!schoolClass?.id) return
+    const query = filters.q ?? subjectSearch
+    const status = filters.status ?? subjectStatus
+    setSubjectsLoading(true)
+    setError('')
+    try {
+      const result = await getSchoolClassSubjects(schoolClass.id, {
+        q: query,
+        isActive: status,
+      })
+      setSubjects(result)
+    } catch (loadError) {
+      setError(loadError.message)
+    } finally {
+      setSubjectsLoading(false)
+    }
+  }
+
+  function handleStudentSearch(event) {
+    event.preventDefault()
+    loadClassStudents()
+  }
+
+  function resetStudentFilters() {
+    setStudentSearch('')
+    setStudentStatus('')
+    loadClassStudents({ q: '', status: '' })
+  }
+
+  function handleSubjectSearch(event) {
+    event.preventDefault()
+    loadClassSubjects()
+  }
+
+  function resetSubjectFilters() {
+    setSubjectSearch('')
+    setSubjectStatus('')
+    loadClassSubjects({ q: '', status: '' })
+  }
+
+  function openTeacherDetails() {
+    onNavigate?.('teacher-details', {
+      id: details.main_teacher_id,
+      first_name: details.teacher_first_name,
+      last_name: details.teacher_last_name,
+    })
+  }
+
+  function openStudentDetails(student) {
+    onNavigate?.('student-details', student)
   }
 
   function update(field, value) {
@@ -66,9 +208,10 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     setSaving(true)
     try {
       const payload = {
+        class_level_id: form.class_level_id,
         group_label: form.group_label,
         capacity: form.capacity === '' ? null : Number(form.capacity),
-        observations: form.observations === '' ? null : form.observations,
+        main_teacher_id: form.main_teacher_id,
       }
       await updateSchoolClass(details.id, payload)
       setEditing(false)
@@ -78,6 +221,30 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleEdit() {
+    resetForm(details)
+    setEditing(true)
+  }
+
+  function handleCancelEdit() {
+    resetForm(details)
+    setEditing(false)
+  }
+
+  function openTeacherPicker() {
+    setTeacherSearch('')
+    setTeacherPickerOpen(true)
+  }
+
+  function closeTeacherPicker() {
+    setTeacherPickerOpen(false)
+  }
+
+  function selectTeacher(teacherId) {
+    update('main_teacher_id', teacherId)
+    closeTeacherPicker()
   }
 
   async function handleDelete() {
@@ -94,15 +261,26 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   if (!details) return <div className="scd-main">Classe non trouvée.</div>
 
   const className = `${details.level_name} ${details.group_label}`
-  const fillRate = details.capacity ? Math.round((details.student_count / details.capacity) * 100) : null
-
+  const levelIsLocked = details.has_enrollments ?? (details.student_count > 0)
+  const selectedTeacher = teachers.find((teacher) => teacher.id === form.main_teacher_id)
+  const normalizedTeacherSearch = teacherSearch.trim().toLowerCase()
+  const filteredTeachers = teachers.filter((teacher) => {
+    const searchableValue =
+      `${teacher.first_name} ${teacher.last_name} ${teacher.registration_number}`.toLowerCase()
+    return searchableValue.includes(normalizedTeacherSearch)
+  })
   return (
     <main className="scd-main">
-      <nav className="scd-breadcrumb">
-        <button type="button" onClick={() => onNavigate?.('school-classes')}>← Classes</button>
-        <span>›</span>
-        <span>{className}</span>
-      </nav>
+      <header className="scd-page-heading">
+        <h1>Détails de la classe</h1>
+        <nav className="scd-breadcrumb" aria-label="Fil d’Ariane">
+          <button type="button" onClick={() => onNavigate?.('home')}>Accueil</button>
+          <span aria-hidden="true">›</span>
+          <button type="button" onClick={() => onNavigate?.('school-classes')}>Classes</button>
+          <span aria-hidden="true">›</span>
+          <span>{className}</span>
+        </nav>
+      </header>
 
       <div className="scd-header">
         <div>
@@ -114,14 +292,10 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
             <span>Année scolaire : {details.school_year_name}</span>
             <span>Niveau : {details.level_name}</span>
             <span>Groupe : {details.group_label}</span>
-            <span>Capacité : {details.capacity ?? '—'} élèves</span>
           </div>
         </div>
 
         <div className="scd-header__actions">
-          <button type="button" className="scd-btn-outline" onClick={() => setEditing((v) => !v)}>
-            ✎ {editing ? 'Annuler' : 'Modifier'}
-          </button>
           <div className="scd-menu-wrapper">
             <button type="button" className="scd-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
               Actions ▾
@@ -161,96 +335,411 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
             <button className={activeTab === 'info' ? 'scd-tab scd-tab--active' : 'scd-tab'} onClick={() => setActiveTab('info')}>Informations générales</button>
             <button className={activeTab === 'students' ? 'scd-tab scd-tab--active' : 'scd-tab'} onClick={() => setActiveTab('students')}>Élèves</button>
             <button className={activeTab === 'subjects' ? 'scd-tab scd-tab--active' : 'scd-tab'} onClick={() => setActiveTab('subjects')}>Matières</button>
-            <button className={activeTab === 'teacher' ? 'scd-tab scd-tab--active' : 'scd-tab'} onClick={() => setActiveTab('teacher')}>Professeur principal</button>
           </nav>
 
           {activeTab === 'info' && (
-            editing ? (
-              <form onSubmit={handleSave} className="scd-form">
-                <div className="scd-row">
-                  <label>Groupe *<input required value={form.group_label} onChange={(e) => update('group_label', e.target.value)} /></label>
-                  <label>Capacité<input type="number" min="1" value={form.capacity} onChange={(e) => update('capacity', e.target.value)} /></label>
-                </div>
-                <label className="scd-full">
-                  Description / Observations
-                  <textarea rows={3} value={form.observations} onChange={(e) => update('observations', e.target.value)} />
-                </label>
-                <div className="scd-form-actions">
-                  <button type="button" className="scd-btn-outline" onClick={() => { setEditing(false); resetForm(details) }}>Annuler</button>
-                  <button type="submit" className="scd-btn-primary" disabled={saving}>
-                    {saving ? 'Enregistrement…' : '💾 Enregistrer'}
+            <>
+              <section className="scd-top-cards">
+                <article className="scd-card scd-teacher-summary">
+                  <h4>Professeur principal</h4>
+                  <div className="scd-teacher-mini">
+                    <span className="scd-avatar">
+                      {initials(details.teacher_first_name, details.teacher_last_name)}
+                    </span>
+                    <div className="scd-teacher-summary__identity">
+                      <div className="scd-teacher-summary__heading">
+                        <strong>{details.teacher_first_name} {details.teacher_last_name}</strong>
+                        <span className={`scd-teacher-status ${
+                          details.teacher_status === 'ACTIVE'
+                            ? 'scd-teacher-status--active'
+                            : 'scd-teacher-status--archived'
+                        }`}>
+                          {details.teacher_status === 'ACTIVE' ? 'Actif' : 'Archivé'}
+                        </span>
+                      </div>
+                      <div className="scd-teacher-meta">
+                        <Mail aria-hidden="true" size={15} />
+                        {details.teacher_email ?? 'Email non renseigné'}
+                      </div>
+                  <div className="scd-teacher-meta">
+                    <Phone aria-hidden="true" size={15} />
+                    {details.teacher_phone ?? 'Téléphone non renseigné'}
+                  </div>
+                  <button
+                    type="button"
+                    className="scd-teacher-link"
+                    onClick={openTeacherDetails}
+                  >
+                    Voir le profil de l’enseignant →
                   </button>
+                </div>
+                  </div>
+                </article>
+
+                <article className="scd-card">
+                  <h4>Résumé de la classe</h4>
+                  <div className="scd-stats-grid">
+                    <div className="scd-stat scd-stat--students">
+                      <span className="scd-stat__icon"><Users aria-hidden="true" size={21} /></span>
+                      <div><strong>{details.student_count}</strong><span>Élèves inscrits</span></div>
+                    </div>
+                    <div className="scd-stat scd-stat--subjects">
+                      <span className="scd-stat__icon"><BookOpen aria-hidden="true" size={21} /></span>
+                      <div><strong>{details.subject_count}</strong><span>Matières</span></div>
+                    </div>
+                    <div className="scd-stat scd-stat--teacher">
+                      <span className="scd-stat__icon"><UserRoundCheck aria-hidden="true" size={21} /></span>
+                      <div><strong>1</strong><span>Professeur principal</span></div>
+                    </div>
+                    <div className="scd-stat scd-stat--year">
+                      <span className="scd-stat__icon"><CalendarDays aria-hidden="true" size={21} /></span>
+                      <div><strong>{details.school_year_name}</strong><span>Année scolaire</span></div>
+                    </div>
+                  </div>
+                </article>
+              </section>
+
+              {editing ? (
+              <form onSubmit={handleSave} className="scd-form">
+                <div className="scd-section-heading">
+                  <h3>Informations générales</h3>
+                  <div className="scd-form-actions">
+                    <button type="button" className="scd-btn-outline" onClick={handleCancelEdit}>Annuler</button>
+                    <button type="submit" className="scd-btn-primary" disabled={saving}>
+                      {saving ? 'Enregistrement…' : 'Enregistrer'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="scd-form-grid">
+                  <label>
+                    <span>Niveau</span>
+                    <div className="scd-locked-field">
+                      <select
+                        value={form.class_level_id}
+                        onChange={(event) => update('class_level_id', event.target.value)}
+                        disabled={levelIsLocked}
+                      >
+                        {classLevels.map((level) => (
+                          <option key={level.id} value={level.id}>{level.name}</option>
+                        ))}
+                      </select>
+                      {levelIsLocked && <Lock aria-label="Niveau verrouillé" size={17} />}
+                    </div>
+                    {levelIsLocked && (
+                      <small>Verrouillé car cette classe possède déjà une inscription.</small>
+                    )}
+                  </label>
+
+                  <label>
+                    <span>Groupe</span>
+                    <input
+                      required
+                      value={form.group_label}
+                      onChange={(event) => update('group_label', event.target.value)}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Capacité</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="32767"
+                      value={form.capacity}
+                      onChange={(event) => update('capacity', event.target.value)}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Professeur principal</span>
+                    <button
+                      type="button"
+                      className="scd-teacher-picker-button"
+                      onClick={openTeacherPicker}
+                    >
+                      <span>
+                        <strong>
+                          {selectedTeacher
+                            ? `${selectedTeacher.first_name} ${selectedTeacher.last_name}`
+                            : 'Choisir un enseignant'}
+                        </strong>
+                        {selectedTeacher && <small>{selectedTeacher.registration_number}</small>}
+                      </span>
+                      <Search aria-hidden="true" size={18} />
+                    </button>
+                  </label>
                 </div>
               </form>
             ) : (
               <div className="scd-info-grid">
                 <div className="scd-view">
-                  <h3>Informations générales</h3>
+                  <div className="scd-section-heading">
+                    <h3>Informations générales</h3>
+                    <button type="button" className="scd-btn-outline" onClick={handleEdit}>
+                      ✎ Modifier
+                    </button>
+                  </div>
                   <dl>
-                    <div><dt>Nom de la classe</dt><dd>{className}</dd></div>
-                    <div><dt>Niveau</dt><dd>{details.level_name}</dd></div>
-                    <div><dt>Groupe</dt><dd>{details.group_label}</dd></div>
-                    <div><dt>Année scolaire</dt><dd>{details.school_year_name}</dd></div>
-                    <div><dt>Capacité</dt><dd>{details.capacity ?? '—'} élèves</dd></div>
-                    <div><dt>Effectif actuel</dt><dd>{details.student_count} élèves</dd></div>
-                    <div><dt>Statut</dt><dd><StatusBadge status={details.status} /></dd></div>
-                    <div><dt>Date de création</dt><dd>{formatDate(details.created_at)}</dd></div>
-                    <div><dt>Dernière modification</dt><dd>{formatDate(details.updated_at)}</dd></div>
-                  </dl>
-                  {fillRate !== null && (
-                    <div className="scd-fill-bar">
-                      <div className="scd-fill-bar__track">
-                        <div className="scd-fill-bar__fill" style={{ width: `${Math.min(fillRate, 100)}%` }} />
-                      </div>
-                      <span>{fillRate}%</span>
+                    <div>
+                      <dt><School aria-hidden="true" size={17} />Nom de la classe</dt>
+                      <dd>{className}</dd>
                     </div>
-                  )}
-                </div>
-
-                <div className="scd-note-card">
-                  <h4>📝 Description / Observations</h4>
-                  <p>{details.observations || 'Aucune observation particulière.'}</p>
+                    <div>
+                      <dt><GraduationCap aria-hidden="true" size={17} />Niveau</dt>
+                      <dd>{details.level_name}</dd>
+                    </div>
+                    <div>
+                      <dt><Layers aria-hidden="true" size={17} />Groupe</dt>
+                      <dd>{details.group_label}</dd>
+                    </div>
+                    <div>
+                      <dt><CalendarDays aria-hidden="true" size={17} />Année scolaire</dt>
+                      <dd>{details.school_year_name}</dd>
+                    </div>
+                    <div>
+                      <dt><Users aria-hidden="true" size={17} />Effectif actuel</dt>
+                      <dd>{details.student_count} élèves</dd>
+                    </div>
+                    <div>
+                      <dt><CircleCheck aria-hidden="true" size={17} />Statut</dt>
+                      <dd><StatusBadge status={details.status} /></dd>
+                    </div>
+                    <div>
+                      <dt><CalendarPlus aria-hidden="true" size={17} />Date de création</dt>
+                      <dd>{formatDate(details.created_at)}</dd>
+                    </div>
+                    <div>
+                      <dt><CalendarDays aria-hidden="true" size={17} />Dernière modification</dt>
+                      <dd>{formatDate(details.updated_at)}</dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
-            )
+              )}
+            </>
           )}
 
-          {activeTab === 'students' && <p className="scd-placeholder">{details.student_count} élève(s) inscrit(s). Consultez la liste depuis « Gestion des élèves » avec le filtre de classe.</p>}
-          {activeTab === 'subjects' && <p className="scd-placeholder">{details.subject_count} matière(s) associée(s). Fonctionnalité de gestion à venir.</p>}
-          {activeTab === 'teacher' && (
-            <div className="scd-teacher-card">
-              <span className="scd-avatar">{initials(details.teacher_first_name, details.teacher_last_name)}</span>
-              <div>
-                <strong>{details.teacher_first_name} {details.teacher_last_name}</strong>
-                <div className="scd-teacher-meta">{details.teacher_email ?? 'Email non renseigné'}</div>
-                <div className="scd-teacher-meta">{details.teacher_phone ?? 'Téléphone non renseigné'}</div>
+          {activeTab === 'students' && (
+            <section className="scd-students-panel">
+              <div className="scd-section-heading">
+                <div>
+                  <h3>Élèves de la classe</h3>
+                  <p>{students.length} élève(s) affiché(s)</p>
+                </div>
               </div>
-            </div>
+
+              <form className="scd-student-filters" onSubmit={handleStudentSearch}>
+                <label className="scd-student-search">
+                  <Search aria-hidden="true" size={18} />
+                  <input
+                    type="search"
+                    placeholder="Nom, prénom ou matricule…"
+                    value={studentSearch}
+                    onChange={(event) => setStudentSearch(event.target.value)}
+                  />
+                </label>
+                <select
+                  value={studentStatus}
+                  onChange={(event) => setStudentStatus(event.target.value)}
+                  aria-label="Filtrer les élèves par statut"
+                >
+                  <option value="">Tous les statuts</option>
+                  <option value="ACTIVE">Actifs</option>
+                  <option value="INACTIVE">Inactifs</option>
+                  <option value="ARCHIVED">Archivés</option>
+                </select>
+                <button type="submit" className="scd-btn-primary">Rechercher</button>
+                <button type="button" className="scd-btn-outline" onClick={resetStudentFilters}>
+                  Réinitialiser
+                </button>
+              </form>
+
+              <div className="scd-students-table-wrapper">
+                <table className="scd-students-table">
+                  <thead>
+                    <tr>
+                      <th>Matricule</th>
+                      <th>Nom et prénom</th>
+                      <th>Sexe</th>
+                      <th>Date d’inscription</th>
+                      <th>Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.map((student) => (
+                      <tr
+                        key={student.id}
+                        tabIndex="0"
+                        onClick={() => openStudentDetails(student)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') openStudentDetails(student)
+                        }}
+                      >
+                        <td className="scd-student-registration">{student.registration_number}</td>
+                        <td>
+                          <span className="scd-student-identity">
+                            <span className="scd-student-avatar">
+                              {initials(student.first_name, student.last_name)}
+                            </span>
+                            <strong>{student.last_name} {student.first_name}</strong>
+                          </span>
+                        </td>
+                        <td>{student.gender === 'MALE' ? 'Masculin' : student.gender === 'FEMALE' ? 'Féminin' : '—'}</td>
+                        <td>{formatDate(student.admission_date)}</td>
+                        <td>
+                          <span className={`scd-student-status scd-student-status--${student.status.toLowerCase()}`}>
+                            {STUDENT_STATUS_LABEL[student.status] ?? student.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!studentsLoading && students.length === 0 && (
+                  <p className="scd-students-empty">Aucun élève ne correspond aux filtres.</p>
+                )}
+                {studentsLoading && <p className="scd-students-empty">Chargement des élèves…</p>}
+              </div>
+            </section>
+          )}
+          {activeTab === 'subjects' && (
+            <section className="scd-subjects-panel">
+              <div className="scd-section-heading">
+                <div>
+                  <h3>Matières de la classe</h3>
+                  <p>{subjects.length} matière(s) affichée(s)</p>
+                </div>
+              </div>
+
+              <form className="scd-subject-filters" onSubmit={handleSubjectSearch}>
+                <label className="scd-subject-search">
+                  <Search aria-hidden="true" size={18} />
+                  <input
+                    type="search"
+                    placeholder="Rechercher une matière…"
+                    value={subjectSearch}
+                    onChange={(event) => setSubjectSearch(event.target.value)}
+                  />
+                </label>
+                <select
+                  value={subjectStatus}
+                  onChange={(event) => setSubjectStatus(event.target.value)}
+                  aria-label="Filtrer les matières par statut"
+                >
+                  <option value="">Tous les statuts</option>
+                  <option value="true">Actives</option>
+                  <option value="false">Inactives</option>
+                </select>
+                <button type="submit" className="scd-btn-primary">Rechercher</button>
+                <button type="button" className="scd-btn-outline" onClick={resetSubjectFilters}>
+                  Réinitialiser
+                </button>
+              </form>
+
+              <div className="scd-subjects-table-wrapper">
+                <table className="scd-subjects-table">
+                  <thead>
+                    <tr>
+                      <th>Matière</th>
+                      <th>Coefficient</th>
+                      <th>Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subjects.map((subject) => (
+                      <tr key={subject.id}>
+                        <td>
+                          <span className="scd-subject-name">
+                            <span className="scd-subject-icon">
+                              <BookOpen aria-hidden="true" size={18} />
+                            </span>
+                            <strong>{subject.name}</strong>
+                          </span>
+                        </td>
+                        <td>{Number(subject.coefficient).toLocaleString('fr-FR')}</td>
+                        <td>
+                          <span className={subject.is_active
+                            ? 'scd-subject-status scd-subject-status--active'
+                            : 'scd-subject-status scd-subject-status--inactive'}
+                          >
+                            {subject.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!subjectsLoading && subjects.length === 0 && (
+                  <p className="scd-subjects-empty">Aucune matière ne correspond aux filtres.</p>
+                )}
+                {subjectsLoading && <p className="scd-subjects-empty">Chargement des matières…</p>}
+              </div>
+            </section>
           )}
         </section>
 
-        <aside className="scd-sidebar">
-          <div className="scd-card">
-            <h4>Professeur principal</h4>
-            <div className="scd-teacher-mini">
-              <span className="scd-avatar">{initials(details.teacher_first_name, details.teacher_last_name)}</span>
-              <div>
-                <strong>{details.teacher_first_name} {details.teacher_last_name}</strong>
-                <div className="scd-teacher-meta">{details.teacher_email ?? '—'}</div>
-                <div className="scd-teacher-meta">{details.teacher_phone ?? '—'}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="scd-card">
-            <h4>Résumé de la classe</h4>
-            <div className="scd-stats-grid">
-              <div className="scd-stat"><strong>{details.student_count}</strong><span>Élèves inscrits</span></div>
-              <div className="scd-stat"><strong>{details.subject_count}</strong><span>Matières</span></div>
-            </div>
-          </div>
-        </aside>
       </div>
+
+      {teacherPickerOpen && (
+        <div className="scd-confirm-overlay" onClick={closeTeacherPicker}>
+          <section
+            className="scd-teacher-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="teacher-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="scd-teacher-picker__header">
+              <div>
+                <h3 id="teacher-picker-title">Choisir le professeur principal</h3>
+                <p>Recherchez un enseignant par nom, prénom ou matricule.</p>
+              </div>
+              <button type="button" className="scd-btn-outline" onClick={closeTeacherPicker}>
+                Fermer
+              </button>
+            </div>
+
+            <label className="scd-teacher-search">
+              <Search aria-hidden="true" size={18} />
+              <input
+                autoFocus
+                type="search"
+                placeholder="Nom ou matricule…"
+                value={teacherSearch}
+                onChange={(event) => setTeacherSearch(event.target.value)}
+              />
+            </label>
+
+            <div className="scd-teacher-results">
+              {filteredTeachers.map((teacher) => (
+                <button
+                  key={teacher.id}
+                  type="button"
+                  className={
+                    teacher.id === form.main_teacher_id
+                      ? 'scd-teacher-result scd-teacher-result--selected'
+                      : 'scd-teacher-result'
+                  }
+                  onClick={() => selectTeacher(teacher.id)}
+                >
+                  <span className="scd-avatar">
+                    {initials(teacher.first_name, teacher.last_name)}
+                  </span>
+                  <span>
+                    <strong>{teacher.first_name} {teacher.last_name}</strong>
+                    <small>Matricule : {teacher.registration_number}</small>
+                  </span>
+                </button>
+              ))}
+              {filteredTeachers.length === 0 && (
+                <p className="scd-teacher-results__empty">Aucun enseignant trouvé.</p>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
     </main>
   )
 }

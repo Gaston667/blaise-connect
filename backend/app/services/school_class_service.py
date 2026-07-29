@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy import text as sql_text
+from app.core.school_class_level_locked_error import SchoolClassLevelLockedError
 from app.core.school_class_not_found_error import SchoolClassNotFoundError
 from app.models.school_class import SchoolClass
 from app.schemas.school_class_create import SchoolClassCreate
@@ -56,6 +57,27 @@ def update_school_class(
 
     school_class = get_school_class_by_id(db, school_class_id)
     updated_fields = school_class_data.model_dump(exclude_unset=True)
+
+    requested_level_id = updated_fields.get("class_level_id")
+    level_is_changing = (
+        requested_level_id is not None
+        and requested_level_id != school_class.class_level_id
+    )
+    if level_is_changing:
+        enrollment_exists = db.execute(
+            sql_text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM student_enrollments
+                    WHERE class_id = :school_class_id
+                )
+                """
+            ),
+            {"school_class_id": school_class_id},
+        ).scalar_one()
+        if enrollment_exists:
+            raise SchoolClassLevelLockedError()
 
     for field_name, field_value in updated_fields.items():
         setattr(school_class, field_name, field_value)
@@ -148,12 +170,19 @@ def get_school_class_detail(db: Session, school_class_id: str) -> dict | None:
             """
             SELECT
                 c.id, c.school_year_id, c.class_level_id, c.main_teacher_id,
-                c.group_label, c.capacity, c.observations, c.created_at, c.updated_at,
+                c.group_label, c.capacity, c.created_at, c.updated_at,
                 cl.name AS level_name,
                 sy.name AS school_year_name, sy.start_date, sy.end_date,
                 t.first_name AS teacher_first_name, t.last_name AS teacher_last_name,
                 t.email AS teacher_email, t.phone AS teacher_phone,
+                CASE WHEN t.archived_at IS NULL THEN 'ACTIVE' ELSE 'ARCHIVED' END
+                    AS teacher_status,
                 CASE WHEN sy.closed_at IS NOT NULL THEN 'ARCHIVEE' ELSE 'ACTIVE' END AS status,
+                EXISTS (
+                    SELECT 1
+                    FROM student_enrollments enrollment
+                    WHERE enrollment.class_id = c.id
+                ) AS has_enrollments,
                 COALESCE(enr.student_count, 0) AS student_count,
                 COALESCE(subj.subject_count, 0) AS subject_count
             FROM classes c
@@ -184,7 +213,6 @@ def get_school_class_detail(db: Session, school_class_id: str) -> dict | None:
         "main_teacher_id": row.main_teacher_id,
         "group_label": row.group_label,
         "capacity": row.capacity,
-        "observations": row.observations,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
         "level_name": row.level_name,
@@ -195,7 +223,9 @@ def get_school_class_detail(db: Session, school_class_id: str) -> dict | None:
         "teacher_last_name": row.teacher_last_name,
         "teacher_email": row.teacher_email,
         "teacher_phone": row.teacher_phone,
+        "teacher_status": row.teacher_status,
         "status": row.status,
+        "has_enrollments": row.has_enrollments,
         "student_count": row.student_count,
         "subject_count": row.subject_count,
     }
@@ -206,3 +236,41 @@ def delete_school_class(db: Session, school_class_id: str) -> None:
     school_class = get_school_class_by_id(db, school_class_id)
     db.delete(school_class)
     db.commit()
+
+
+def list_school_class_subjects(
+    db: Session,
+    school_class_id: str,
+    q: str | None = None,
+    is_active: bool | None = None,
+) -> list[dict]:
+    """Liste les matières d'une classe avec leur coefficient."""
+
+    where_clauses = ["class_subject.class_id = :school_class_id"]
+    parameters: dict = {"school_class_id": school_class_id}
+
+    if q:
+        where_clauses.append("subject.name ILIKE :q")
+        parameters["q"] = f"%{q.strip()}%"
+
+    if is_active is not None:
+        where_clauses.append("subject.is_active = :is_active")
+        parameters["is_active"] = is_active
+
+    statement = text(
+        f"""
+        SELECT
+            class_subject.id,
+            class_subject.subject_id,
+            subject.name,
+            class_subject.coefficient,
+            subject.is_active
+        FROM class_subjects AS class_subject
+        JOIN subjects AS subject
+          ON subject.id = class_subject.subject_id
+        WHERE {" AND ".join(where_clauses)}
+        ORDER BY subject.name
+        """
+    )
+    rows = db.execute(statement, parameters).mappings().all()
+    return [dict(row) for row in rows]

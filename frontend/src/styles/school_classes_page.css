@@ -2,21 +2,19 @@
 .scp-topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-6); }
 .scp-title { font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); margin: 0 0 var(--space-1); }
 .scp-breadcrumb { display: flex; gap: var(--space-2); font-size: var(--font-size-sm); color: var(--color-text-muted); }
-.scp-breadcrumb button { background: none; border: none; color: var(--color-text-muted); cursor: pointer; padding: 0; font-size: var(--font-size-sm); }
+.scp-breadcrumb button { background: none; border: none; color: var(--color-primary); cursor: pointer; padding: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.scp-breadcrumb button:hover { text-decoration: underline; }
 .scp-btn-primary { background: var(--button-primary-bg); color: var(--button-primary-text); border: none; border-radius: var(--radius-md); height: var(--button-height-md); padding: var(--button-padding-lg); font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); cursor: pointer; display: flex; align-items: center; gap: var(--space-2); }
 .scp-btn-primary:disabled { background: var(--button-disabled-bg); color: var(--button-disabled-text); cursor: not-allowed; }
 .scp-filters { display: flex; gap: var(--space-3); align-items: stretch; margin-bottom: var(--space-5); flex-wrap: wrap; }
 .scp-search { display: flex; align-items: center; gap: var(--space-2); background: var(--input-bg); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-4); flex: 1; min-width: 220px; }
 .scp-search__icon { color: var(--color-text-muted); font-size: 16px; }
 .scp-search input { border: none; outline: none; font-size: var(--font-size-sm); width: 100%; background: transparent; color: var(--input-text); }
-.scp-search__hint { display: block; font-size: var(--font-size-xs); color: var(--color-text-disabled); }
 .scp-filters select { border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); padding: 0 var(--space-4); font-size: var(--font-size-sm); background: var(--input-bg); color: var(--input-text); height: var(--input-height-sm); }
 .scp-btn-search { background: var(--button-primary-bg); color: var(--button-primary-text); border: none; border-radius: var(--radius-md); padding: var(--button-padding-lg); font-weight: var(--font-weight-semibold); cursor: pointer; }
 .scp-btn-reset { background: var(--button-secondary-bg); border: var(--border-width-thin) solid var(--button-secondary-border); border-radius: var(--radius-md); padding: var(--button-padding-md); cursor: pointer; color: var(--button-secondary-text); font-size: var(--font-size-sm); }
 .scp-list { background: var(--table-bg); border: var(--border-default); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
 .scp-list__meta { display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) var(--space-5); font-size: var(--font-size-sm); color: var(--color-text-muted); }
-.scp-btn-export { background: var(--button-secondary-bg); border: var(--border-width-thin) solid var(--button-secondary-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-4); cursor: pointer; color: var(--button-secondary-text); font-size: var(--font-size-sm); }
-.scp-btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
 .scp-table { width: 100%; border-collapse: collapse; }
 .scp-table th { text-align: left; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.03em; color: var(--table-header-text); background: var(--table-header-bg); padding: var(--space-3) var(--space-5); }
 .scp-row { cursor: pointer; }
@@ -32,3 +30,49 @@
 .scp-pagination { display: flex; justify-content: center; gap: var(--space-2); padding: var(--space-5); }
 .scp-pagination button { min-width: 30px; height: 30px; border-radius: var(--radius-sm); border: var(--border-width-thin) solid var(--color-border); background: var(--color-surface); cursor: pointer; font-size: var(--font-size-sm); }
 .scp-page--active { background: var(--color-primary); color: var(--color-text-on-primary); border-color: var(--color-primary); }
+
+.scp-confirmation { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--status-active-text); border-radius: var(--radius-md); background: var(--status-active-bg); color: var(--status-active-text); }
+.scp-confirmation button { border: 0; background: transparent; color: inherit; font-size: var(--font-size-xl); cursor: pointer; }
+.scp-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; align-items: end; padding: var(--space-3); background: rgb(2 20 50 / 55%); }
+.scp-modal { width: 100%; max-height: 92vh; overflow-y: auto; border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-lg); }
+.scp-modal__header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); padding: var(--space-5); border-bottom: var(--border-default); }
+.scp-modal__header h2 { margin: 0 0 var(--space-1); font-size: var(--font-size-xl); }
+.scp-modal__header p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.scp-modal__header > button { border: 0; background: transparent; color: var(--color-text-muted); font-size: var(--font-size-2xl); cursor: pointer; }
+.scp-modal__form { display: grid; gap: var(--space-4); padding: var(--space-5); }
+.scp-modal__form label { display: grid; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.scp-modal__form input,
+.scp-modal__form select { width: 100%; height: var(--input-height-md); padding: 0 var(--space-3); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--input-text); font: inherit; }
+.scp-modal__form input:focus,
+.scp-modal__form select:focus { border-color: var(--color-primary); outline: 2px solid rgb(0 80 190 / 12%); }
+.scp-modal__error { grid-column: 1 / -1; margin: 0; padding: var(--space-3); border: 1px solid var(--color-danger-border); border-radius: var(--radius-md); background: var(--color-danger-light); color: var(--color-danger-text); }
+.scp-modal__actions { display: flex; justify-content: flex-end; gap: var(--space-3); padding-top: var(--space-2); }
+.scp-teacher-field { display: grid; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.scp-teacher-select { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--input-height-md); padding: var(--space-2) var(--space-3); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--input-text); text-align: left; cursor: pointer; }
+.scp-teacher-select > span:nth-child(2) { display: grid; gap: 2px; }
+.scp-teacher-select small,
+.scp-teacher-option small { display: block; margin-top: 3px; color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-normal); }
+.scp-teacher-select__icon { margin-left: auto; flex-shrink: 0; color: var(--color-primary); }
+.scp-teacher-avatar { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; flex: 0 0 42px; border-radius: var(--radius-full); background: var(--color-primary-light); color: var(--color-primary); font-weight: var(--font-weight-bold); }
+.scp-teacher-picker-backdrop { position: fixed; inset: 0; z-index: 1010; display: grid; align-items: end; padding: var(--space-3); background: rgb(2 20 50 / 55%); }
+.scp-teacher-picker { display: flex; flex-direction: column; width: 100%; max-height: 86vh; padding: var(--space-5); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-lg); }
+.scp-teacher-picker__header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-4); }
+.scp-teacher-picker__header h2 { margin: 0 0 var(--space-1); font-size: var(--font-size-xl); }
+.scp-teacher-picker__header p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.scp-teacher-picker__search { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); }
+.scp-teacher-picker__search input { width: 100%; height: var(--input-height-md); border: 0; outline: 0; background: transparent; color: var(--input-text); font: inherit; }
+.scp-teacher-picker__list { display: grid; gap: var(--space-2); margin-top: var(--space-4); overflow-y: auto; }
+.scp-teacher-option { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3); border: var(--border-width-thin) solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); text-align: left; cursor: pointer; }
+.scp-teacher-option:hover,
+.scp-teacher-option--selected { border-color: var(--color-primary); background: var(--color-primary-light); }
+.scp-teacher-picker__empty { margin: var(--space-5) 0; color: var(--color-text-muted); text-align: center; }
+
+@media (min-width: 700px) {
+  .scp-modal-backdrop { place-items: center; }
+  .scp-modal { max-width: 680px; }
+  .scp-modal__form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scp-modal__wide-field,
+  .scp-modal__actions { grid-column: 1 / -1; }
+  .scp-teacher-picker-backdrop { place-items: center; }
+  .scp-teacher-picker { max-width: 610px; }
+}

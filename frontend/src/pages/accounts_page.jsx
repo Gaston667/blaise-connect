@@ -12,7 +12,6 @@ import {
   UserX,
   UsersRound,
 } from 'lucide-react'
-import AddAccountModal from '../components/add_account_modal.jsx'
 import { getAccounts } from '../services/account_service'
 
 const PAGE_SIZE = 10
@@ -118,8 +117,6 @@ export default function AccountsPage({ onNavigate }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(1)
-  const [statsSlide, setStatsSlide] = useState(0)
-  const [isAddAccountOpen, setIsAddAccountOpen] = useState(false)
 
   useEffect(function loadAccountsEffect() {
     async function loadAccounts() {
@@ -172,19 +169,7 @@ export default function AccountsPage({ onNavigate }) {
   }
 
   function handleOpenAddAccount() {
-    setIsAddAccountOpen(true)
-  }
-
-  function handleCloseAddAccount() {
-    setIsAddAccountOpen(false)
-  }
-
-  function handleAccountCreated(createdAccount) {
-    setAccounts(function addCreatedAccount(currentAccounts) {
-      return [createdAccount, ...currentAccounts]
-    })
-    setIsAddAccountOpen(false)
-    setCurrentPage(1)
+    onNavigate('account-new')
   }
 
   const administratorCount = accounts.filter(isAdministrator).length
@@ -268,7 +253,6 @@ export default function AccountsPage({ onNavigate }) {
   ]
 
   const statsSlides = chunkArray(statCards, STATS_PER_SLIDE)
-  const safeStatsSlide = Math.min(statsSlide, statsSlides.length - 1)
 
   return (
     <main className="comptes-main">
@@ -306,50 +290,8 @@ export default function AccountsPage({ onNavigate }) {
       {errorMessage && <p className="comptes-error" role="alert">{errorMessage}</p>}
 
       <section className="comptes-stats-carousel" aria-label="Résumé des comptes">
-        <div className="comptes-stats-carousel-header">
-          <button
-            type="button"
-            className="comptes-stats-nav-button"
-            onClick={() => setStatsSlide((slide) => Math.max(0, slide - 1))}
-            disabled={safeStatsSlide === 0}
-            aria-label="Statistiques précédentes"
-          >
-            <ChevronLeft aria-hidden="true" size={18} />
-          </button>
-
-          <div className="comptes-stats-dots">
-            {statsSlides.map((_, index) => (
-              <button
-                key={index}
-                type="button"
-                className={`comptes-stats-dot ${
-                  index === safeStatsSlide ? 'comptes-stats-dot-active' : ''
-                }`}
-                onClick={() => setStatsSlide(index)}
-                aria-label={`Aller au groupe de statistiques ${index + 1}`}
-                aria-current={index === safeStatsSlide}
-              />
-            ))}
-          </div>
-
-          <button
-            type="button"
-            className="comptes-stats-nav-button"
-            onClick={() =>
-              setStatsSlide((slide) => Math.min(statsSlides.length - 1, slide + 1))
-            }
-            disabled={safeStatsSlide === statsSlides.length - 1}
-            aria-label="Statistiques suivantes"
-          >
-            <ChevronRight aria-hidden="true" size={18} />
-          </button>
-        </div>
-
-        <div className="comptes-stats-track-wrapper">
-          <div
-            className="comptes-stats-track"
-            style={{ transform: `translateX(-${safeStatsSlide * 100}%)` }}
-          >
+        <div className="comptes-stats-track-wrapper" tabIndex="0">
+          <div className="comptes-stats-track">
             {statsSlides.map((slide, slideIndex) => (
               <div className="comptes-stats-slide" key={slideIndex}>
                 {slide.map((card) => (
@@ -519,13 +461,6 @@ export default function AccountsPage({ onNavigate }) {
           </>
         )}
       </section>
-
-      {isAddAccountOpen && (
-        <AddAccountModal
-          onClose={handleCloseAddAccount}
-          onCreated={handleAccountCreated}
-        />
-      )}
 
     </main>
   )

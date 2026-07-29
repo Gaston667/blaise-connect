@@ -49,3 +49,18 @@
 - **28 juillet 2026 — Comptes :** `GET /accounts` retourne désormais le profil non sensible associé à chaque rôle afin d’alimenter les listes et fiches détaillées.
 - **US-004 — Classes :** modèle, contrats et API alignés sur la table `classes` ; aucun archivage indépendant n’est exposé.
 - **US-002 — Comptes :** bouton et formulaire de création activés pour les quatre rôles de BlaiseConnect.
+- **US-004 — Classes :** le champ d’observation de classe et sa migration dédiée ont été retirés du périmètre.
+- **US-004 — Fiche classe :** le professeur principal et le résumé sont affichés avant les informations générales avec les données réelles de l’API.
+- **US-004 — Modification :** niveau, groupe, capacité et professeur principal sont éditables ; le niveau est verrouillé dès qu’une inscription existe.
+- La modification d'une classe permet désormais de rechercher le professeur principal par nom ou matricule.
+- L'onglet d'une classe affiche ses élèves depuis l'API, avec recherche, filtre par statut et accès à leur dossier.
+- L'en-tête de la fiche classe possède maintenant un titre, un fil d'Ariane complet et un badge de statut coloré.
+- L'onglet matières d'une classe est connecté au backend et permet une recherche et un filtre par statut.
+Ajout d'une fenêtre de création de classe avec confirmation et connexion à l'API.
+Ajout de la recherche du professeur principal par nom, prénom ou matricule.
+Modernisation du carrousel des statistiques de gestion des comptes.
+Limitation de l'onglet d'identité personnelle aux comptes administrateurs.
+Mise en place de React Router pour gérer les URL et l'historique du navigateur.
+Création d'une page adaptative pour ajouter atomiquement un compte et son profil.
+29/07/2026 — Génération sécurisée des matricules et ajout d’un récapitulatif de compte imprimable.
+29/07/2026 — Nouveau matricule : rôle suivi de deux codes UTC de trois chiffres.

@@ -11,7 +11,6 @@ class SchoolClassDetail(BaseModel):
     main_teacher_id: UUID
     group_label: str
     capacity: int | None
-    observations: str | None
     created_at: datetime
     updated_at: datetime
     level_name: str
@@ -22,6 +21,8 @@ class SchoolClassDetail(BaseModel):
     teacher_last_name: str
     teacher_email: str | None
     teacher_phone: str | None
+    teacher_status: str
     status: str
+    has_enrollments: bool
     student_count: int
     subject_count: int

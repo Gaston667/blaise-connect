@@ -10,6 +10,7 @@ class TeacherResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     account_id: UUID
+    registration_number: str
     first_name: str
     last_name: str
     email: str | None
