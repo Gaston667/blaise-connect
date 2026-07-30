@@ -14,6 +14,7 @@ import SchoolYearsPage from './pages/school_years_page.jsx'
 import StudentDetailsPage from './pages/student_details_page.jsx'
 import StudentsPage from './pages/students_page.jsx'
 import TeachersPage from './pages/teachers_page.jsx'
+import TeacherDetailsPage from './pages/teacher_details_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
 
 const PAGE_PATHS = {
@@ -35,6 +36,7 @@ function getCurrentPage(pathname) {
   if (/^\/students\/[^/]+$/.test(pathname)) return 'student-details'
   if (/^\/school-years\/[^/]+$/.test(pathname)) return 'school-year-details'
   if (/^\/school-classes\/[^/]+$/.test(pathname)) return 'school-class-details'
+  if (/^\/teachers\/[^/]+$/.test(pathname)) return 'teacher-details'
   if (pathname === '/accounts') return 'accounts'
   if (pathname === '/students') return 'students'
   if (pathname === '/school-years') return 'school-years'
@@ -52,6 +54,7 @@ function getNavigationPath(page, entity) {
   if (page === 'student-details' && entityId) return `/students/${entityId}`
   if (page === 'school-year-details' && entityId) return `/school-years/${entityId}`
   if (page === 'school-class-details' && entityId) return `/school-classes/${entityId}`
+  if (page === 'teacher-details' && entityId) return `/teachers/${entityId}`
   return PAGE_PATHS[page] || '/'
 }
 
@@ -118,7 +121,8 @@ export default function App() {
       'school-year-details',
       'school-classes',
       'school-class-details',
-      'teachers'
+      'teachers',
+      'teacher-details'
     ]
 
     if (pagesReservedToAdmin.includes(page) && currentAccount?.role !== 'ADMIN') {
@@ -155,8 +159,13 @@ export default function App() {
     pageContent = <AccountsPage onNavigate={handleNavigate} />
   } else if (currentPage === 'account-new' && canManageSchool) {
     pageContent = <AccountCreatePage onNavigate={handleNavigate} />
-  } else if (currentPage === 'account-details' && canManageSchool && selectedEntity) {
-    pageContent = <AccountDetailsPage account={selectedEntity} onNavigate={handleNavigate} />
+  } else if (currentPage === 'account-details' && canManageSchool) {
+    pageContent = (
+      <AccountDetailsPage
+        account={selectedEntity || { id: pathId }}
+        onNavigate={handleNavigate}
+      />
+    )
   } else if (currentPage === 'school-classes' && canManageSchool) {
     pageContent = <SchoolClassesPage onNavigate={handleNavigate} />
   } else if (currentPage === 'school-class-details' && canManageSchool) {
@@ -178,6 +187,14 @@ export default function App() {
   }
   else if (currentPage === 'teachers' && canManageSchool) {
     pageContent = <TeachersPage onNavigate={handleNavigate} />
+  }
+  else if (currentPage === 'teacher-details' && canManageSchool) {
+    pageContent = (
+      <TeacherDetailsPage
+        teacher={selectedEntity || { id: pathId }}
+        onNavigate={handleNavigate}
+      />
+    )
   }
   return (
     <MainLayout

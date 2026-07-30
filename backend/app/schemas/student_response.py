@@ -1,7 +1,7 @@
 """Contrat de lecture d'un profil étudiant."""
 from datetime import date, datetime
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class StudentResponse(BaseModel):
@@ -25,8 +25,9 @@ class StudentResponse(BaseModel):
     updated_at: datetime
     class_id: UUID | None
     school_year_id: UUID | None
+    class_name: str | None
+    school_year_name: str | None
     birth_place: str | None
     nationality: str | None
     previous_level: str | None
-    observations: str | None
-    guardians: list[dict] = []
+    guardians: list[dict] = Field(default_factory=list)

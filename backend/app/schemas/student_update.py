@@ -16,4 +16,3 @@ class StudentUpdate(BaseModel):
     address: str | None = None
     previous_level: str | None = None
     admission_date: date | None = None
-    observations: str | None = None

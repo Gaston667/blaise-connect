@@ -63,4 +63,20 @@ Limitation de l'onglet d'identité personnelle aux comptes administrateurs.
 Mise en place de React Router pour gérer les URL et l'historique du navigateur.
 Création d'une page adaptative pour ajouter atomiquement un compte et son profil.
 29/07/2026 — Génération sécurisée des matricules et ajout d’un récapitulatif de compte imprimable.
-29/07/2026 — Nouveau matricule : rôle suivi de deux codes UTC de trois chiffres.
+30/07/2026 — Matricule : rôle, code date UTC sur 2 chiffres et code horaire sur 4 chiffres.
+29/07/2026 — Affichage de la classe et de l’année scolaire dans les fiches élèves.
+29/07/2026 — Association d’un responsable existant depuis le dossier élève.
+29/07/2026 — Aperçu verrouillé du matricule et notifications contextuelles en fenêtre.
+29/07/2026 — Activation, désactivation et archivage des comptes depuis leur fiche.
+30/07/2026 — Confirmations intégrées à la plateforme et actions de compte compactées.
+30/07/2026 — Simplification des informations de sécurité affichées sur la fiche compte.
+30/07/2026 — Retrait de la colonne « Matières principales » du tableau des enseignants.
+30/07/2026 — Création des élèves centralisée dans Comptes, inscription séparée et ajout des photos de profil.
+30/07/2026 — Stockage documentaire organisé par matricule : photos, justificatifs et bulletins.
+30/07/2026 — Remplacement de la photo depuis les formulaires de modification.
+30/07/2026 — Champs de création obligatoires et avertissement avant affichage unique du mot de passe.
+Correction de l’apparence du bouton « Ajouter un compte » : il est désormais présenté comme une action principale active.
+Amélioration de la gestion des enseignants : filtres, lignes cliquables et nouvelle fiche de détail.
+Correction du chargement de la gestion des classes après l’évolution de la route des enseignants.
+Réorganisation de la sécurité des comptes et ajout d’une réinitialisation de mot de passe confirmée par l’administrateur.
+Amélioration de la fiche compte : actions d’état compactes et réinitialisation sécurisée du mot de passe.

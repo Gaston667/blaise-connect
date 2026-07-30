@@ -8,6 +8,7 @@ from app.routes.school_classes import router as school_classes_router
 from app.routes.guardians import router as guardians_router
 from app.routes.teachers import router as teachers_router
 from app.routes.class_levels import router as class_levels_router
+from app.routes.account_files import router as account_files_router
 # Importation des routeurs
 from app.routes.auth import router as auth_router
 from app.routes.health import router as health_router
@@ -27,3 +28,4 @@ app.include_router(school_classes_router)
 app.include_router(guardians_router)
 app.include_router(teachers_router)
 app.include_router(class_levels_router)
+app.include_router(account_files_router)

@@ -52,3 +52,5 @@ storage/bulletins/*
 !storage/bulletins/.gitkeep
 storage/postgres/backups/*
 !storage/postgres/backups/.gitkeep
+storage/accounts/*
+!storage/accounts/.gitkeep

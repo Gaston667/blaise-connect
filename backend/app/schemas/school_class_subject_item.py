@@ -14,3 +14,4 @@ class SchoolClassSubjectItem(BaseModel):
     name: str
     coefficient: Decimal
     is_active: bool
+    teacher_name: str | None = None

@@ -100,6 +100,14 @@ export default function SchoolClassesPage({ onNavigate }) {
   async function fetchInitialData() {
     setLoading(true)
     try {
+      const classList = await getSchoolClassesOverview({
+        limit: PAGE_SIZE,
+        offset: 0,
+      })
+      setClasses(classList)
+      setTotal(classList.length)
+      setPage(0)
+
       const [years, levels, teacherList] = await Promise.all([
         getSchoolYears(),
         getClassLevels(),
@@ -108,7 +116,6 @@ export default function SchoolClassesPage({ onNavigate }) {
       setSchoolYears(years)
       setClassLevels(levels)
       setTeachers(teacherList)
-      await fetchClasses(0)
     } catch (e) {
       console.error(e)
     } finally {

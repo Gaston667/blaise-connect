@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ChevronRight, Search } from 'lucide-react'
 import { listStudents } from '../services/students_service.js'
+import defaultPhoto from '../assets/image_phtoto_default.png'
 import '../styles/students_page.css'
-import AddStudentModal from '../components/add_student_modal.jsx'
 const AVATAR_PALETTE = [
   { bg: '#E8ECFB', fg: '#3355DD' },
   { bg: '#FDEBEA', fg: '#D9534F' },
@@ -19,6 +19,21 @@ function avatarStyle(name) {
 
 function initials(first, last) {
   return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase()
+}
+
+const DEFAULT_PHOTO = defaultPhoto
+
+function ProfilePhoto({ photoPath }) {
+  return (
+    <span className="sp-avatar">
+      <img
+        src={photoPath || DEFAULT_PHOTO}
+        alt=""
+        onError={(e) => { e.currentTarget.src = DEFAULT_PHOTO }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
+    </span>
+  )
 }
 
 function formatDate(dateValue) {
@@ -75,7 +90,6 @@ export default function StudentsPage({ onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [classes, setClasses] = useState([])
   const [schoolYears, setSchoolYears] = useState([])
-  const [showAddModal, setShowAddModal] = useState(false)
 
   async function fetchStudents(pageIndex = page) {
     setLoading(true)
@@ -161,9 +175,6 @@ export default function StudentsPage({ onNavigate }) {
             <span className="sp-breadcrumb-current">Élèves</span>
           </nav>
         </div>
-        <button type="button" className="sp-btn-primary" onClick={() => setShowAddModal(true)}>
-  <span className="sp-btn-primary__plus">+</span> Ajouter un élève
-</button>
       </div>
 
       <form onSubmit={handleSearch} className="sp-filters">
@@ -229,7 +240,6 @@ export default function StudentsPage({ onNavigate }) {
             </thead>
             <tbody>
               {students.map((s) => {
-                const av = avatarStyle(s.last_name)
                 return (
                   <tr
                     key={s.id}
@@ -240,15 +250,13 @@ export default function StudentsPage({ onNavigate }) {
                       {s.registration_number ?? '—'}
                     </td>
                     <td>
-                      <span className="sp-avatar" style={{ background: av.bg, color: av.fg }}>
-                        {initials(s.first_name, s.last_name)}
-                      </span>
+                      <ProfilePhoto photoPath={s.photo_path} />
                     </td>
                     <td>{s.last_name}</td>
                     <td>{s.first_name}</td>
                     <td>{genderLabel(s.gender)}</td>
-                    <td>{className(s.class_id)}</td>
-                    <td>{yearName(s.school_year_id)}</td>
+                    <td>{s.class_name ?? className(s.class_id)}</td>
+                    <td>{s.school_year_name ?? yearName(s.school_year_id)}</td>
                     <td><StatusBadge status={s.status} /></td>
                     <td>{formatDate(s.admission_date)}</td>
                   </tr>
@@ -274,17 +282,6 @@ export default function StudentsPage({ onNavigate }) {
           </div>
         </section>
       </div>
-      {showAddModal && (
-  <AddStudentModal
-  classes={classes}
-  schoolYears={schoolYears}
-  onClose={() => setShowAddModal(false)}
-  onCreated={() => {
-    setShowAddModal(false)
-    fetchStudents(page)
-  }}
-/>
-)}
     </main>
   )
 }

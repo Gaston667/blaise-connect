@@ -19,6 +19,10 @@ import {
   getClassLevels,
   getSchoolClassDetail,
   getSchoolClassSubjects,
+  getAvailableSubjectsForClass,
+  addClassSubject,
+  updateClassSubjectCoefficient,
+  removeClassSubject,
   getTeachers,
   updateSchoolClass,
 } from '../services/school_classes_overview_service.js'
@@ -72,6 +76,20 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   const [subjectSearch, setSubjectSearch] = useState('')
   const [subjectStatus, setSubjectStatus] = useState('')
   const [subjectsLoading, setSubjectsLoading] = useState(false)
+  // Ajout matière
+  const [subjectPickerOpen, setSubjectPickerOpen] = useState(false)
+  const [availableSubjects, setAvailableSubjects] = useState([])
+  const [pickerSearch, setPickerSearch] = useState('')
+  const [selectedAvailableSubject, setSelectedAvailableSubject] = useState(null)
+  const [newCoefficient, setNewCoefficient] = useState('1')
+  const [addingSubject, setAddingSubject] = useState(false)
+  // Modification coefficient
+  const [editingSubjectId, setEditingSubjectId] = useState(null)
+  const [editCoefficientValue, setEditCoefficientValue] = useState('')
+  const [savingCoefficient, setSavingCoefficient] = useState(false)
+  // Retrait matière
+  const [confirmRemoveSubjectId, setConfirmRemoveSubjectId] = useState(null)
+  const [removingSubject, setRemovingSubject] = useState(false)
 
   useEffect(() => {
     load()
@@ -184,6 +202,83 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     setSubjectSearch('')
     setSubjectStatus('')
     loadClassSubjects({ q: '', status: '' })
+  }
+
+  async function openSubjectPicker() {
+    setPickerSearch('')
+    setSelectedAvailableSubject(null)
+    setNewCoefficient('1')
+    try {
+      setAvailableSubjects(await getAvailableSubjectsForClass(schoolClass.id))
+    } catch (e) {
+      setError(e.message)
+      return
+    }
+    setSubjectPickerOpen(true)
+  }
+
+  function closeSubjectPicker() {
+    setSubjectPickerOpen(false)
+  }
+
+  async function handleAddSubject() {
+    if (!selectedAvailableSubject) return
+    const coef = parseFloat(newCoefficient)
+    if (!coef || coef <= 0) { setError('Le coefficient doit être un nombre positif.'); return }
+    setAddingSubject(true)
+    setError('')
+    try {
+      await addClassSubject(schoolClass.id, selectedAvailableSubject.id, coef)
+      closeSubjectPicker()
+      loadClassSubjects()
+      load()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setAddingSubject(false)
+    }
+  }
+
+  function startEditCoefficient(subject) {
+    setEditingSubjectId(subject.id)
+    setEditCoefficientValue(String(subject.coefficient))
+  }
+
+  function cancelEditCoefficient() {
+    setEditingSubjectId(null)
+    setEditCoefficientValue('')
+  }
+
+  async function handleSaveCoefficient(classSubjectId) {
+    const coef = parseFloat(editCoefficientValue)
+    if (!coef || coef <= 0) { setError('Le coefficient doit être un nombre positif.'); return }
+    setSavingCoefficient(true)
+    setError('')
+    try {
+      await updateClassSubjectCoefficient(schoolClass.id, classSubjectId, coef)
+      setEditingSubjectId(null)
+      loadClassSubjects()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSavingCoefficient(false)
+    }
+  }
+
+  async function handleRemoveSubject() {
+    if (!confirmRemoveSubjectId) return
+    setRemovingSubject(true)
+    setError('')
+    try {
+      await removeClassSubject(schoolClass.id, confirmRemoveSubjectId)
+      setConfirmRemoveSubjectId(null)
+      loadClassSubjects()
+      load()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setRemovingSubject(false)
+    }
   }
 
   function openTeacherDetails() {
@@ -610,6 +705,9 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   <h3>Matières de la classe</h3>
                   <p>{subjects.length} matière(s) affichée(s)</p>
                 </div>
+                <button type="button" className="scd-btn-primary" onClick={openSubjectPicker}>
+                  + Ajouter une matière
+                </button>
               </div>
 
               <form className="scd-subject-filters" onSubmit={handleSubjectSearch}>
@@ -643,7 +741,9 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                     <tr>
                       <th>Matière</th>
                       <th>Coefficient</th>
+                      <th className="scd-col-teacher">Enseignant affecté</th>
                       <th>Statut</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -657,7 +757,49 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                             <strong>{subject.name}</strong>
                           </span>
                         </td>
-                        <td>{Number(subject.coefficient).toLocaleString('fr-FR')}</td>
+                        <td>
+                          {editingSubjectId === subject.id ? (
+                            <span className="scd-coef-edit">
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                className="scd-coef-input"
+                                value={editCoefficientValue}
+                                onChange={(e) => setEditCoefficientValue(e.target.value)}
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                className="scd-btn-primary scd-btn-sm"
+                                disabled={savingCoefficient}
+                                onClick={() => handleSaveCoefficient(subject.id)}
+                              >
+                                ✓
+                              </button>
+                              <button
+                                type="button"
+                                className="scd-btn-outline scd-btn-sm"
+                                onClick={cancelEditCoefficient}
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ) : (
+                            <span className="scd-coef-display">
+                              {Number(subject.coefficient).toLocaleString('fr-FR')}
+                              <button
+                                type="button"
+                                className="scd-btn-icon"
+                                title="Modifier le coefficient"
+                                onClick={() => startEditCoefficient(subject)}
+                              >
+                                ✎
+                              </button>
+                            </span>
+                          )}
+                        </td>
+                        <td className="scd-col-teacher">{subject.teacher_name ?? <span className="scd-no-teacher">Non affecté</span>}</td>
                         <td>
                           <span className={subject.is_active
                             ? 'scd-subject-status scd-subject-status--active'
@@ -665,6 +807,16 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                           >
                             {subject.is_active ? 'Active' : 'Inactive'}
                           </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="scd-btn-danger scd-btn-sm"
+                            title="Retirer la matière"
+                            onClick={() => setConfirmRemoveSubjectId(subject.id)}
+                          >
+                            Retirer
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -732,11 +884,104 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   </span>
                 </button>
               ))}
-              {filteredTeachers.length === 0 && (
+      {filteredTeachers.length === 0 && (
                 <p className="scd-teacher-results__empty">Aucun enseignant trouvé.</p>
               )}
             </div>
           </section>
+        </div>
+      )}
+
+      {subjectPickerOpen && (
+        <div className="scd-confirm-overlay" onClick={closeSubjectPicker}>
+          <section
+            className="scd-teacher-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="subject-picker-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="scd-teacher-picker__header">
+              <div>
+                <h3 id="subject-picker-title">Ajouter une matière</h3>
+                <p>Choisissez une matière et saisissez son coefficient.</p>
+              </div>
+              <button type="button" className="scd-btn-outline" onClick={closeSubjectPicker}>Fermer</button>
+            </div>
+
+            <label className="scd-teacher-search">
+              <Search aria-hidden="true" size={18} />
+              <input
+                autoFocus
+                type="search"
+                placeholder="Rechercher une matière…"
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+              />
+            </label>
+
+            <div className="scd-teacher-results">
+              {availableSubjects
+                .filter((s) => s.name.toLowerCase().includes(pickerSearch.trim().toLowerCase()))
+                .map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className={
+                      selectedAvailableSubject?.id === s.id
+                        ? 'scd-teacher-result scd-teacher-result--selected'
+                        : 'scd-teacher-result'
+                    }
+                    onClick={() => setSelectedAvailableSubject(s)}
+                  >
+                    <span className="scd-subject-icon"><BookOpen size={18} aria-hidden="true" /></span>
+                    <span><strong>{s.name}</strong></span>
+                  </button>
+                ))}
+              {availableSubjects.length === 0 && (
+                <p className="scd-teacher-results__empty">Toutes les matières actives sont déjà associées à cette classe.</p>
+              )}
+            </div>
+
+            {selectedAvailableSubject && (
+              <div className="scd-subject-coef-row">
+                <label>
+                  <span>Coefficient pour <strong>{selectedAvailableSubject.name}</strong></span>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    className="scd-coef-input"
+                    value={newCoefficient}
+                    onChange={(e) => setNewCoefficient(e.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="scd-btn-primary"
+                  disabled={addingSubject}
+                  onClick={handleAddSubject}
+                >
+                  {addingSubject ? 'Ajout…' : 'Ajouter la matière'}
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {confirmRemoveSubjectId && (
+        <div className="scd-confirm-overlay" onClick={() => setConfirmRemoveSubjectId(null)}>
+          <div className="scd-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Retirer cette matière ?</h3>
+            <p>La matière sera dissociée de la classe. Les évaluations déjà saisies resteront intactes.</p>
+            <div className="scd-confirm-actions">
+              <button type="button" className="scd-btn-outline" onClick={() => setConfirmRemoveSubjectId(null)}>Annuler</button>
+              <button type="button" className="scd-btn-danger" disabled={removingSubject} onClick={handleRemoveSubject}>
+                {removingSubject ? 'Retrait…' : 'Oui, retirer'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

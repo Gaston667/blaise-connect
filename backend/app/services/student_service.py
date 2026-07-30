@@ -1,16 +1,16 @@
-"""Service métier minimal pour la consultation des étudiants."""
+"""Service métier de consultation et de gestion des élèves."""
 
+from datetime import datetime, timezone
 from typing import Iterable
+
+from sqlalchemy import text
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, select, text, func
-from app.services.guardian_service import list_guardians_for_student
-from app.schemas.student_update import StudentUpdate
-from app.schemas.student_create import StudentCreate
-from app.models.student import Student
+
 from app.models.account import Account
-from app.core.account_already_exists_error import AccountAlreadyExistsError
-from app.core.security import hash_password
-from app.services.account_service import find_account_by_registration_number
+from app.models.student import Student
+from app.schemas.student_enrollment_create import StudentEnrollmentCreate
+from app.schemas.student_update import StudentUpdate
+from app.services.guardian_service import list_guardians_for_student
 
 
 def list_students(
@@ -47,12 +47,13 @@ def list_students(
             s.admission_date,
             s.status,
             s.photo_path,
-            s.observations,
             s.archived_at,
             s.created_at,
             s.updated_at,
             se.class_id as class_id,
-            c.school_year_id as school_year_id
+            c.school_year_id as school_year_id,
+            CONCAT_WS(' ', cl.name, NULLIF(c.group_label, '')) AS class_name,
+            sy.name AS school_year_name
         FROM students s
         LEFT JOIN accounts a ON s.account_id = a.id
         LEFT JOIN LATERAL (
@@ -61,6 +62,8 @@ def list_students(
             LIMIT 1
         ) se ON true
         LEFT JOIN classes c ON se.class_id = c.id
+        LEFT JOIN class_levels cl ON c.class_level_id = cl.id
+        LEFT JOIN school_years sy ON c.school_year_id = sy.id
         WHERE 1 = 1
         """
     )
@@ -110,12 +113,13 @@ def list_students(
             'admission_date': row.admission_date,
             'status': row.status,
             'photo_path': row.photo_path,
-            'observations': row.observations,
             'archived_at': row.archived_at,
             'created_at': row.created_at,
             'updated_at': row.updated_at,
             'class_id': row.class_id,
             'school_year_id': row.school_year_id,
+            'class_name': row.class_name,
+            'school_year_name': row.school_year_name,
         }
         results.append(record)
 
@@ -146,12 +150,13 @@ def get_student(db: Session, student_id):
             s.admission_date,
             s.status,
             s.photo_path,
-            s.observations,
             s.archived_at,
             s.created_at,
             s.updated_at,
             se.class_id as class_id,
-            c.school_year_id as school_year_id
+            c.school_year_id as school_year_id,
+            CONCAT_WS(' ', cl.name, NULLIF(c.group_label, '')) AS class_name,
+            sy.name AS school_year_name
         FROM students s
         LEFT JOIN accounts a ON s.account_id = a.id
         LEFT JOIN LATERAL (
@@ -160,6 +165,8 @@ def get_student(db: Session, student_id):
             LIMIT 1
         ) se ON true
         LEFT JOIN classes c ON se.class_id = c.id
+        LEFT JOIN class_levels cl ON c.class_level_id = cl.id
+        LEFT JOIN school_years sy ON c.school_year_id = sy.id
         WHERE s.id = :student_id
         """
     )
@@ -185,70 +192,127 @@ def get_student(db: Session, student_id):
         'admission_date': row.admission_date,
         'status': row.status,
         'photo_path': row.photo_path,
-        'observations': row.observations,
         'archived_at': row.archived_at,
         'created_at': row.created_at,
         'updated_at': row.updated_at,
         'class_id': row.class_id,
+        'class_name': row.class_name,
         'guardians': guardians,
         'school_year_id': row.school_year_id,
+        'school_year_name': row.school_year_name,
     }
 
 
-def create_student(db: Session, data: StudentCreate) -> dict:
-    """Crée un compte élève, son profil, et l'inscrit dans une classe si fournie."""
+def enroll_student(
+    db: Session,
+    student_id: str,
+    enrollment_data: StudentEnrollmentCreate,
+) -> dict | None:
+    """Inscrit un élève sans inscription ouverte dans une classe annuelle."""
 
-    existing_account = find_account_by_registration_number(
-        db=db, registration_number=data.registration_number
-    )
-    if existing_account is not None:
-        raise AccountAlreadyExistsError(data.registration_number)
-
-    password_hash = hash_password(data.password.get_secret_value())
-    account = Account(
-        registration_number=data.registration_number,
-        password_hash=password_hash,
-        role="STUDENT",
-    )
-    db.add(account)
-    db.flush()
-
-    student = Student(
-        account_id=account.id,
-        first_name=data.first_name,
-        last_name=data.last_name,
-        birth_date=data.birth_date,
-        gender=data.gender,
-        email=data.email,
-        phone=data.phone,
-        address=data.address,
-        admission_date=data.admission_date,
-    )
-    db.add(student)
-    db.flush()
-
-    if data.class_id:
-        start_date = data.enrollment_start_date or data.admission_date
-        db.execute(
-            text(
-                "INSERT INTO student_enrollments (student_id, class_id, start_date) "
-                "VALUES (:student_id, :class_id, :start_date)"
-            ),
-            {
-                "student_id": str(student.id),
-                "class_id": data.class_id,
-                "start_date": start_date,
-            },
-        )
-
-    db.commit()
-
-    return get_student(db=db, student_id=str(student.id))
-
-
-def _apply_status_change(db: Session, student_id: str, new_status: str, admin_account_id, require_current: list[str] | None = None):
     student = db.get(Student, student_id)
-    if not student:
+    if student is None:
+        return None
+
+    open_enrollment = db.execute(
+        text(
+            """
+            SELECT id
+            FROM student_enrollments
+            WHERE student_id = :student_id
+              AND end_date IS NULL
+            """
+        ),
+        {"student_id": student_id},
+    ).first()
+    if open_enrollment is not None:
+        raise ValueError("Cet élève possède déjà une inscription en cours.")
+
+    school_class = db.execute(
+        text(
+            """
+            SELECT c.id, sy.start_date, sy.end_date, sy.closed_at
+            FROM classes AS c
+            JOIN school_years AS sy ON sy.id = c.school_year_id
+            WHERE c.id = :class_id
+            """
+        ),
+        {"class_id": str(enrollment_data.class_id)},
+    ).first()
+    if school_class is None:
+        raise ValueError("La classe sélectionnée est introuvable.")
+    if school_class.closed_at is not None:
+        raise ValueError("L'année scolaire de cette classe est clôturée.")
+    if not school_class.start_date <= enrollment_data.start_date <= school_class.end_date:
+        raise ValueError("La date d'inscription doit appartenir à l'année scolaire.")
+
+    db.execute(
+        text(
+            """
+            INSERT INTO student_enrollments (student_id, class_id, start_date)
+            VALUES (:student_id, :class_id, :start_date)
+            """
+        ),
+        {
+            "student_id": student_id,
+            "class_id": str(enrollment_data.class_id),
+            "start_date": enrollment_data.start_date,
+        },
+    )
+    db.commit()
+    return get_student(db=db, student_id=student_id)
+
+
+
+
+def _get_linked_account(db: Session, student: Student) -> Account:
+    """Retourne le compte obligatoire associé au dossier élève."""
+
+    account = db.get(Account, student.account_id)
+    if account is None:
+        raise ValueError("Le compte associé à cet élève est introuvable.")
+    return account
+
+
+def _archive_student_account(
+    db: Session,
+    student: Student,
+    change_time: datetime,
+) -> None:
+    """Désactive et archive le compte dans la transaction du profil."""
+
+    account = _get_linked_account(db=db, student=student)
+    account.is_active = False
+    account.archived_at = change_time
+    account.updated_at = change_time
+
+
+def _restore_archived_student_account(
+    db: Session,
+    student: Student,
+    change_time: datetime,
+) -> None:
+    """Restaure l'accès du compte lorsqu'un élève archivé est réactivé."""
+
+    account = _get_linked_account(db=db, student=student)
+    account.is_active = True
+    account.archived_at = None
+    account.failed_login_attempts = 0
+    account.locked_until = None
+    account.updated_at = change_time
+
+
+def _apply_status_change(
+    db: Session,
+    student_id: str,
+    new_status: str,
+    admin_account_id,
+    require_current: list[str] | None = None,
+):
+    """Applique une transition et synchronise l'archivage du compte."""
+
+    student = db.get(Student, student_id)
+    if student is None:
         return None
 
     if require_current and student.status not in require_current:
@@ -256,9 +320,28 @@ def _apply_status_change(db: Session, student_id: str, new_status: str, admin_ac
             f"Transition invalide : l'élève est actuellement '{student.status}'."
         )
 
+    previous_status = student.status
+    change_time = datetime.now(timezone.utc)
+
+    if new_status == "ARCHIVED":
+        _archive_student_account(
+            db=db,
+            student=student,
+            change_time=change_time,
+        )
+    elif previous_status == "ARCHIVED":
+        _restore_archived_student_account(
+            db=db,
+            student=student,
+            change_time=change_time,
+        )
+
     student.status = new_status
-    student.archived_at = func.now() if new_status == "ARCHIVED" else None
+    student.archived_at = change_time if new_status == "ARCHIVED" else None
     student.updated_by_account_id = admin_account_id
+    student.updated_at = change_time
+
+    # Un seul commit valide ou annule ensemble le compte et le profil.
     db.commit()
     return get_student(db=db, student_id=str(student_id))
 

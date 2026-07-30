@@ -1,13 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Search, UserCheck, Users, UserX } from 'lucide-react'
+import defaultPhoto from '../assets/image_phtoto_default.png'
+
 import { getTeachersOverview } from '../services/teachers_overview_service.js'
 import '../styles/teachers_page.css'
-import { Users, UserCheck, UserPlus, UserX } from 'lucide-react'
-function initials(first, last) {
-  return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase()
-}
 
+const PAGE_SIZE = 6
 const STATUS_LABEL = { ACTIVE: 'Actif', INACTIVE: 'Inactif' }
 const STATUS_CLASS = { ACTIVE: 'tp-badge--active', INACTIVE: 'tp-badge--inactive' }
+
+function initials(firstName, lastName) {
+  return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase()
+}
+
+const DEFAULT_PHOTO = defaultPhoto
+
+function ProfilePhoto({ photoPath }) {
+  return (
+    <span className="tp-avatar">
+      <img
+        src={photoPath || DEFAULT_PHOTO}
+        alt=""
+        onError={(e) => { e.currentTarget.src = DEFAULT_PHOTO }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
+    </span>
+  )
+}
 
 function StatusBadge({ status }) {
   return (
@@ -18,181 +37,196 @@ function StatusBadge({ status }) {
   )
 }
 
-const PAGE_SIZE = 6
-
 export default function TeachersPage({ onNavigate }) {
   const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [hireYearFilter, setHireYearFilter] = useState('')
   const [teachers, setTeachers] = useState([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(0)
 
-  useEffect(() => {
+  useEffect(function loadTeachersEffect() {
     fetchTeachers()
   }, [])
 
-  async function fetchTeachers(q = query) {
+  async function fetchTeachers() {
     setLoading(true)
     try {
-      const data = await getTeachersOverview(q || null)
-      setTeachers(data)
+      setTeachers(await getTeachersOverview())
       setPage(0)
-    } catch (e) {
-      console.error(e)
+    } catch (error) {
+      console.error(error)
     } finally {
       setLoading(false)
     }
   }
 
-  function handleSearch(e) {
-    e.preventDefault()
-    fetchTeachers(query)
+  function handleSearch(event) {
+    event.preventDefault()
+    setPage(0)
   }
 
-  const stats = useMemo(() => {
-    const now = new Date()
-    const total = teachers.length
-    const active = teachers.filter((t) => t.status === 'ACTIVE').length
-    const inactive = teachers.filter((t) => t.status !== 'ACTIVE').length
-    const newThisMonth = teachers.filter((t) => {
-      if (!t.hire_date) return false
-      const d = new Date(t.hire_date)
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-    }).length
-    return { total, active, inactive, newThisMonth }
+  function handleReset() {
+    setQuery('')
+    setStatusFilter('')
+    setHireYearFilter('')
+    setPage(0)
+  }
+
+  function openTeacherDetails(teacher) {
+    onNavigate?.('teacher-details', teacher)
+  }
+
+  function handleRowKeyDown(event, teacher) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openTeacherDetails(teacher)
+    }
+  }
+
+  const hireYears = useMemo(function buildHireYearOptions() {
+    return [...new Set(teachers
+      .map((teacher) => teacher.hire_date?.slice(0, 4))
+      .filter(Boolean))]
+      .sort((first, second) => second.localeCompare(first))
   }, [teachers])
 
-  const pageCount = Math.max(1, Math.ceil(teachers.length / PAGE_SIZE))
-  const pageItems = teachers.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
+  const filteredTeachers = useMemo(function filterTeachers() {
+    const normalizedQuery = query.trim().toLowerCase()
+
+    return teachers.filter((teacher) => {
+      const identity = `${teacher.first_name} ${teacher.last_name} ${teacher.registration_number}`.toLowerCase()
+      const matchesQuery = !normalizedQuery || identity.includes(normalizedQuery)
+      const matchesStatus = !statusFilter || teacher.status === statusFilter
+      const matchesHireYear = !hireYearFilter || teacher.hire_date?.startsWith(hireYearFilter)
+      return matchesQuery && matchesStatus && matchesHireYear
+    })
+  }, [query, statusFilter, hireYearFilter, teachers])
+
+  const stats = useMemo(function calculateTeacherStats() {
+    const active = teachers.filter((teacher) => teacher.status === 'ACTIVE').length
+    return {
+      total: teachers.length,
+      active,
+      inactive: teachers.length - active,
+    }
+  }, [teachers])
+
+  const pageCount = Math.max(1, Math.ceil(filteredTeachers.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount - 1)
+  const pageItems = filteredTeachers.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
 
   return (
     <main className="tp-main">
-      <div className="tp-topbar">
-        <div>
-          <h1 className="tp-title">Enseignants</h1>
-          <nav className="tp-breadcrumb">
-            <button type="button" onClick={() => onNavigate?.('home')}>Accueil</button>
-            <span>›</span>
-            <span>Enseignants</span>
-          </nav>
-        </div>
-      </div>
+      <header className="tp-topbar">
+        <h1 className="tp-title">Enseignants</h1>
+        <nav className="tp-breadcrumb" aria-label="Fil d’Ariane">
+          <button type="button" onClick={() => onNavigate?.('home')}>Accueil</button>
+          <span>›</span>
+          <span aria-current="page">Enseignants</span>
+        </nav>
+      </header>
 
-      <div className="tp-stats">
-        <div className="tp-stat-card">
-          <span className="tp-stat-icon tp-stat-icon--blue">
-            <Users aria-hidden="true" size={22} />
-          </span>
-          <div>
-            <span className="tp-stat-label">Total enseignants</span>
-            <strong>{stats.total}</strong>
-            <span className="tp-stat-sub">enseignants</span>
-          </div>
-        </div>
-        <div className="tp-stat-card">
-          <span className="tp-stat-icon tp-stat-icon--green">
-            <UserCheck aria-hidden="true" size={22} />
-          </span>
-          <div>
-            <span className="tp-stat-label">Enseignants actifs</span>
-            <strong>{stats.active}</strong>
-            <span className="tp-stat-sub">actifs</span>
-          </div>
-        </div>
-        <div className="tp-stat-card">
-          <span className="tp-stat-icon tp-stat-icon--orange">
-            <UserPlus aria-hidden="true" size={22} />
-          </span>
-          <div>
-            <span className="tp-stat-label">Nouveaux ce mois</span>
-            <strong>{stats.newThisMonth}</strong>
-            <span className="tp-stat-sub">enseignants</span>
-          </div>
-        </div>
-        <div className="tp-stat-card">
-          <span className="tp-stat-icon tp-stat-icon--purple">
-            <UserX aria-hidden="true" size={22} />
-          </span>
-          <div>
-            <span className="tp-stat-label">Retirés / Inactifs</span>
-            <strong>{stats.inactive}</strong>
-            <span className="tp-stat-sub">enseignants</span>
-          </div>
-        </div>
-      </div>
+      <section className="tp-stats" aria-label="Résumé des enseignants">
+        <article className="tp-stat-card">
+          <span className="tp-stat-icon tp-stat-icon--blue"><Users aria-hidden="true" size={22} /></span>
+          <div><span className="tp-stat-label">Total enseignants</span><strong>{stats.total}</strong></div>
+        </article>
+        <article className="tp-stat-card">
+          <span className="tp-stat-icon tp-stat-icon--green"><UserCheck aria-hidden="true" size={22} /></span>
+          <div><span className="tp-stat-label">Enseignants actifs</span><strong>{stats.active}</strong></div>
+        </article>
+        <article className="tp-stat-card">
+          <span className="tp-stat-icon tp-stat-icon--purple"><UserX aria-hidden="true" size={22} /></span>
+          <div><span className="tp-stat-label">Enseignants inactifs</span><strong>{stats.inactive}</strong></div>
+        </article>
+      </section>
 
       <form onSubmit={handleSearch} className="tp-filters">
-        <div className="tp-search">
-          <span className="tp-search__icon">⌕</span>
+        <label className="tp-search">
+          <Search className="tp-search__icon" aria-hidden="true" size={18} />
           <input
             type="search"
-            placeholder="Rechercher par nom, prénom ou matricule..."
+            aria-label="Rechercher un enseignant"
+            placeholder="Nom, prénom ou matricule..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(event) => setQuery(event.target.value)}
           />
-        </div>
+        </label>
+        <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(0) }}>
+          <option value="">Tous les statuts</option>
+          <option value="ACTIVE">Actifs</option>
+          <option value="INACTIVE">Inactifs</option>
+        </select>
+        <select value={hireYearFilter} onChange={(event) => { setHireYearFilter(event.target.value); setPage(0) }}>
+          <option value="">Toutes les années d’embauche</option>
+          {hireYears.map((year) => <option key={year} value={year}>{year}</option>)}
+        </select>
         <button type="submit" className="tp-btn-search">Rechercher</button>
-        <button type="button" className="tp-btn-primary" disabled title="Fonctionnalité à venir">
-          + Ajouter un enseignant
-        </button>
+        <button type="button" className="tp-btn-reset" onClick={handleReset}>Réinitialiser</button>
       </form>
 
       <section className="tp-list">
-        <table className="tp-table">
-          <thead>
-            <tr>
-              <th>Photo</th>
-              <th>Matricule</th>
-              <th>Nom et prénom</th>
-              <th>Matières principales</th>
-              <th>Statut</th>
-              <th>Email</th>
-              <th>Téléphone</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} className="tp-loading">Chargement…</td></tr>
-            ) : pageItems.length === 0 ? (
-              <tr><td colSpan={7} className="tp-loading">Aucun enseignant trouvé.</td></tr>
-            ) : (
-              pageItems.map((t) => (
-                <tr key={t.id} className="tp-row">
-                  <td>
-                    <span className="tp-avatar">{initials(t.first_name, t.last_name)}</span>
-                  </td>
-                  <td>{t.registration_number}</td>
-                  <td>
-                    <div className="tp-name-cell">
-                      {t.first_name} {t.last_name}
-                      {t.is_main_teacher && <span className="tp-chip">Professeur principal</span>}
-                    </div>
-                  </td>
-                  <td>{t.subjects.length > 0 ? t.subjects.join(', ') : '—'}</td>
-                  <td><StatusBadge status={t.status} /></td>
-                  <td>{t.email ?? '—'}</td>
-                  <td>{t.phone ?? '—'}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <div className="tp-table-wrapper">
+          <table className="tp-table">
+            <thead>
+              <tr>
+                <th>Photo</th>
+                <th>Matricule</th>
+                <th>Nom et prénom</th>
+                <th>Statut</th>
+                <th>Email</th>
+                <th>Téléphone</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} className="tp-loading">Chargement…</td></tr>
+              ) : pageItems.length === 0 ? (
+                <tr><td colSpan={6} className="tp-loading">Aucun enseignant trouvé.</td></tr>
+              ) : (
+                pageItems.map((teacher) => (
+                  <tr
+                    key={teacher.id}
+                    className="tp-row"
+                    tabIndex="0"
+                    onClick={() => openTeacherDetails(teacher)}
+                    onKeyDown={(event) => handleRowKeyDown(event, teacher)}
+                    aria-label={`Voir le dossier de ${teacher.first_name} ${teacher.last_name}`}
+                  >
+                    <td><ProfilePhoto photoPath={teacher.photo_path} /></td>
+                    <td>{teacher.registration_number}</td>
+                    <td><strong>{teacher.first_name} {teacher.last_name}</strong></td>
+                    <td><StatusBadge status={teacher.status} /></td>
+                    <td>{teacher.email ?? '—'}</td>
+                    <td>{teacher.phone ?? '—'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="tp-pagination">
-          <span>Affichage {teachers.length === 0 ? 0 : page * PAGE_SIZE + 1} à {Math.min(teachers.length, (page + 1) * PAGE_SIZE)} sur {teachers.length} enseignants</span>
+        <footer className="tp-pagination">
+          <span>
+            Affichage {filteredTeachers.length === 0 ? 0 : safePage * PAGE_SIZE + 1} à{' '}
+            {Math.min(filteredTeachers.length, (safePage + 1) * PAGE_SIZE)} sur {filteredTeachers.length} enseignants
+          </span>
           <div className="tp-pagination__buttons">
-            <button disabled={page === 0} onClick={() => setPage((p) => p - 1)}>‹</button>
-            {Array.from({ length: pageCount }).slice(0, 5).map((_, i) => (
+            <button type="button" disabled={safePage === 0} onClick={() => setPage((current) => current - 1)}>‹</button>
+            {Array.from({ length: pageCount }).slice(0, 5).map((_, index) => (
               <button
-                key={i}
-                className={i === page ? 'tp-page tp-page--active' : 'tp-page'}
-                onClick={() => setPage(i)}
+                type="button"
+                key={index}
+                className={index === safePage ? 'tp-page tp-page--active' : 'tp-page'}
+                onClick={() => setPage(index)}
               >
-                {i + 1}
+                {index + 1}
               </button>
             ))}
-            <button disabled={page >= pageCount - 1} onClick={() => setPage((p) => p + 1)}>›</button>
+            <button type="button" disabled={safePage >= pageCount - 1} onClick={() => setPage((current) => current + 1)}>›</button>
           </div>
-        </div>
+        </footer>
       </section>
     </main>
   )

@@ -32,14 +32,14 @@ services:
       - ./storage/postgres/backups:/backups
       # Crée le rôle applicatif avant l'exécution des migrations.
       - ./database/init/000_create_application_role.sh:/docker-entrypoint-initdb.d/000_create_application_role.sh:ro
-      # Applique les migrations dans l'ordre lors de la première initialisation.
-      - ./database/migration/001_grant_application_privileges.sql:/docker-entrypoint-initdb.d/001_grant_application_privileges.sql:ro
-      - ./database/migration/002_create_accounts_and_profiles.sql:/docker-entrypoint-initdb.d/002_create_accounts_and_profiles.sql:ro
-      - ./database/migration/003_grant_account_profile_privileges.sql:/docker-entrypoint-initdb.d/003_grant_account_profile_privileges.sql:ro
-      - ./database/migration/004_create_school_structure.sql:/docker-entrypoint-initdb.d/004_create_school_structure.sql:ro
-      - ./database/migration/005_delete_open_school_year.sql:/docker-entrypoint-initdb.d/005_delete_open_school_year.sql:ro
+      # Applique les 5 migrations dans l'ordre lors de la première initialisation.
+      - ./database/migration/001_db_access.sql:/docker-entrypoint-initdb.d/001_db_access.sql:ro
+      - ./database/migration/002_accounts_and_profiles.sql:/docker-entrypoint-initdb.d/002_accounts_and_profiles.sql:ro
+      - ./database/migration/003_student_guardians.sql:/docker-entrypoint-initdb.d/003_student_guardians.sql:ro
+      - ./database/migration/004_school_structure.sql:/docker-entrypoint-initdb.d/004_school_structure.sql:ro
+      - ./database/migration/005_open_year_deletion.sql:/docker-entrypoint-initdb.d/005_open_year_deletion.sql:ro
       # Ajoute les comptes fictifs après la création complète du schéma.
-      - ./database/init/007_create_test_accounts.sql:/docker-entrypoint-initdb.d/007_create_test_accounts.sql:ro
+      - ./database/init/007_create_test_accounts.sql:/docker-entrypoint-initdb.d/006_create_test_accounts.sql:ro
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
     healthcheck:
       # pg_isready utilise l'utilisateur et la base définis dans .env.
@@ -144,6 +144,8 @@ services:
     # Monte le code local dans le conteneur afin que FastAPI recharge les modifications.
     volumes:
       - ./backend/app:/app/app
+      # Conserve les photos et futurs documents dans un dossier par compte.
+      - ./storage/accounts:/app/storage/accounts
       # Rend les tests locaux accessibles dans le conteneur de développement.
       - ./backend/tests:/app/tests:ro
     # Remplace le CMD du Dockerfile par le serveur de développement avec rechargement automatique.

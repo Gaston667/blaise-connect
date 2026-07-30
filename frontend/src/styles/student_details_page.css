@@ -426,6 +426,78 @@
   font-size: var(--font-size-lg);
 }
 
+.sdp-guardians-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.sdp-guardians-heading p { margin: 0; color: var(--color-text-secondary); }
+.sdp-guardians-heading > button,
+.sdp-guardian-search button,
+.sdp-guardian-modal footer button:last-child {
+  padding: var(--space-3) var(--space-4);
+  color: white;
+  background: var(--color-primary);
+  border: 0;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.sdp-guardian-modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-3);
+  background: rgb(15 35 65 / 55%);
+}
+
+.sdp-guardian-modal {
+  width: min(100%, 42rem);
+  max-height: 90vh;
+  overflow: auto;
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.sdp-guardian-modal header,
+.sdp-guardian-modal footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sdp-guardian-modal header h2,
+.sdp-guardian-modal header p { margin: 0 0 var(--space-2); }
+.sdp-guardian-modal header > button { padding: var(--space-2); background: transparent; border: 0; cursor: pointer; }
+.sdp-guardian-search { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2); align-items: center; margin: var(--space-4) 0; }
+.sdp-guardian-search input { min-width: 0; padding: var(--space-3); border: var(--border-default); border-radius: var(--radius-md); }
+.sdp-guardian-search button { grid-column: 1 / -1; }
+.sdp-guardian-results { display: grid; gap: var(--space-2); max-height: 16rem; overflow: auto; }
+.sdp-guardian-result { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); text-align: left; background: white; border: var(--border-default); border-radius: var(--radius-md); cursor: pointer; }
+.sdp-guardian-result--selected { background: var(--color-primary-light); border-color: var(--color-primary); }
+.sdp-guardian-link-fields { display: grid; gap: var(--space-3); margin: var(--space-4) 0; }
+.sdp-guardian-link-fields label { display: grid; gap: var(--space-2); font-weight: var(--font-weight-semibold); }
+.sdp-guardian-link-fields select { padding: var(--space-3); border: var(--border-default); border-radius: var(--radius-md); }
+.sdp-guardian-checkbox { display: flex !important; align-items: center; }
+.sdp-guardian-modal footer { justify-content: flex-end; }
+.sdp-guardian-modal footer button { padding: var(--space-3) var(--space-4); border: var(--border-default); border-radius: var(--radius-md); cursor: pointer; }
+.sdp-guardian-modal footer button:disabled { cursor: not-allowed; opacity: .55; }
+
+@media (min-width: 48rem) {
+  .sdp-guardians-heading { flex-direction: row; align-items: center; justify-content: space-between; }
+  .sdp-guardian-search { grid-template-columns: auto 1fr auto; }
+  .sdp-guardian-search button { grid-column: auto; }
+  .sdp-guardian-link-fields { grid-template-columns: 1fr 1fr; align-items: end; }
+}
+
 .sdp-guardians > p {
   margin: 0 0 var(--space-5);
   color: var(--color-text-secondary);
@@ -685,6 +757,145 @@
 
 .sdp-placeholder { color: var(--color-text-muted); font-size: var(--font-size-sm); }
 
+.sdp-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sdp-modal-backdrop {
+  position: fixed;
+  z-index: 2100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(15 35 65 / 55%);
+}
+
+.sdp-photo-edit {
+  display: grid;
+  gap: var(--space-2);
+  grid-column: 1 / -1;
+  font-weight: var(--font-weight-semibold);
+}
+
+.sdp-photo-edit > span {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 72px;
+  padding: var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  color: var(--color-primary);
+  background: var(--color-surface-alt);
+  cursor: pointer;
+}
+
+.sdp-photo-edit img {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: var(--radius-full);
+}
+
+.sdp-photo-edit strong,
+.sdp-photo-edit small {
+  display: block;
+}
+
+.sdp-photo-edit small {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+}
+
+.sdp-photo-edit input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.sdp-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 42px;
+  padding-inline: var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.sdp-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sdp-enrollment-modal {
+  width: min(100%, 34rem);
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.sdp-enrollment-modal header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sdp-enrollment-modal h2,
+.sdp-enrollment-modal p {
+  margin: 0;
+}
+
+.sdp-enrollment-modal p {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+}
+
+.sdp-enrollment-modal header > button {
+  align-self: flex-start;
+  padding: var(--space-1);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sdp-enrollment-modal form {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.sdp-enrollment-modal label {
+  display: grid;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.sdp-enrollment-modal select,
+.sdp-enrollment-modal input {
+  min-height: 44px;
+  padding-inline: var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.sdp-enrollment-modal footer {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+}
+
 @media (max-width: 900px) {
   .sdp-body { grid-template-columns: 1fr; }
   .sdp-header { flex-direction: column; gap: var(--space-4); }
@@ -716,5 +927,10 @@
     flex-direction: row;
     align-items: flex-start;
     justify-content: space-between;
+  }
+
+  .sdp-enrollment-modal footer {
+    flex-direction: row;
+    justify-content: flex-end;
   }
 }

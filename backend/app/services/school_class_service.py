@@ -1,5 +1,6 @@
 """Règles métier de gestion des classes de l'US-004."""
 
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text as sql_text
 from app.core.school_class_level_locked_error import SchoolClassLevelLockedError
 from app.core.school_class_not_found_error import SchoolClassNotFoundError
+from app.models.class_subject import ClassSubject
 from app.models.school_class import SchoolClass
 from app.schemas.school_class_create import SchoolClassCreate
 from app.schemas.school_class_update import SchoolClassUpdate
@@ -244,33 +246,115 @@ def list_school_class_subjects(
     q: str | None = None,
     is_active: bool | None = None,
 ) -> list[dict]:
-    """Liste les matières d'une classe avec leur coefficient."""
+    """Liste les matières d'une classe avec leur coefficient et l'enseignant actuel."""
 
-    where_clauses = ["class_subject.class_id = :school_class_id"]
+    where_clauses = ["cs.class_id = :school_class_id"]
     parameters: dict = {"school_class_id": school_class_id}
 
     if q:
-        where_clauses.append("subject.name ILIKE :q")
+        where_clauses.append("s.name ILIKE :q")
         parameters["q"] = f"%{q.strip()}%"
 
     if is_active is not None:
-        where_clauses.append("subject.is_active = :is_active")
+        where_clauses.append("s.is_active = :is_active")
         parameters["is_active"] = is_active
 
-    statement = text(
+    statement = sql_text(
         f"""
         SELECT
-            class_subject.id,
-            class_subject.subject_id,
-            subject.name,
-            class_subject.coefficient,
-            subject.is_active
-        FROM class_subjects AS class_subject
-        JOIN subjects AS subject
-          ON subject.id = class_subject.subject_id
+            cs.id,
+            cs.subject_id,
+            s.name,
+            cs.coefficient,
+            s.is_active,
+            (t.first_name || ' ' || t.last_name) AS teacher_name
+        FROM class_subjects cs
+        JOIN subjects s ON s.id = cs.subject_id
+        LEFT JOIN LATERAL (
+            SELECT ta.teacher_id
+            FROM teacher_assignments ta
+            WHERE ta.class_subject_id = cs.id
+              AND ta.end_date IS NULL
+            ORDER BY ta.start_date DESC
+            LIMIT 1
+        ) latest_ta ON true
+        LEFT JOIN teachers t ON t.id = latest_ta.teacher_id
         WHERE {" AND ".join(where_clauses)}
-        ORDER BY subject.name
+        ORDER BY s.name
         """
     )
     rows = db.execute(statement, parameters).mappings().all()
     return [dict(row) for row in rows]
+
+
+def list_available_subjects_for_class(
+    db: Session,
+    school_class_id: str,
+) -> list[dict]:
+    """Retourne les matières actives non encore associées à la classe."""
+
+    rows = db.execute(
+        sql_text(
+            """
+            SELECT s.id, s.name
+            FROM subjects s
+            WHERE s.is_active = true
+              AND s.id NOT IN (
+                  SELECT cs.subject_id
+                  FROM class_subjects cs
+                  WHERE cs.class_id = :class_id
+              )
+            ORDER BY s.name
+            """
+        ),
+        {"class_id": school_class_id},
+    ).all()
+    return [{"id": str(row.id), "name": row.name} for row in rows]
+
+
+def add_class_subject(
+    db: Session,
+    class_id: str,
+    subject_id: UUID,
+    coefficient: Decimal,
+) -> ClassSubject:
+    """Associe une matière à une classe avec son coefficient."""
+
+    cs = ClassSubject(
+        class_id=class_id,
+        subject_id=subject_id,
+        coefficient=coefficient,
+    )
+    db.add(cs)
+    db.commit()
+    db.refresh(cs)
+    return cs
+
+
+def update_class_subject_coefficient(
+    db: Session,
+    class_subject_id: UUID,
+    coefficient: Decimal,
+) -> ClassSubject:
+    """Met à jour le coefficient d'une association classe-matière."""
+
+    cs = db.get(ClassSubject, class_subject_id)
+    if cs is None:
+        raise ValueError("Association classe-matière introuvable.")
+    cs.coefficient = coefficient
+    db.commit()
+    db.refresh(cs)
+    return cs
+
+
+def remove_class_subject(
+    db: Session,
+    class_subject_id: UUID,
+) -> None:
+    """Retire une matière d'une classe."""
+
+    cs = db.get(ClassSubject, class_subject_id)
+    if cs is None:
+        raise ValueError("Association classe-matière introuvable.")
+    db.delete(cs)
+    db.commit()

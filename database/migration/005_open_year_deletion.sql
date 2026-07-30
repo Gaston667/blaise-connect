@@ -1,7 +1,13 @@
--- Suppression contrôlée d'une année scolaire non clôturée.
--- Cette fonction centralise la cascade sans accorder DELETE à blaise_app.
+-- =========================================================
+-- MIGRATION 005 : suppression contrôlée d'une année ouverte
+-- =========================================================
+-- La fonction centralize la cascade sans accorder DELETE à
+-- blaise_app. Elle exige la confirmation du nom de l'année
+-- et enregistre un audit avant chaque suppression.
+-- =========================================================
 
--- MIGRATION 005.
+BEGIN;
+
 CREATE TABLE school_year_deletion_audits (
     id uuid
         CONSTRAINT pk_school_year_deletion_audits PRIMARY KEY
@@ -207,18 +213,18 @@ BEGIN
     GET DIAGNOSTICS deleted_periods = ROW_COUNT;
 
     deleted_counts = jsonb_build_object(
-        'reporting_periods', deleted_periods,
-        'report_card_grades', deleted_report_card_grades,
+        'reporting_periods',    deleted_periods,
+        'report_card_grades',   deleted_report_card_grades,
         'report_card_subjects', deleted_report_card_subjects,
-        'report_cards', deleted_report_cards,
-        'attendance_records', deleted_attendance_records,
-        'attendance_events', deleted_attendance_events,
-        'grades', deleted_grades,
-        'assessments', deleted_assessments,
-        'teacher_assignments', deleted_teacher_assignments,
-        'class_subjects', deleted_class_subjects,
-        'student_enrollments', deleted_enrollments,
-        'classes', deleted_classes
+        'report_cards',         deleted_report_cards,
+        'attendance_records',   deleted_attendance_records,
+        'attendance_events',    deleted_attendance_events,
+        'grades',               deleted_grades,
+        'assessments',          deleted_assessments,
+        'teacher_assignments',  deleted_teacher_assignments,
+        'class_subjects',       deleted_class_subjects,
+        'student_enrollments',  deleted_enrollments,
+        'classes',              deleted_classes
     );
 
     INSERT INTO public.school_year_deletion_audits (
@@ -241,7 +247,12 @@ BEGIN
 END;
 $$;
 
+-- Seul le rôle applicatif peut exécuter la suppression.
 REVOKE ALL ON FUNCTION delete_open_school_year(uuid, text, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION delete_open_school_year(uuid, text, uuid) TO blaise_app;
 
+-- La table d'audit n'est accessible qu'en lecture au rôle applicatif.
 REVOKE ALL ON TABLE school_year_deletion_audits FROM PUBLIC;
+GRANT SELECT ON TABLE school_year_deletion_audits TO blaise_app;
+
+COMMIT;

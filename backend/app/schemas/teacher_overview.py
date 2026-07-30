@@ -13,4 +13,5 @@ class TeacherOverview(BaseModel):
     hire_date: date
     is_main_teacher: bool
     subjects: list[str]
+    photo_path: str | None = None
     status: str

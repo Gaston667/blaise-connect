@@ -13,7 +13,10 @@ def list_teachers_overview(db: Session, q: str | None = None) -> list[dict]:
             t.last_name,
             t.email,
             t.phone,
-            t.hire_date
+            t.hire_date,
+            t.photo_path,
+            t.archived_at,
+            a.is_active
         FROM teachers t
         JOIN accounts a ON a.id = t.account_id
         WHERE 1 = 1
@@ -55,7 +58,8 @@ def list_teachers_overview(db: Session, q: str | None = None) -> list[dict]:
             "hire_date": t.hire_date,
             "is_main_teacher": is_main_teacher,
             "subjects": [row.name for row in subjects_rows],
-            "status": "ACTIVE",  # valeur brute : pas encore de colonne status en base
+            "photo_path": t.photo_path,
+            "status": "ACTIVE" if t.archived_at is None and t.is_active else "INACTIVE",
         })
 
     return results

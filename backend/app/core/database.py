@@ -34,11 +34,14 @@ session_factory = sessionmaker(
 
 
 def get_db() -> Generator[Session, None, None]:
-    """Fournit une session à FastAPI puis la ferme après la requête."""
+    """Fournit une session à FastAPI, annule en cas d'erreur puis la ferme."""
 
     database_session = session_factory()
 
     try:
         yield database_session
+    except Exception:
+        database_session.rollback()
+        raise
     finally:
         database_session.close()

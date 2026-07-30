@@ -7,9 +7,8 @@
 
 BEGIN;
 
--- 1. Comptes : 4 administrateurs, 10 enseignants, 30 élèves,
---    30 responsables.
--- Répartition actuelle : 3 ADMIN, 7 TEACHER, 10 STUDENT et 10 GUARDIAN.
+-- 1. Comptes : 3 administrateurs, 7 enseignants, 10 élèves
+--    et 10 responsables, soit 30 comptes fictifs.
 INSERT INTO accounts (
     registration_number,
     password_hash,
@@ -146,7 +145,6 @@ INSERT INTO students (
     birth_place,
     nationality,
     previous_level,
-    observations,
     updated_by_account_id,
     archived_at,
     created_at,
@@ -167,7 +165,6 @@ SELECT
     (ARRAY['Conakry', 'Kindia', 'Labé', 'Kankan', 'Mamou', 'Boké', 'Faranah', 'Nzérékoré', 'Coyah', 'Dubréka'])[profile_number],
     'Guinéenne',
     (ARRAY['CM2', 'CM2', 'SIXIEME', 'SIXIEME', 'CINQUIEME', 'CINQUIEME', 'CM2', 'SIXIEME', 'CINQUIEME', 'CM2'])[profile_number],
-    'Dossier fictif de développement',
     administrator_account.id,
     NULL,
     now(),
@@ -221,7 +218,47 @@ JOIN LATERAL (
 WHERE accounts.role = 'GUARDIAN'
 ON CONFLICT (account_id) DO NOTHING;
 
--- 6. Année scolaire courante.
+-- 6. Un responsable principal et légal fictif par élève.
+WITH ordered_students AS (
+    SELECT
+        students.id,
+        row_number() OVER (ORDER BY accounts.registration_number) AS row_number
+    FROM students
+    JOIN accounts ON accounts.id = students.account_id
+),
+ordered_guardians AS (
+    SELECT
+        guardians.id,
+        row_number() OVER (ORDER BY accounts.registration_number) AS row_number
+    FROM guardians
+    JOIN accounts ON accounts.id = guardians.account_id
+)
+INSERT INTO student_guardians (
+    student_id,
+    guardian_id,
+    relationship_type,
+    relationship_details,
+    is_legal_guardian,
+    is_primary_contact,
+    is_emergency_contact
+)
+SELECT
+    ordered_students.id,
+    ordered_guardians.id,
+    CASE
+        WHEN ordered_students.row_number % 2 = 0 THEN 'MOTHER'
+        ELSE 'FATHER'
+    END,
+    NULL,
+    true,
+    true,
+    true
+FROM ordered_students
+JOIN ordered_guardians
+    ON ordered_guardians.row_number = ordered_students.row_number
+ON CONFLICT (student_id, guardian_id) DO NOTHING;
+
+-- 7. Année scolaire courante.
 INSERT INTO school_years (
     name,
     start_date,
@@ -236,7 +273,7 @@ VALUES (
 )
 ON CONFLICT (name) DO NOTHING;
 
--- 7. Périodes contiguës de l'année fictive.
+-- 8. Périodes contiguës de l'année fictive.
 INSERT INTO reporting_periods (
     school_year_id,
     name,
@@ -263,7 +300,7 @@ WHERE school_years.name = '2026-2027'
         AND reporting_periods.start_date = period_data.start_date
   );
 
--- 8. Niveaux utilisés par les classes fictives.
+-- 9. Niveaux utilisés par les classes fictives.
 INSERT INTO class_levels (
     code,
     name,
@@ -276,7 +313,7 @@ VALUES
     ('QUATRIEME', 'Quatrième', 'MIDDLE_SCHOOL', 12)
 ON CONFLICT (code) DO NOTHING;
 
--- 9. Matières.
+-- 10. Matières.
 INSERT INTO subjects (name, description)
 VALUES
     ('Mathématiques', 'Matière fictive de développement'),
@@ -287,7 +324,7 @@ VALUES
     ('Informatique', 'Matière fictive de développement')
 ON CONFLICT DO NOTHING;
 
--- 10. Classes annuelles avec professeur principal.
+-- 11. Classes annuelles avec professeur principal.
 INSERT INTO classes (
     school_year_id,
     class_level_id,
@@ -317,7 +354,7 @@ JOIN teachers
     ON teachers.account_id = accounts.id
 ON CONFLICT (school_year_id, class_level_id, group_label) DO NOTHING;
 
--- 11. Matières et coefficients de chaque classe.
+-- 12. Matières et coefficients de chaque classe.
 INSERT INTO class_subjects (
     class_id,
     subject_id,
@@ -339,7 +376,7 @@ CROSS JOIN subjects
 WHERE school_years.name = '2026-2027'
 ON CONFLICT (class_id, subject_id) DO NOTHING;
 
--- 12. Répartition régulière des 30 élèves dans les trois classes.
+-- 13. Répartition régulière des 10 élèves dans les trois classes.
 WITH ordered_students AS (
     SELECT
         students.id,

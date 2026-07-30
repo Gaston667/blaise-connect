@@ -1,23 +1,15 @@
--- ========================================
--- MIGRATION 002 : Comptes, sessions et profils utilisateurs
--- ========================================
--- Objectif : Créer la base d'authentification et les profils de BlaiseConnect.
---
--- Structure :
---   - accounts : comptes d'accès (authentification)
---   - students, teachers, administrators, guardians : profils utilisateurs
---
--- Principaux concepts :
---   1. Matricule : a, e, u ou p suivi de six chiffres (ex: a123456)
---   2. Rôles : STUDENT, TEACHER, ADMIN, GUARDIAN (fixe après création)
---   3. Triggers : automatisation et validation des données
---   4. Contraintes : intégrité référentielle et métier
---
--- ========================================
+-- =========================================================
+-- MIGRATION 002 : comptes, profils et droits applicatifs
+-- =========================================================
+-- Fusionne :
+--   - création des tables (comptes, profils, sessions, historique)
+--   - triggers, fonctions de protection et d'audit
+--   - droits colonne par colonne du rôle blaise_app
+-- La colonne observations n'existe pas dans ce schéma propre.
+-- =========================================================
 
 BEGIN;
 
--- Charge l'extension pgcrypto pour générer des UUID aléatoires
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Le statut scolaire est indépendant de l'état du compte de connexion.
@@ -27,55 +19,23 @@ CREATE TYPE student_status_enum AS ENUM (
     'ARCHIVED'
 );
 
--- ========================================
--- TABLE 1 : accounts (Comptes d'accès)
--- ========================================
--- Stocke les identifiant de connexion et la sécurité.
--- Chaque compte possède :
---   - Un matricule (registration_number) unique
---   - Un mot de passe hashé en bcrypt ou argon2
---   - Un rôle fixe (immuable après création)
---   - Un statut actif/archivé
---   - Un historique de tentatives de connexion échouées (lockout)
---
--- Exemple de matricule : a000001, b123456, c789abc
+-- =========================================================
+-- 1. COMPTES
+-- =========================================================
+
 CREATE TABLE accounts (
-    -- Clé primaire : UUID généré aléatoirement
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- Matricule unique : a, e, u ou p + 6 chiffres (7 caractères).
-    -- Validé par CHECK contraint (voir ci-dessous)
     registration_number varchar(50) NOT NULL UNIQUE,
-
-    -- Hash du mot de passe (jamais le stockage en clair !)
-    -- Format : bcrypt ($2...), argon2 ou similaire minimum 20 caractères
     password_hash text NOT NULL,
-
-    -- Rôle de l'utilisateur : fixe après création du compte
-    -- Valeurs autorisées : STUDENT, TEACHER, ADMIN, GUARDIAN
     role varchar(20) NOT NULL,
-
-    -- Autorisation durable de connexion. Le verrouillage temporaire est
-    -- représenté séparément par locked_until.
     is_active boolean NOT NULL DEFAULT true,
-
-    -- Protection contre les attaques par force brute
     failed_login_attempts smallint NOT NULL DEFAULT 0,
-    locked_until timestamptz,                      -- Jusqu'à quelle date le compte est-il verrouillé ?
-
-    -- Audit : dernière connexion réussie
+    locked_until timestamptz,
     last_login_at timestamptz,
-
-    -- Archivage : date de suppression logique d'un compte
     archived_at timestamptz,
-
-    -- Audit : horodatages
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
 
-    -- ========== CONTRAINTES D'INTÉGRITÉ ==========
-
-    -- Le rôle doit être l'un des quatre rôles autorisés
     CONSTRAINT ck_accounts_role
         CHECK (role IN ('STUDENT', 'TEACHER', 'ADMIN', 'GUARDIAN')),
 
@@ -83,66 +43,41 @@ CREATE TABLE accounts (
     CONSTRAINT ck_accounts_registration_number
         CHECK (registration_number ~ '^[aeup][0-9]{6}$'),
 
-    -- Le hash du mot de passe doit faire au minimum 20 caractères
-    -- (un bcrypt valide fait environ 60 caractères)
     CONSTRAINT ck_accounts_password_hash
         CHECK (char_length(btrim(password_hash)) >= 20),
 
-    -- Le nombre de tentatives échouées ne peut pas être négatif
     CONSTRAINT ck_accounts_failed_login_attempts
         CHECK (failed_login_attempts >= 0),
 
-    -- Cohérence logique : si le compte est archivé, il doit être inactif
     CONSTRAINT ck_accounts_archived_inactive
         CHECK (archived_at IS NULL OR is_active = false)
 );
 
--- ========================================
--- TABLE 2 : students (Profil Élève)
--- ========================================
--- Chaque élève possède :
---   - Un lien vers un compte avec rôle STUDENT (obligatoire)
---   - Un profil complet (état-civil, coordonnées, admissibilité)
---
--- Relations :
---   - students.account_id -> accounts.id (1:1)
---   - Un compte STUDENT ne peut être lié qu'à un seul profil étudiant
+-- =========================================================
+-- 2. PROFILS
+-- =========================================================
+
 CREATE TABLE students (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- Lien vers le compte d'accès (clé étrangère unique)
-    -- Si le compte est supprimé, on empêche la suppression (ON DELETE RESTRICT)
     account_id uuid NOT NULL UNIQUE,
-
-    -- État-civil
     first_name varchar(100) NOT NULL,
     last_name varchar(100) NOT NULL,
     birth_date date,
     gender varchar(20),
-
-    -- Coordonnées
     email varchar(254),
     phone varchar(30),
     address text,
-
-    -- Données administratives
     admission_date date NOT NULL,
     status student_status_enum NOT NULL DEFAULT 'ACTIVE',
     photo_path varchar(500),
     birth_place varchar(150),
     nationality varchar(100),
     previous_level varchar(100),
-    observations text,
     updated_by_account_id uuid,
     archived_at timestamptz,
-
-    -- Audit
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
 
-    -- ========== CONTRAINTES D'INTÉGRITÉ ==========
-
-    -- Clé étrangère : le compte doit exister
     CONSTRAINT fk_students_account
         FOREIGN KEY (account_id)
         REFERENCES accounts(id)
@@ -153,22 +88,18 @@ CREATE TABLE students (
         REFERENCES accounts(id)
         ON DELETE RESTRICT,
 
-    -- Prénom et nom obligatoires et non-vides
     CONSTRAINT ck_students_first_name
         CHECK (char_length(btrim(first_name)) > 0),
 
     CONSTRAINT ck_students_last_name
         CHECK (char_length(btrim(last_name)) > 0),
 
-    -- Cohérence logique : date de naissance <= date d'admission
-    -- (impossible d'admettre quelqu'un après sa naissance... dans le passé)
     CONSTRAINT ck_students_birth_date
         CHECK (birth_date IS NULL OR birth_date <= admission_date),
 
     CONSTRAINT ck_students_archived_at
         CHECK (archived_at IS NULL OR archived_at >= created_at),
 
-    -- ARCHIVED possède une date d'archivage ; ACTIVE et INACTIVE n'en ont pas.
     CONSTRAINT ck_students_status_archived_at
         CHECK (
             (status = 'ARCHIVED' AND archived_at IS NOT NULL)
@@ -177,10 +108,8 @@ CREATE TABLE students (
         )
 );
 
-
 CREATE TABLE teachers (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-
     account_id uuid NOT NULL UNIQUE,
     first_name varchar(100) NOT NULL,
     last_name varchar(100) NOT NULL,
@@ -193,7 +122,6 @@ CREATE TABLE teachers (
     qualification text,
     photo_path varchar(500),
     archived_at timestamptz,
-
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
 
@@ -202,14 +130,12 @@ CREATE TABLE teachers (
         REFERENCES accounts(id)
         ON DELETE RESTRICT,
 
-    -- Noms et prénoms obligatoires, non-vides
     CONSTRAINT ck_teachers_first_name
         CHECK (char_length(btrim(first_name)) > 0),
 
     CONSTRAINT ck_teachers_last_name
         CHECK (char_length(btrim(last_name)) > 0),
 
-    -- Date naissance cohérente (avant ou égale à la date d'embauche)
     CONSTRAINT ck_teachers_birth_date
         CHECK (birth_date IS NULL OR birth_date <= hire_date),
 
@@ -217,10 +143,8 @@ CREATE TABLE teachers (
         CHECK (archived_at IS NULL OR archived_at >= created_at)
 );
 
-
 CREATE TABLE administrators (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-
     account_id uuid NOT NULL UNIQUE,
     first_name varchar(100) NOT NULL,
     last_name varchar(100) NOT NULL,
@@ -232,7 +156,6 @@ CREATE TABLE administrators (
     job_title varchar(100) NOT NULL,
     photo_path varchar(500),
     archived_at timestamptz,
-
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
 
@@ -241,14 +164,12 @@ CREATE TABLE administrators (
         REFERENCES accounts(id)
         ON DELETE RESTRICT,
 
-    -- Noms et prénoms obligatoires, non-vides
     CONSTRAINT ck_administrators_first_name
         CHECK (char_length(btrim(first_name)) > 0),
 
     CONSTRAINT ck_administrators_last_name
         CHECK (char_length(btrim(last_name)) > 0),
 
-    -- Fonction non-vide
     CONSTRAINT ck_administrators_job_title
         CHECK (char_length(btrim(job_title)) > 0),
 
@@ -256,11 +177,9 @@ CREATE TABLE administrators (
         CHECK (archived_at IS NULL OR archived_at >= created_at)
 );
 
--- TABLE : guardians
--- Responsables d'élèves. account_id est facultatif (peut être sans compte).
+-- account_id est facultatif : un responsable peut exister sans compte.
 CREATE TABLE guardians (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-
     account_id uuid UNIQUE,
     first_name varchar(100) NOT NULL,
     last_name varchar(100) NOT NULL,
@@ -272,7 +191,6 @@ CREATE TABLE guardians (
     employer varchar(150),
     photo_path varchar(500),
     archived_at timestamptz,
-
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
 
@@ -281,7 +199,6 @@ CREATE TABLE guardians (
         REFERENCES accounts(id)
         ON DELETE RESTRICT,
 
-    -- Noms et prénoms obligatoires, non-vides
     CONSTRAINT ck_guardians_first_name
         CHECK (char_length(btrim(first_name)) > 0),
 
@@ -292,6 +209,10 @@ CREATE TABLE guardians (
         CHECK (archived_at IS NULL OR archived_at >= created_at)
 );
 
+-- =========================================================
+-- 3. SESSIONS ET HISTORIQUE
+-- =========================================================
+
 CREATE TABLE auth_sessions (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     account_id uuid NOT NULL,
@@ -301,15 +222,21 @@ CREATE TABLE auth_sessions (
     created_at timestamptz NOT NULL DEFAULT now(),
 
     CONSTRAINT pk_auth_sessions PRIMARY KEY (id),
+
     CONSTRAINT fk_auth_sessions_account
         FOREIGN KEY (account_id)
         REFERENCES accounts(id)
         ON DELETE CASCADE,
-    CONSTRAINT uq_auth_sessions_token_hash UNIQUE (session_token_hash),
+
+    CONSTRAINT uq_auth_sessions_token_hash
+        UNIQUE (session_token_hash),
+
     CONSTRAINT ck_auth_sessions_token_hash
         CHECK (session_token_hash ~ '^[0-9a-f]{64}$'),
+
     CONSTRAINT ck_auth_sessions_last_activity
         CHECK (last_activity_at >= created_at),
+
     CONSTRAINT ck_auth_sessions_revoked_at
         CHECK (revoked_at IS NULL OR revoked_at >= created_at)
 );
@@ -345,14 +272,11 @@ CREATE UNIQUE INDEX uq_teachers_email_ci
     ON teachers (lower(email))
     WHERE email IS NOT NULL;
 
-
 -- =========================================================
--- 1. MISE À JOUR AUTOMATIQUE DE updated_at
+-- 4. TRIGGERS ET FONCTIONS
 -- =========================================================
--- Chaque modification d'une ligne met à jour automatiquement
--- la colonne updated_at avec l'horodatage serveur (now()).
--- Utilité : Traçabilité des modifications.
 
+-- Mise à jour automatique de updated_at.
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -388,6 +312,7 @@ BEFORE UPDATE ON guardians
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
+-- Journal des changements de statut d'un élève.
 CREATE OR REPLACE FUNCTION log_student_status_change()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -409,7 +334,6 @@ BEGIN
             NEW.updated_by_account_id
         );
     END IF;
-
     RETURN NEW;
 END;
 $$;
@@ -419,31 +343,18 @@ AFTER INSERT OR UPDATE OF status ON students
 FOR EACH ROW
 EXECUTE FUNCTION log_student_status_change();
 
-
--- =========================================================
--- 2. PROTECTION DU MATRICULE ET DU RÔLE
--- =========================================================
--- Empêche toute modification du matricule (registration_number)
--- et du rôle après la création du compte.
--- Utilité : Identité pérenne + catégorie fixe de l'utilisateur
-
+-- Matricule et rôle immuables après création.
 CREATE OR REPLACE FUNCTION protect_account_identity()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    IF NEW.registration_number
-        IS DISTINCT FROM OLD.registration_number
-    THEN
-        RAISE EXCEPTION
-            'Le matricule ne peut pas être modifié.';
+    IF NEW.registration_number IS DISTINCT FROM OLD.registration_number THEN
+        RAISE EXCEPTION 'Le matricule ne peut pas être modifié.';
     END IF;
-
     IF NEW.role IS DISTINCT FROM OLD.role THEN
-        RAISE EXCEPTION
-            'Le rôle du compte ne peut pas être modifié.';
+        RAISE EXCEPTION 'Le rôle du compte ne peut pas être modifié.';
     END IF;
-
     RETURN NEW;
 END;
 $$;
@@ -453,14 +364,7 @@ BEFORE UPDATE ON accounts
 FOR EACH ROW
 EXECUTE FUNCTION protect_account_identity();
 
-
--- =========================================================
--- 3. VÉRIFICATION DU RÔLE ASSOCIÉ AU PROFIL
--- =========================================================
--- Vérifie que le compte lié à un profil possède le bon rôle.
--- Exemple : Un dossier STUDENT doit être lié à un compte STUDENT.
--- Exception : Un responsable (GUARDIAN) peut exister sans compte.
-
+-- Vérifie que le rôle du compte correspond au profil lié.
 CREATE OR REPLACE FUNCTION check_profile_account_role()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -471,31 +375,25 @@ DECLARE
 BEGIN
     expected_role := TG_ARGV[0];
 
-    -- Un responsable peut exister sans compte.
     IF NEW.account_id IS NULL THEN
         IF expected_role = 'GUARDIAN' THEN
             RETURN NEW;
         END IF;
-
-        RAISE EXCEPTION
-            'Un compte est obligatoire pour ce profil.';
+        RAISE EXCEPTION 'Un compte est obligatoire pour ce profil.';
     END IF;
 
-    SELECT role
-    INTO account_role
-    FROM accounts
-    WHERE id = NEW.account_id;
+    SELECT role INTO account_role
+      FROM accounts
+     WHERE id = NEW.account_id;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION
-            'Le compte associé est introuvable.';
+        RAISE EXCEPTION 'Le compte associé est introuvable.';
     END IF;
 
     IF account_role <> expected_role THEN
         RAISE EXCEPTION
             'Rôle incorrect : rôle attendu %, rôle reçu %.',
-            expected_role,
-            account_role;
+            expected_role, account_role;
     END IF;
 
     RETURN NEW;
@@ -526,7 +424,7 @@ DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
 EXECUTE FUNCTION check_profile_account_role('GUARDIAN');
 
--- Un profil archivé avec compte exige un compte inactif et archivé.
+-- Archivage atomique : un profil archivé exige un compte inactif et archivé.
 CREATE OR REPLACE FUNCTION check_archived_profile_account()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -560,6 +458,7 @@ BEGIN
 END;
 $$;
 
+-- Sens inverse : un compte réactivé/désarchivé ne peut pas avoir de profil archivé.
 CREATE OR REPLACE FUNCTION check_account_archived_profiles()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -570,17 +469,13 @@ BEGIN
     END IF;
 
     IF EXISTS (
-        SELECT 1 FROM students AS s
-         WHERE s.account_id = NEW.id AND s.archived_at IS NOT NULL
+        SELECT 1 FROM students      AS s WHERE s.account_id = NEW.id AND s.archived_at IS NOT NULL
         UNION ALL
-        SELECT 1 FROM teachers AS t
-         WHERE t.account_id = NEW.id AND t.archived_at IS NOT NULL
+        SELECT 1 FROM teachers      AS t WHERE t.account_id = NEW.id AND t.archived_at IS NOT NULL
         UNION ALL
-        SELECT 1 FROM administrators AS a
-         WHERE a.account_id = NEW.id AND a.archived_at IS NOT NULL
+        SELECT 1 FROM administrators AS a WHERE a.account_id = NEW.id AND a.archived_at IS NOT NULL
         UNION ALL
-        SELECT 1 FROM guardians AS g
-         WHERE g.account_id = NEW.id AND g.archived_at IS NOT NULL
+        SELECT 1 FROM guardians     AS g WHERE g.account_id = NEW.id AND g.archived_at IS NOT NULL
     ) THEN
         RAISE EXCEPTION USING
             ERRCODE = '23514',
@@ -615,5 +510,99 @@ CREATE CONSTRAINT TRIGGER trg_accounts_check_archived_profiles
 AFTER UPDATE OF is_active, archived_at ON accounts
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION check_account_archived_profiles();
+
+-- =========================================================
+-- 5. DROITS APPLICATIFS (principe du moindre privilège)
+-- =========================================================
+
+GRANT SELECT ON TABLE
+    accounts,
+    auth_sessions,
+    students,
+    teachers,
+    administrators,
+    guardians,
+    student_status_history
+TO blaise_app;
+
+GRANT INSERT (
+    registration_number, password_hash, role,
+    locked_until, last_login_at, archived_at
+) ON accounts TO blaise_app;
+
+GRANT UPDATE (
+    password_hash,
+    is_active,
+    failed_login_attempts,
+    locked_until,
+    last_login_at,
+    archived_at,
+    updated_at
+) ON accounts TO blaise_app;
+
+GRANT INSERT (
+    account_id, first_name, last_name, birth_date, gender,
+    email, phone, address, admission_date, status, photo_path,
+    birth_place, nationality, previous_level,
+    updated_by_account_id, archived_at
+) ON students TO blaise_app;
+
+GRANT UPDATE (
+    first_name, last_name, birth_date, gender,
+    email, phone, address, admission_date, status, photo_path,
+    birth_place, nationality, previous_level,
+    updated_by_account_id, archived_at, updated_at
+) ON students TO blaise_app;
+
+GRANT INSERT (
+    account_id, first_name, last_name, birth_date, gender,
+    email, phone, address, hire_date, qualification, photo_path, archived_at
+) ON teachers TO blaise_app;
+
+GRANT UPDATE (
+    first_name, last_name, birth_date, gender,
+    email, phone, address, hire_date, qualification, photo_path, archived_at
+) ON teachers TO blaise_app;
+
+GRANT INSERT (
+    account_id, first_name, last_name, gender,
+    email, phone, address, hire_date, job_title, photo_path, archived_at
+) ON administrators TO blaise_app;
+
+GRANT UPDATE (
+    first_name, last_name, gender,
+    email, phone, address, hire_date, job_title, photo_path, archived_at
+) ON administrators TO blaise_app;
+
+GRANT INSERT (
+    account_id, first_name, last_name, gender,
+    email, phone, address, occupation, employer, photo_path, archived_at
+) ON guardians TO blaise_app;
+
+GRANT UPDATE (
+    account_id, first_name, last_name, gender,
+    email, phone, address, occupation, employer, photo_path, archived_at
+) ON guardians TO blaise_app;
+
+GRANT INSERT (
+    account_id,
+    session_token_hash,
+    revoked_at
+) ON auth_sessions TO blaise_app;
+
+GRANT UPDATE (
+    last_activity_at,
+    revoked_at
+) ON auth_sessions TO blaise_app;
+
+REVOKE DELETE ON TABLE
+    accounts,
+    auth_sessions,
+    students,
+    teachers,
+    administrators,
+    guardians,
+    student_status_history
+FROM blaise_app;
 
 COMMIT;

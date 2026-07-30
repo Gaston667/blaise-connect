@@ -5,7 +5,7 @@ export async function getClassLevels() {
 }
 
 export async function getTeachers() {
-  const res = await fetch('/api/teachers', { credentials: 'include' })
+  const res = await fetch('/api/teachers/overview', { credentials: 'include' })
   if (!res.ok) throw new Error('Échec du chargement des enseignants')
   return await res.json()
 }
@@ -97,4 +97,52 @@ export async function getSchoolClassSubjects(id, { q = '', isActive = '' } = {})
     throw new Error(message)
   }
   return await res.json()
+}
+
+export async function getAvailableSubjectsForClass(classId) {
+  const res = await fetch(`/api/school-classes/${classId}/available-subjects`, { credentials: 'include' })
+  if (!res.ok) throw new Error('Échec du chargement des matières disponibles')
+  return res.json()
+}
+
+export async function addClassSubject(classId, subjectId, coefficient) {
+  const res = await fetch(`/api/school-classes/${classId}/subjects`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subject_id: subjectId, coefficient: Number(coefficient) }),
+  })
+  if (!res.ok) {
+    let err = 'Échec de l\'ajout de la matière'
+    try { const b = await res.json(); if (b?.detail) err = b.detail } catch {}
+    throw new Error(err)
+  }
+  return res.json()
+}
+
+export async function updateClassSubjectCoefficient(classId, classSubjectId, coefficient) {
+  const res = await fetch(`/api/school-classes/${classId}/subjects/${classSubjectId}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ coefficient: Number(coefficient) }),
+  })
+  if (!res.ok) {
+    let err = 'Échec de la modification du coefficient'
+    try { const b = await res.json(); if (b?.detail) err = b.detail } catch {}
+    throw new Error(err)
+  }
+  return res.json()
+}
+
+export async function removeClassSubject(classId, classSubjectId) {
+  const res = await fetch(`/api/school-classes/${classId}/subjects/${classSubjectId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    let err = 'Échec du retrait de la matière'
+    try { const b = await res.json(); if (b?.detail) err = b.detail } catch {}
+    throw new Error(err)
+  }
 }

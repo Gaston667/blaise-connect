@@ -28,6 +28,21 @@ export async function getAccounts() {
   return response.json()
 }
 
+/** Récupère un compte par son identifiant. */
+export async function getAccount(accountId) {
+  const response = await fetch(`${ACCOUNTS_API_URL}/${accountId}`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const errorMessage = await getAccountsApiErrorMessage(response)
+    throw new Error(errorMessage)
+  }
+
+  return response.json()
+}
+
 
 /**
  * Envoie au backend les informations du nouveau compte.
@@ -55,5 +70,49 @@ export async function createAccount(account_data) {
     )
   }
 
+  return response.json()
+}
+
+/** Téléverse la photo du profil créé et retourne le compte actualisé. */
+export async function uploadAccountPhoto(accountId, photo) {
+  const formData = new FormData()
+  formData.append('photo', photo)
+  const response = await fetch(`/api/accounts/${accountId}/photo`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  })
+  if (!response.ok) {
+    throw new Error(await getAccountsApiErrorMessage(response))
+  }
+  return response.json()
+}
+
+/** Modifie l'état d'un compte et retourne sa version actualisée. */
+export async function changeAccountState(accountId, action) {
+  const response = await fetch(`/api/accounts/${accountId}/${action}`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  if (!response.ok) {
+    throw new Error(await getAccountsApiErrorMessage(response))
+  }
+  return response.json()
+}
+
+/** Réinitialise le mot de passe après confirmation de l'administrateur. */
+export async function resetAccountPassword(accountId, newPassword, adminPassword) {
+  const response = await fetch(`/api/accounts/${accountId}/password`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      new_password: newPassword,
+      admin_password: adminPassword,
+    }),
+  })
+  if (!response.ok) {
+    throw new Error(await getAccountsApiErrorMessage(response))
+  }
   return response.json()
 }

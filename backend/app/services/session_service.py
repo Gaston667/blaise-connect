@@ -95,3 +95,24 @@ def revoke_session(
     db.commit()
 
     return True
+
+
+def revoke_all_sessions_for_account(db: Session, account_id: UUID) -> int:
+    """Révoque toutes les sessions actives d'un compte.
+
+    Retourne le nombre de sessions révoquées.
+    Utilisé après une réinitialisation de mot de passe.
+    """
+
+    statement = select(AuthSession).where(
+        AuthSession.account_id == account_id,
+        AuthSession.revoked_at.is_(None),
+    )
+
+    active_sessions = db.scalars(statement).all()
+    current_time = datetime.now(UTC)
+    for session in active_sessions:
+        session.revoked_at = current_time
+
+    db.commit()
+    return len(active_sessions)

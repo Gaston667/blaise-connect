@@ -12,6 +12,7 @@ import {
   UserX,
   UsersRound,
 } from 'lucide-react'
+import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getAccounts } from '../services/account_service'
 
 const PAGE_SIZE = 10
@@ -65,11 +66,26 @@ function getInitials(registrationNumber) {
 }
 
 function getFullName(account) {
-  const fullName = [account.last_name, account.first_name]
+  const fullName = [account.profile?.last_name, account.profile?.first_name]
     .filter(Boolean)
     .join(' ')
 
   return fullName || 'Non renseigné'
+}
+
+const DEFAULT_PHOTO = defaultPhoto
+
+function ProfilePhoto({ photoPath }) {
+  return (
+    <span className="comptes-table-avatar">
+      <img
+        src={photoPath || DEFAULT_PHOTO}
+        alt=""
+        onError={(e) => { e.currentTarget.src = DEFAULT_PHOTO }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
+    </span>
+  )
 }
 
 function formatDate(dateValue) {
@@ -112,6 +128,7 @@ function chunkArray(items, size) {
 /** Affiche la gestion des comptes de l'US-002. */
 export default function AccountsPage({ onNavigate }) {
   const [accounts, setAccounts] = useState([])
+  const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -121,7 +138,9 @@ export default function AccountsPage({ onNavigate }) {
   useEffect(function loadAccountsEffect() {
     async function loadAccounts() {
       try {
-        setAccounts(await getAccounts())
+        const result = await getAccounts()
+        setAccounts(result.items)
+        setTotal(result.total)
       } catch (error) {
         setErrorMessage(error.message)
       } finally {
@@ -206,7 +225,7 @@ export default function AccountsPage({ onNavigate }) {
       key: 'total',
       icon: <UsersRound aria-hidden="true" size={25} />,
       iconClass: 'comptes-stat-icon-total',
-      value: isLoading ? '—' : accounts.length,
+      value: isLoading ? '—' : total,
       label: 'Total comptes',
       description: 'Tous les utilisateurs',
     },
@@ -293,7 +312,7 @@ export default function AccountsPage({ onNavigate }) {
         <div className="comptes-stats-track-wrapper" tabIndex="0">
           <div className="comptes-stats-track">
             {statsSlides.map((slide, slideIndex) => (
-              <div className="comptes-stats-slide" key={slideIndex}>
+              <div className="comptes-stats-slide" key={`slide-${slideIndex}`}>
                 {slide.map((card) => (
                   <article className="comptes-stat-card" key={card.key}>
                     <span className={`comptes-stat-icon ${card.iconClass}`}>
@@ -376,9 +395,7 @@ export default function AccountsPage({ onNavigate }) {
                       >
                         <td>
                           <div className="comptes-table-identity">
-                            <span className="comptes-table-avatar">
-                              {getInitials(account.registration_number)}
-                            </span>
+                            <ProfilePhoto photoPath={account.profile?.photo_path} />
                             <span>{account.registration_number || '—'}</span>
                           </div>
                         </td>

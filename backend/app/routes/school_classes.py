@@ -17,6 +17,14 @@ from app.schemas.school_class_detail import SchoolClassDetail
 from app.schemas.school_class_subject_item import SchoolClassSubjectItem
 from app.services.school_class_service import get_school_class_detail, delete_school_class
 from app.services.school_class_service import list_school_class_subjects
+from app.schemas.class_subject_add import ClassSubjectAdd
+from app.schemas.class_subject_coefficient_update import ClassSubjectCoefficientUpdate
+from app.services.school_class_service import (
+    add_class_subject,
+    list_available_subjects_for_class,
+    remove_class_subject,
+    update_class_subject_coefficient,
+)
 
 from app.services.school_class_service import (
     create_school_class,
@@ -196,6 +204,109 @@ def get_school_class_subjects(
         q=q,
         is_active=is_active,
     )
+
+
+@router.get("/{school_class_id}/available-subjects")
+def get_available_subjects(
+    school_class_id: UUID,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Retourne les matières actives non encore associées à cette classe."""
+    try:
+        get_school_class_by_id(db, school_class_id)
+    except SchoolClassNotFoundError as error:
+        raise HTTPException(status_code=404, detail="Classe introuvable.") from error
+    return list_available_subjects_for_class(db=db, school_class_id=str(school_class_id))
+
+
+@router.post(
+    "/{school_class_id}/subjects",
+    response_model=SchoolClassSubjectItem,
+    status_code=status.HTTP_201_CREATED,
+)
+def post_class_subject(
+    school_class_id: UUID,
+    body: ClassSubjectAdd,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Associe une matière à la classe avec un coefficient."""
+    try:
+        get_school_class_by_id(db, school_class_id)
+    except SchoolClassNotFoundError as error:
+        raise HTTPException(status_code=404, detail="Classe introuvable.") from error
+    try:
+        cs = add_class_subject(
+            db=db,
+            class_id=str(school_class_id),
+            subject_id=body.subject_id,
+            coefficient=body.coefficient,
+        )
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cette matière est déjà associée à la classe.",
+        ) from error
+    return {
+        "id": cs.id,
+        "subject_id": cs.subject_id,
+        "name": "",
+        "coefficient": cs.coefficient,
+        "is_active": True,
+        "teacher_name": None,
+    }
+
+
+@router.patch("/{school_class_id}/subjects/{class_subject_id}", response_model=SchoolClassSubjectItem)
+def patch_class_subject(
+    school_class_id: UUID,
+    class_subject_id: UUID,
+    body: ClassSubjectCoefficientUpdate,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Met à jour le coefficient d'une matière de la classe."""
+    try:
+        cs = update_class_subject_coefficient(
+            db=db,
+            class_subject_id=class_subject_id,
+            coefficient=body.coefficient,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=extract_postgres_error_message(error)) from error
+    return {
+        "id": cs.id,
+        "subject_id": cs.subject_id,
+        "name": "",
+        "coefficient": cs.coefficient,
+        "is_active": True,
+        "teacher_name": None,
+    }
+
+
+@router.delete("/{school_class_id}/subjects/{class_subject_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_class_subject(
+    school_class_id: UUID,
+    class_subject_id: UUID,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Retire une matière de la classe."""
+    try:
+        remove_class_subject(db=db, class_subject_id=class_subject_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Impossible de retirer cette matière : des évaluations y sont rattachées.",
+        ) from error
 
 
 @router.delete("/{school_class_id}", status_code=status.HTTP_204_NO_CONTENT)

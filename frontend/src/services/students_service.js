@@ -42,26 +42,24 @@ const res = await fetch(`${STUDENTS_API_URL}${id}`, { credentials: 'include' })
   }
   return await res.json()
 }
-export async function createStudent(payload) {
-  const res = await fetch(STUDENTS_API_URL, {
+export async function enrollStudent(studentId, enrollmentData) {
+  const res = await fetch(`${STUDENTS_API_URL}${studentId}/enroll`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(enrollmentData),
   })
-
   if (!res.ok) {
-    let err = 'Échec de la création de l\'élève'
+    let message = 'Impossible d’inscrire cet élève dans la classe.'
     try {
       const body = await res.json()
-      if (body && body.detail) err = body.detail
+      if (body?.detail) message = body.detail
     } catch {
-      // Le message générique est conservé si la réponse n'est pas du JSON.
+      // Le message générique est conservé.
     }
-    throw new Error(err)
+    throw new Error(message)
   }
-
-  return await res.json()
+  return res.json()
 }
 export async function updateStudent(id, payload) {
   const res = await fetch(`${STUDENTS_API_URL}${id}`, {

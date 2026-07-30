@@ -1,24 +1,48 @@
-"""Routes HTTP pour consulter et rechercher les élèves (lecture seule)."""
-
-"""Routes HTTP pour consulter et créer des élèves."""
+"""Routes HTTP de consultation et de gestion des élèves."""
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException, Query, status
 from app.schemas.student_update import StudentUpdate
 from app.services.student_service import update_student, archive_student, deactivate_student, reactivate_student
-from app.core.database import get_db
-from app.core.account_already_exists_error import AccountAlreadyExistsError
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
-from app.services.student_service import list_students, get_student, create_student
+from app.services.student_service import list_students, get_student
 from app.schemas.student_response import StudentResponse
 from app.services.student_service import get_student_status_history
-from app.schemas.student_create import StudentCreate
+from app.schemas.student_enrollment_create import StudentEnrollmentCreate
+from app.services.student_service import enroll_student
 
 
 router = APIRouter(
     prefix="/students",
     tags=["students"],
 )
+
+
+@router.post("/{student_id}/enroll", response_model=StudentResponse)
+def post_student_enrollment(
+    student_id: str,
+    enrollment_data: StudentEnrollmentCreate,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Inscrit un élève existant dans une classe annuelle."""
+
+    try:
+        student = enroll_student(
+            db=db,
+            student_id=student_id,
+            enrollment_data=enrollment_data,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    if student is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Élève introuvable.",
+        )
+    return student
 
 
 @router.get("/", response_model=List[StudentResponse])
@@ -60,21 +84,6 @@ def read_student(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    return student
-@router.post("/", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
-def post_student(
-    student_data: StudentCreate,
-    db: DatabaseSession,
-    current_admin: CurrentAdminDependency,
-):
-    """Crée un nouvel élève (compte + profil + inscription optionnelle)."""
-    try:
-        student = create_student(db=db, data=student_data)
-    except AccountAlreadyExistsError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Un compte utilise déjà ce matricule.",
-        ) from error
     return student
 @router.patch("/{student_id}", response_model=StudentResponse)
 def patch_student(

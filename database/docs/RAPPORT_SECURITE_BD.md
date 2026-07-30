@@ -103,18 +103,19 @@ Le rôle `blaise_app` ne doit pas être superutilisateur, propriétaire de la ba
 
 ## Comptes fictifs de développement
 
-Le script `database/init/007_create_test_accounts.sql` prépare 74 comptes :
+Le script `database/init/007_create_test_accounts.sql` prépare 30 comptes :
 
 | Rôle | Matricules | Nombre |
 |---|---|---:|
-| `ADMIN` | `a000001` à `a000004` | 4 |
-| `TEACHER` | `e000001` à `e000010` | 10 |
-| `STUDENT` | `u000001` à `u000030` | 30 |
-| `GUARDIAN` | `p000001` à `p000030` | 30 |
+| `ADMIN` | `a000001` à `a000003` | 3 |
+| `TEACHER` | `e000001` à `e000007` | 7 |
+| `STUDENT` | `u000001` à `u000010` | 10 |
+| `GUARDIAN` | `p000001` à `p000010` | 10 |
 
 Le même script crée leurs profils fictifs, une année scolaire avec trois
 périodes, trois classes, six matières avec coefficients et les inscriptions
-des trente élèves. Les affectations, évaluations et notes ne sont pas simulées
+des dix élèves. Il associe aussi chaque élève à un responsable fictif principal,
+légal et joignable en urgence. Les affectations, évaluations et notes ne sont pas simulées
 tant que leurs tables ne sont pas créées par des migrations versionnées.
 
 Ils utilisent uniquement en développement le mot de passe commun `test@1234`, stocké dans PostgreSQL sous forme de hash Argon2. Le mot de passe en clair n'est jamais enregistré dans `accounts`.
@@ -127,3 +128,13 @@ Mesures obligatoires :
 - remplacer ou désactiver ces comptes avant tout déploiement accessible publiquement.
 
 Le script est monté après les migrations et ne s'exécute automatiquement que pendant l'initialisation d'un nouveau volume PostgreSQL.
+
+## Liens entre élèves et responsables
+
+La migration `006_create_student_guardians.sql` accorde à `blaise_app` les
+droits `SELECT`, `INSERT`, `UPDATE` et `DELETE` uniquement sur la table
+d'association `student_guardians`. `INSERT` et `UPDATE` sont limités aux
+colonnes métier : les clés d'un lien existant et ses horodatages d'audit ne sont
+pas modifiables par l'application. Le droit `DELETE` retire un lien entre deux
+dossiers sans supprimer l'élève ni le responsable. Le rôle applicatif ne reçoit
+aucun droit de création ou de modification du schéma.

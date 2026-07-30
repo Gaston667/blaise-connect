@@ -1,7 +1,10 @@
-import { Eye, EyeOff, IdCard, KeyRound, Printer, RefreshCw, UserRoundPlus } from 'lucide-react'
+import { Eye, EyeOff, IdCard, ImagePlus, KeyRound, LockKeyhole, Printer, RefreshCw, UserRoundPlus } from 'lucide-react'
 import { useState } from 'react'
 
-import { createAccount } from '../services/account_service.js'
+import { createAccount, uploadAccountPhoto } from '../services/account_service.js'
+import { generateSecurePassword } from '../services/password_generator.js'
+import ConfirmationPopup from '../components/confirmation_popup.jsx'
+import NotificationPopup from '../components/notification_popup.jsx'
 
 const INITIAL_FORM = {
   role: '',
@@ -23,52 +26,36 @@ const INITIAL_FORM = {
   employer: '',
 }
 
-const PASSWORD_UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-const PASSWORD_LOWERCASE = 'abcdefghijklmnopqrstuvwxyz'
-const PASSWORD_DIGITS = '0123456789'
-const PASSWORD_SPECIALS = '!@#.*/+=-'
+const REGISTRATION_PREFIXES = {
+  ADMIN: 'a',
+  TEACHER: 'e',
+  STUDENT: 'u',
+  GUARDIAN: 'p',
+}
+
+/** Calcule un aperçu du matricule selon la même formule UTC que le backend. */
+function generateRegistrationPreview(role) {
+  const prefix = REGISTRATION_PREFIXES[role]
+  if (!prefix) return 'Sélectionnez d’abord un rôle'
+
+  const now = new Date()
+  const shortYear = now.getUTCFullYear() % 100
+  const dateValue = (
+    shortYear * 372
+    + now.getUTCMonth() * 31
+    + now.getUTCDate()
+  )
+  const dateCode = dateValue % 100
+  const secondsSinceMidnight = (
+    now.getUTCHours() * 3600
+    + now.getUTCMinutes() * 60
+    + now.getUTCSeconds()
+  )
+  const timeCode = secondsSinceMidnight % 10000
+  return `${prefix}${String(dateCode).padStart(2, '0')}${String(timeCode).padStart(4, '0')}`
+}
 
 /** Sélectionne un caractère avec le générateur aléatoire sécurisé du navigateur. */
-function pickSecureCharacter(characters) {
-  const values = new Uint32Array(1)
-  window.crypto.getRandomValues(values)
-  return characters[values[0] % characters.length]
-}
-
-/** Mélange une liste de caractères avec le générateur sécurisé du navigateur. */
-function shuffleSecurely(characters) {
-  const shuffledCharacters = [...characters]
-
-  for (let index = shuffledCharacters.length - 1; index > 0; index -= 1) {
-    const values = new Uint32Array(1)
-    window.crypto.getRandomValues(values)
-    const targetIndex = values[0] % (index + 1)
-    const currentCharacter = shuffledCharacters[index]
-    shuffledCharacters[index] = shuffledCharacters[targetIndex]
-    shuffledCharacters[targetIndex] = currentCharacter
-  }
-
-  return shuffledCharacters.join('')
-}
-
-/** Génère 3 majuscules, 2 chiffres, 3 minuscules et 1 caractère spécial. */
-function generatePasswordValue() {
-  const characters = [
-    ...Array.from({ length: 3 }, function createUppercaseCharacter() {
-      return pickSecureCharacter(PASSWORD_UPPERCASE)
-    }),
-    ...Array.from({ length: 2 }, function createDigitCharacter() {
-      return pickSecureCharacter(PASSWORD_DIGITS)
-    }),
-    ...Array.from({ length: 3 }, function createLowercaseCharacter() {
-      return pickSecureCharacter(PASSWORD_LOWERCASE)
-    }),
-    pickSecureCharacter(PASSWORD_SPECIALS),
-  ]
-
-  return shuffleSecurely(characters)
-}
-
 /** Page de création atomique d'un compte et de son profil métier. */
 export default function AccountCreatePage({ onNavigate }) {
   const [form, setForm] = useState(INITIAL_FORM)
@@ -77,6 +64,9 @@ export default function AccountCreatePage({ onNavigate }) {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [creationSummary, setCreationSummary] = useState(null)
+  const [photo, setPhoto] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState('')
+  const [confirmationOpen, setConfirmationOpen] = useState(false)
 
   function updateField(event) {
     const { name, value } = event.target
@@ -93,7 +83,7 @@ export default function AccountCreatePage({ onNavigate }) {
 
   /** Génère un mot de passe modifiable et remplit sa confirmation. */
   function generatePassword() {
-    const generatedPassword = generatePasswordValue()
+    const generatedPassword = generateSecurePassword()
     setForm(function addGeneratedPassword(currentForm) {
       return {
         ...currentForm,
@@ -113,11 +103,33 @@ export default function AccountCreatePage({ onNavigate }) {
   }
 
   function startAnotherCreation() {
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
     setForm(INITIAL_FORM)
+    setPhoto(null)
+    setPhotoPreview('')
     setCreationSummary(null)
     setShowPassword(false)
     setErrorMessage('')
     setSuccessMessage('')
+  }
+
+  function selectPhoto(event) {
+    const selectedPhoto = event.target.files?.[0] || null
+    if (!selectedPhoto) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(selectedPhoto.type)) {
+      setErrorMessage('La photo doit être au format JPEG, PNG ou WebP.')
+      event.target.value = ''
+      return
+    }
+    if (selectedPhoto.size > 5 * 1024 * 1024) {
+      setErrorMessage('La photo doit avoir une taille maximale de 5 Mo.')
+      event.target.value = ''
+      return
+    }
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhoto(selectedPhoto)
+    setPhotoPreview(URL.createObjectURL(selectedPhoto))
+    setErrorMessage('')
   }
 
   function cleanOptionalValue(value) {
@@ -133,10 +145,18 @@ export default function AccountCreatePage({ onNavigate }) {
       setErrorMessage('Les deux mots de passe ne correspondent pas.')
       return
     }
+    if (!photo) {
+      setErrorMessage('La photo du profil est obligatoire.')
+      return
+    }
+    setConfirmationOpen(true)
+  }
 
+  async function confirmCreation() {
+    setConfirmationOpen(false)
     setSubmitting(true)
     try {
-      const createdAccount = await createAccount({
+      let createdAccount = await createAccount({
         password: form.password,
         role: form.role,
         profile: {
@@ -155,12 +175,26 @@ export default function AccountCreatePage({ onNavigate }) {
           employer: cleanOptionalValue(form.employer),
         },
       })
+      let photoUploadFailed = false
+      if (photo) {
+        try {
+          createdAccount = await uploadAccountPhoto(createdAccount.id, photo)
+        } catch {
+          photoUploadFailed = true
+        }
+      }
       setCreationSummary({
         ...createdAccount,
         password: form.password,
         submittedProfile: { ...form },
       })
-      setSuccessMessage('Le compte et son profil ont été créés avec succès.')
+      if (photoUploadFailed) {
+        setErrorMessage(
+          'Le compte a été créé, mais la photo n’a pas pu être enregistrée.',
+        )
+      } else {
+        setSuccessMessage('Le compte et son profil ont été créés avec succès.')
+      }
     } catch (error) {
       setErrorMessage(error.message)
     } finally {
@@ -168,11 +202,16 @@ export default function AccountCreatePage({ onNavigate }) {
     }
   }
 
+  function cancelCreationConfirmation() {
+    setConfirmationOpen(false)
+  }
+
   const passwordType = showPassword ? 'text' : 'password'
   const isStudent = form.role === 'STUDENT'
   const isTeacher = form.role === 'TEACHER'
   const isAdministrator = form.role === 'ADMIN'
   const isGuardian = form.role === 'GUARDIAN'
+  const registrationPreview = generateRegistrationPreview(form.role)
 
   if (creationSummary) {
     const summaryProfile = creationSummary.profile || creationSummary.submittedProfile
@@ -183,13 +222,30 @@ export default function AccountCreatePage({ onNavigate }) {
           <p>Conservez ou imprimez ce récapitulatif avant de quitter cette page.</p>
         </header>
 
+        <div className="creation-compte-summary-actions">
+          <button type="button" className="creation-compte-cancel" onClick={cancelCreation}>Retour aux comptes</button>
+          <button type="button" className="creation-compte-cancel" onClick={startAnotherCreation}>Créer un autre compte</button>
+          <button type="button" className="creation-compte-submit" onClick={printCreationSummary}>
+            <Printer size={18} aria-hidden="true" />
+            Imprimer
+          </button>
+        </div>
+
         <article className="creation-compte-summary">
           <header>
             <div>
               <span className="creation-compte-summary-status">Compte actif</span>
               <h2>{summaryProfile.first_name} {summaryProfile.last_name}</h2>
             </div>
-            <UserRoundPlus size={34} aria-hidden="true" />
+            {summaryProfile.photo_path ? (
+              <img
+                className="creation-compte-summary-photo"
+                src={summaryProfile.photo_path}
+                alt={`Photo de ${summaryProfile.first_name} ${summaryProfile.last_name}`}
+              />
+            ) : (
+              <UserRoundPlus size={34} aria-hidden="true" />
+            )}
           </header>
 
           <section>
@@ -225,14 +281,14 @@ export default function AccountCreatePage({ onNavigate }) {
           </section>
         </article>
 
-        <footer className="creation-compte-summary-actions">
-          <button type="button" className="creation-compte-cancel" onClick={cancelCreation}>Retour aux comptes</button>
-          <button type="button" className="creation-compte-cancel" onClick={startAnotherCreation}>Créer un autre compte</button>
-          <button type="button" className="creation-compte-submit" onClick={printCreationSummary}>
-            <Printer size={18} aria-hidden="true" />
-            Imprimer
-          </button>
-        </footer>
+        <NotificationPopup
+          message={errorMessage}
+          type="error"
+          onClose={function closeSummaryErrorMessage() {
+            setErrorMessage('')
+          }}
+        />
+
       </main>
     )
   }
@@ -268,8 +324,13 @@ export default function AccountCreatePage({ onNavigate }) {
 
             <label className="creation-compte-registration-field">
               Matricule
-              <input value="Généré automatiquement après la création" readOnly aria-readonly="true" />
-              <small>Le préfixe dépendra du rôle sélectionné.</small>
+              <span className="creation-compte-registration-input">
+                <input value={registrationPreview} readOnly aria-readonly="true" />
+                <LockKeyhole aria-hidden="true" size={18} />
+              </span>
+              <small>
+                Aperçu généré automatiquement. Le matricule définitif sera confirmé après la création.
+              </small>
             </label>
 
             <label className="creation-compte-password-field">
@@ -296,25 +357,45 @@ export default function AccountCreatePage({ onNavigate }) {
         <section className="creation-compte-section">
           <h2><IdCard size={19} aria-hidden="true" /> Informations d’identité</h2>
           <div className="creation-compte-grid">
+            <label className="creation-compte-photo-field">
+              Photo *
+              <span className="creation-compte-photo-picker">
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Aperçu de la photo sélectionnée" />
+                ) : (
+                  <ImagePlus aria-hidden="true" size={28} />
+                )}
+                <span>
+                  Choisir une photo
+                  <small>JPEG, PNG ou WebP — 5 Mo maximum</small>
+                </span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={selectPhoto}
+                  required
+                />
+              </span>
+            </label>
             <label>Prénom *<input name="first_name" value={form.first_name} onChange={updateField} maxLength="100" autoComplete="off" required /></label>
             <label>Nom *<input name="last_name" value={form.last_name} onChange={updateField} maxLength="100" autoComplete="off" required /></label>
 
             {(isStudent || isTeacher) && (
-              <label>Date de naissance<input name="birth_date" type="date" value={form.birth_date} onChange={updateField} /></label>
+              <label>Date de naissance *<input name="birth_date" type="date" value={form.birth_date} onChange={updateField} required /></label>
             )}
 
             <label>
-              Sexe
-              <select name="gender" value={form.gender} onChange={updateField}>
-                <option value="">Non renseigné</option>
+              Sexe *
+              <select name="gender" value={form.gender} onChange={updateField} required>
+                <option value="">Sélectionner</option>
                 <option value="MALE">Masculin</option>
                 <option value="FEMALE">Féminin</option>
               </select>
             </label>
 
-            <label>Email<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" autoComplete="off" /></label>
-            <label>Téléphone {isGuardian && '*'}<input name="phone" value={form.phone} onChange={updateField} maxLength="30" autoComplete="off" required={isGuardian} /></label>
-            <label className="creation-compte-wide">Adresse<input name="address" value={form.address} onChange={updateField} autoComplete="off" /></label>
+            <label>Email *<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" autoComplete="off" required /></label>
+            <label>Téléphone *<input name="phone" value={form.phone} onChange={updateField} maxLength="30" autoComplete="off" required /></label>
+            <label className="creation-compte-wide">Adresse *<input name="address" value={form.address} onChange={updateField} autoComplete="off" required /></label>
           </div>
         </section>
 
@@ -324,16 +405,38 @@ export default function AccountCreatePage({ onNavigate }) {
             <div className="creation-compte-grid">
               {isStudent && <label>Date d’admission *<input name="admission_date" type="date" value={form.admission_date} onChange={updateField} required /></label>}
               {(isTeacher || isAdministrator) && <label>Date d’embauche *<input name="hire_date" type="date" value={form.hire_date} onChange={updateField} required /></label>}
-              {isTeacher && <label>Qualification<input name="qualification" value={form.qualification} onChange={updateField} /></label>}
+              {isTeacher && <label>Qualification *<input name="qualification" value={form.qualification} onChange={updateField} required /></label>}
               {isAdministrator && <label>Fonction / Poste *<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" required /></label>}
-              {isGuardian && <label>Profession<input name="occupation" value={form.occupation} onChange={updateField} maxLength="150" /></label>}
-              {isGuardian && <label>Employeur<input name="employer" value={form.employer} onChange={updateField} maxLength="150" /></label>}
+              {isGuardian && <label>Profession *<input name="occupation" value={form.occupation} onChange={updateField} maxLength="150" required /></label>}
+              {isGuardian && <label>Employeur *<input name="employer" value={form.employer} onChange={updateField} maxLength="150" required /></label>}
             </div>
           </section>
         )}
 
-        {errorMessage && <p className="creation-compte-message creation-compte-message-error" role="alert">{errorMessage}</p>}
-        {successMessage && <p className="creation-compte-message creation-compte-message-success" role="status">{successMessage}</p>}
+        <NotificationPopup
+          message={errorMessage}
+          type="error"
+          onClose={function closeErrorMessage() {
+            setErrorMessage('')
+          }}
+        />
+        <ConfirmationPopup
+          message={
+            confirmationOpen
+              ? 'Le mot de passe ne sera affiché qu’une seule fois, sur la page récapitulative. Pensez à le noter ou à imprimer cette page.'
+              : ''
+          }
+          confirmLabel="Créer le compte"
+          onCancel={cancelCreationConfirmation}
+          onConfirm={confirmCreation}
+        />
+        <NotificationPopup
+          message={successMessage}
+          type="info"
+          onClose={function closeSuccessMessage() {
+            setSuccessMessage('')
+          }}
+        />
 
         <footer className="creation-compte-actions">
           <button type="button" className="creation-compte-cancel" onClick={cancelCreation}>Annuler</button>

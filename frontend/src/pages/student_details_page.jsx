@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   ChartNoAxesColumnIncreasing,
+  CalendarPlus,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
@@ -9,10 +10,13 @@ import {
   FolderOpen,
   GraduationCap,
   Info,
+  ImagePlus,
   Pencil,
   Upload,
   UserRound,
   UsersRound,
+  Search,
+  X,
 } from 'lucide-react'
 import {
   getStudent,
@@ -20,13 +24,16 @@ import {
   archiveStudent,
   deactivateStudent,
   reactivateStudent,
+  enrollStudent,
 } from '../services/students_service.js'
+import { linkGuardianToStudent, searchGuardians } from '../services/guardians_service.js'
 import '../styles/student_details_page.css'
+import NotificationPopup from '../components/notification_popup.jsx'
+import { uploadAccountPhoto } from '../services/account_service.js'
 const RELATIONSHIP_ICON_CLASS = {
-  PERE: 'sdp-guardian-icon--pere',
-  MERE: 'sdp-guardian-icon--mere',
-  TUTEUR: 'sdp-guardian-icon--tuteur',
-  AUTRE: 'sdp-guardian-icon--autre',
+  FATHER: 'sdp-guardian-icon--pere',
+  MOTHER: 'sdp-guardian-icon--mere',
+  OTHER: 'sdp-guardian-icon--autre',
 }
 
 const STATUS_LABEL = { ACTIVE: 'Actif', INACTIVE: 'Inactif', ARCHIVED: 'Archivé' }
@@ -70,6 +77,23 @@ export default function StudentDetailsPage({ student, onNavigate }) {
   const [saving, setSaving] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
   const [activeTab, setActiveTab] = useState('personal')
+  const [guardianModalOpen, setGuardianModalOpen] = useState(false)
+  const [guardianQuery, setGuardianQuery] = useState('')
+  const [guardianResults, setGuardianResults] = useState([])
+  const [selectedGuardian, setSelectedGuardian] = useState(null)
+  const [guardianRelationship, setGuardianRelationship] = useState('FATHER')
+  const [guardianRelationshipDetails, setGuardianRelationshipDetails] = useState('')
+  const [guardianLegal, setGuardianLegal] = useState(false)
+  const [guardianPrimary, setGuardianPrimary] = useState(false)
+  const [guardianEmergency, setGuardianEmergency] = useState(false)
+  const [guardianSaving, setGuardianSaving] = useState(false)
+  const [enrollmentModalOpen, setEnrollmentModalOpen] = useState(false)
+  const [enrollmentClassId, setEnrollmentClassId] = useState('')
+  const [enrollmentStartDate, setEnrollmentStartDate] = useState('')
+  const [enrollmentSaving, setEnrollmentSaving] = useState(false)
+  const [informationMessage, setInformationMessage] = useState('')
+  const [editPhoto, setEditPhoto] = useState(null)
+  const [editPhotoPreview, setEditPhotoPreview] = useState('')
 
   function handleHomeNavigation() {
     onNavigate?.('home')
@@ -97,6 +121,96 @@ export default function StudentDetailsPage({ student, onNavigate }) {
 
   function showDocuments() {
     setActiveTab('documents')
+  }
+
+  function openEnrollmentModal() {
+    setEnrollmentClassId('')
+    setEnrollmentStartDate(new Date().toISOString().slice(0, 10))
+    setEnrollmentModalOpen(true)
+    setError('')
+  }
+
+  function closeEnrollmentModal() {
+    setEnrollmentModalOpen(false)
+  }
+
+  async function submitEnrollment(event) {
+    event.preventDefault()
+    setEnrollmentSaving(true)
+    setError('')
+    try {
+      const updatedStudent = await enrollStudent(details.id, {
+        class_id: enrollmentClassId,
+        start_date: enrollmentStartDate,
+      })
+      setDetails(updatedStudent)
+      closeEnrollmentModal()
+      setInformationMessage('L’élève a été inscrit dans la classe.')
+      await load()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setEnrollmentSaving(false)
+    }
+  }
+
+  async function openGuardianModal() {
+    setGuardianModalOpen(true)
+    setSelectedGuardian(null)
+    setGuardianQuery('')
+    setGuardianRelationship('FATHER')
+    setGuardianRelationshipDetails('')
+    setGuardianLegal(false)
+    setGuardianPrimary(false)
+    setGuardianEmergency(false)
+    setError('')
+    try {
+      setGuardianResults(await searchGuardians())
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }
+
+  function closeGuardianModal() {
+    setGuardianModalOpen(false)
+  }
+
+  async function handleGuardianSearch(event) {
+    event.preventDefault()
+    try {
+      setGuardianResults(await searchGuardians(guardianQuery))
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }
+
+  function selectGuardian(event) {
+    const guardianId = event.currentTarget.dataset.guardianId
+    setSelectedGuardian(
+      guardianResults.find((guardian) => String(guardian.id) === guardianId),
+    )
+  }
+
+  async function confirmGuardianLink() {
+    if (!selectedGuardian) return
+    setGuardianSaving(true)
+    setError('')
+    try {
+      await linkGuardianToStudent(details.id, selectedGuardian.id, {
+        relationship_type: guardianRelationship,
+        relationship_details:
+          guardianRelationship === 'OTHER' ? guardianRelationshipDetails.trim() : null,
+        is_legal_guardian: guardianLegal,
+        is_primary_contact: guardianPrimary,
+        is_emergency_contact: guardianEmergency,
+      })
+      closeGuardianModal()
+      await load()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setGuardianSaving(false)
+    }
   }
 
   function handleGuardianNavigation(event) {
@@ -155,6 +269,38 @@ export default function StudentDetailsPage({ student, onNavigate }) {
     })
   }
 
+  function startStudentEditing() {
+    setEditPhoto(null)
+    setEditPhotoPreview(details.photo_path || '')
+    setEditing(true)
+  }
+
+  function cancelStudentEditing() {
+    if (editPhoto && editPhotoPreview) URL.revokeObjectURL(editPhotoPreview)
+    setEditPhoto(null)
+    setEditPhotoPreview('')
+    setEditing(false)
+    resetForm(details)
+  }
+
+  function selectStudentPhoto(event) {
+    const selectedPhoto = event.target.files?.[0] || null
+    if (!selectedPhoto) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(selectedPhoto.type)) {
+      setError('La photo doit être au format JPEG, PNG ou WebP.')
+      event.target.value = ''
+      return
+    }
+    if (selectedPhoto.size > 5 * 1024 * 1024) {
+      setError('La photo doit avoir une taille maximale de 5 Mo.')
+      event.target.value = ''
+      return
+    }
+    if (editPhoto && editPhotoPreview) URL.revokeObjectURL(editPhotoPreview)
+    setEditPhoto(selectedPhoto)
+    setEditPhotoPreview(URL.createObjectURL(selectedPhoto))
+  }
+
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
   }
@@ -176,6 +322,12 @@ export default function StudentDetailsPage({ student, onNavigate }) {
       )
       const updated = await updateStudent(details.id, payload)
       setDetails(updated)
+      if (editPhoto) {
+        await uploadAccountPhoto(details.account_id, editPhoto)
+        URL.revokeObjectURL(editPhotoPreview)
+      }
+      setEditPhoto(null)
+      setEditPhotoPreview('')
       setEditing(false)
       load()
     } catch (err) {
@@ -230,14 +382,24 @@ export default function StudentDetailsPage({ student, onNavigate }) {
               <div><dt>Matricule</dt><dd>{details.registration_number ?? '—'}</dd></div>
               <div><dt>Sexe</dt><dd>{genderLabel(details.gender)}</dd></div>
               <div><dt>Dernière modification</dt><dd>{formatDate(details.updated_at)}</dd></div>
-              <div><dt>Classe actuelle</dt><dd>{className(details.class_id)}</dd></div>
-              <div><dt>Année scolaire</dt><dd>{yearName(details.school_year_id)}</dd></div>
+              <div><dt>Classe actuelle</dt><dd>{details.class_name ?? className(details.class_id)}</dd></div>
+              <div><dt>Année scolaire</dt><dd>{details.school_year_name ?? yearName(details.school_year_id)}</dd></div>
               <div><dt>Date d’inscription</dt><dd>{formatDate(details.admission_date)}</dd></div>
             </dl>
           </div>
         </div>
 
         <div className="sdp-header__actions">
+          <button
+            type="button"
+            className="sdp-btn-secondary"
+            onClick={openEnrollmentModal}
+            disabled={Boolean(details.class_id)}
+            title={details.class_id ? 'Cet élève possède déjà une inscription en cours.' : ''}
+          >
+            <CalendarPlus aria-hidden="true" size={17} />
+            Inscrire dans une classe
+          </button>
           <div className="sdp-menu-wrapper">
             <button type="button" className="sdp-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
               Actions
@@ -261,6 +423,75 @@ export default function StudentDetailsPage({ student, onNavigate }) {
       </div>
 
       {error && <p className="sdp-error">{error}</p>}
+
+      {enrollmentModalOpen && (
+        <div className="sdp-modal-backdrop" role="presentation">
+          <section
+            className="sdp-enrollment-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sdp-enrollment-title"
+          >
+            <header>
+              <div>
+                <h2 id="sdp-enrollment-title">Inscrire dans une classe</h2>
+                <p>Choisissez la classe annuelle et la date de début.</p>
+              </div>
+              <button type="button" onClick={closeEnrollmentModal} aria-label="Fermer">
+                <X aria-hidden="true" size={20} />
+              </button>
+            </header>
+            <form onSubmit={submitEnrollment}>
+              <label>
+                Classe *
+                <select
+                  value={enrollmentClassId}
+                  onChange={function updateEnrollmentClass(event) {
+                    setEnrollmentClassId(event.target.value)
+                  }}
+                  required
+                >
+                  <option value="">Sélectionner une classe</option>
+                  {classes.map(function renderEnrollmentClass(schoolClass) {
+                    return (
+                      <option key={schoolClass.id} value={schoolClass.id}>
+                        {schoolClass.name} — {schoolClass.school_year_name || ''}
+                      </option>
+                    )
+                  })}
+                </select>
+              </label>
+              <label>
+                Date d’inscription *
+                <input
+                  type="date"
+                  value={enrollmentStartDate}
+                  onChange={function updateEnrollmentDate(event) {
+                    setEnrollmentStartDate(event.target.value)
+                  }}
+                  required
+                />
+              </label>
+              <footer>
+                <button type="button" className="sdp-btn-secondary" onClick={closeEnrollmentModal}>
+                  Annuler
+                </button>
+                <button type="submit" className="sdp-btn-primary" disabled={enrollmentSaving}>
+                  {enrollmentSaving ? 'Inscription…' : 'Confirmer l’inscription'}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+
+      <NotificationPopup
+        message={informationMessage}
+        type="info"
+        onClose={function closeInformationMessage() {
+          setInformationMessage('')
+        }}
+      />
 
       <div className="sdp-body">
         <section className="sdp-content">
@@ -302,6 +533,23 @@ export default function StudentDetailsPage({ student, onNavigate }) {
           {activeTab === 'personal' && (editing ? (
               <form onSubmit={handleSave} className="sdp-form">
                 <h3>Informations personnelles</h3>
+                <label className="sdp-photo-edit">
+                  Photo de profil
+                  <span>
+                    {editPhotoPreview ? (
+                      <img src={editPhotoPreview} alt="Aperçu de la photo de l’élève" />
+                    ) : (
+                      <ImagePlus aria-hidden="true" size={26} />
+                    )}
+                    <strong>Choisir une nouvelle photo</strong>
+                    <small>JPEG, PNG ou WebP — 5 Mo maximum</small>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={selectStudentPhoto}
+                    />
+                  </span>
+                </label>
                 <div className="sdp-row">
                   <label>Nom *<input required value={form.last_name} onChange={(e) => update('last_name', e.target.value)} /></label>
                   <label>Prénom *<input required value={form.first_name} onChange={(e) => update('first_name', e.target.value)} /></label>
@@ -326,7 +574,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                 <label className="sdp-full">Adresse<input value={form.address} onChange={(e) => update('address', e.target.value)} /></label>
 
                 <div className="sdp-form-actions">
-                  <button type="button" className="sdp-btn-outline" onClick={() => { setEditing(false); resetForm(details) }}>Annuler</button>
+                  <button type="button" className="sdp-btn-outline" onClick={cancelStudentEditing}>Annuler</button>
                   <button type="submit" className="sdp-btn-primary" disabled={saving}>
                     {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
                   </button>
@@ -336,7 +584,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
               <div className="sdp-view">
                 <div className="sdp-section-heading">
                   <h2>Informations personnelles</h2>
-                  <button type="button" className="sdp-btn-outline" onClick={() => setEditing(true)}>
+                  <button type="button" className="sdp-btn-outline" onClick={startStudentEditing}>
                     <Pencil aria-hidden="true" size={16} />
                     Modifier
                   </button>
@@ -368,7 +616,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
 
           {activeTab === 'school' && (
             <div className="sdp-school">
-              <h2>Année scolaire en cours : {yearName(details.school_year_id)}</h2>
+              <h2>Année scolaire en cours : {details.school_year_name ?? yearName(details.school_year_id)}</h2>
 
               <div className="sdp-school-stats">
                 <article>
@@ -411,8 +659,8 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                       </thead>
                       <tbody>
                         <tr>
-                          <td>{yearName(details.school_year_id)}</td>
-                          <td>{className(details.class_id)}</td>
+                          <td>{details.school_year_name ?? yearName(details.school_year_id)}</td>
+                          <td>{details.class_name ?? className(details.class_id)}</td>
                           <td><span className="sdp-school-status">En cours</span></td>
                           <td>—</td>
                         </tr>
@@ -426,8 +674,15 @@ export default function StudentDetailsPage({ student, onNavigate }) {
 
           {activeTab === 'guardians' && (
             <div className="sdp-guardians">
-              <h2>Responsables légaux</h2>
-              <p>Les personnes responsables de cet élève.</p>
+              <div className="sdp-guardians-heading">
+                <div>
+                  <h2>Responsables légaux</h2>
+                  <p>Les personnes responsables de cet élève.</p>
+                </div>
+                <button type="button" onClick={openGuardianModal}>
+                  + Associer un responsable
+                </button>
+              </div>
 
               {(details.guardians ?? []).length === 0 ? (
                 <p className="sdp-placeholder">
@@ -456,7 +711,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                         >
                             <td>
   <span className="sdp-guardian-link">
-    <span className={`sdp-guardian-icon ${RELATIONSHIP_ICON_CLASS[guardian.relationship] ?? ''}`}>
+    <span className={`sdp-guardian-icon ${RELATIONSHIP_ICON_CLASS[guardian.relationship_type] ?? ''}`}>
       <UserRound aria-hidden="true" size={14} />
     </span>
     {guardian.relationship_label ?? guardian.relationship_type ?? '—'}
@@ -471,6 +726,132 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                   </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {guardianModalOpen && (
+            <div className="sdp-guardian-modal-backdrop" role="presentation">
+              <section className="sdp-guardian-modal" role="dialog" aria-modal="true">
+                <header>
+                  <div>
+                    <h2>Associer un responsable</h2>
+                    <p>Recherchez une personne existante puis précisez son lien avec l’élève.</p>
+                  </div>
+                  <button type="button" onClick={closeGuardianModal} aria-label="Fermer">
+                    <X aria-hidden="true" size={20} />
+                  </button>
+                </header>
+
+                <form className="sdp-guardian-search" onSubmit={handleGuardianSearch}>
+                  <Search aria-hidden="true" size={18} />
+                  <input
+                    value={guardianQuery}
+                    onChange={function updateGuardianQuery(event) {
+                      setGuardianQuery(event.target.value)
+                    }}
+                    placeholder="Nom ou téléphone"
+                  />
+                  <button type="submit">Rechercher</button>
+                </form>
+
+                <div className="sdp-guardian-results">
+                  {guardianResults.map((guardian) => (
+                    <button
+                      type="button"
+                      key={guardian.id}
+                      data-guardian-id={guardian.id}
+                      onClick={selectGuardian}
+                      className={
+                        selectedGuardian?.id === guardian.id
+                          ? 'sdp-guardian-result sdp-guardian-result--selected'
+                          : 'sdp-guardian-result'
+                      }
+                    >
+                      <strong>{guardian.first_name} {guardian.last_name}</strong>
+                      <span>{guardian.phone}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="sdp-guardian-link-fields">
+                  <label>
+                    Lien avec l’élève
+                    <select
+                      value={guardianRelationship}
+                      onChange={function updateRelationship(event) {
+                        setGuardianRelationship(event.target.value)
+                      }}
+                    >
+                      <option value="FATHER">Père</option>
+                      <option value="MOTHER">Mère</option>
+                      <option value="OTHER">Autre</option>
+                    </select>
+                  </label>
+                  {guardianRelationship === 'OTHER' && (
+                    <label>
+                      Précision du lien
+                      <input
+                        type="text"
+                        maxLength="100"
+                        value={guardianRelationshipDetails}
+                        onChange={function updateRelationshipDetails(event) {
+                          setGuardianRelationshipDetails(event.target.value)
+                        }}
+                        placeholder="Exemple : tante, oncle…"
+                        required
+                      />
+                    </label>
+                  )}
+                  <label className="sdp-guardian-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={guardianLegal}
+                      onChange={function updateLegalGuardian(event) {
+                        setGuardianLegal(event.target.checked)
+                      }}
+                    />
+                    Responsable légal
+                  </label>
+                  <label className="sdp-guardian-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={guardianPrimary}
+                      onChange={function updatePrimaryContact(event) {
+                        setGuardianPrimary(event.target.checked)
+                      }}
+                    />
+                    Contact principal
+                  </label>
+                  <label className="sdp-guardian-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={guardianEmergency}
+                      onChange={function updateEmergencyContact(event) {
+                        setGuardianEmergency(event.target.checked)
+                      }}
+                    />
+                    Contact d’urgence
+                  </label>
+                </div>
+
+                <footer>
+                  <button type="button" onClick={closeGuardianModal}>Annuler</button>
+                  <button
+                    type="button"
+                    onClick={confirmGuardianLink}
+                    disabled={
+                      !selectedGuardian
+                      || guardianSaving
+                      || (
+                        guardianRelationship === 'OTHER'
+                        && !guardianRelationshipDetails.trim()
+                      )
+                    }
+                  >
+                    {guardianSaving ? 'Association…' : 'Associer'}
+                  </button>
+                </footer>
+              </section>
             </div>
           )}
 

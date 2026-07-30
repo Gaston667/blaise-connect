@@ -21,12 +21,35 @@ class AccountCompleteCreate(BaseModel):
     def validate_role_requirements(self) -> "AccountCompleteCreate":
         """Vérifie les champs obligatoires propres au profil choisi."""
 
+        required_common_fields = {
+            "gender": self.profile.gender,
+            "email": self.profile.email,
+            "phone": self.profile.phone,
+            "address": self.profile.address,
+        }
+        missing_common_fields = [
+            field_name
+            for field_name, field_value in required_common_fields.items()
+            if field_value is None or not str(field_value).strip()
+        ]
+        if missing_common_fields:
+            raise ValueError(
+                "Le sexe, l'email, le téléphone et l'adresse sont obligatoires."
+            )
+        if self.role in {"STUDENT", "TEACHER"} and self.profile.birth_date is None:
+            raise ValueError("La date de naissance est obligatoire pour ce rôle.")
         if self.role == "STUDENT" and self.profile.admission_date is None:
             raise ValueError("La date d'admission est obligatoire pour un élève.")
         if self.role in {"TEACHER", "ADMIN"} and self.profile.hire_date is None:
             raise ValueError("La date d'embauche est obligatoire pour ce rôle.")
+        if self.role == "TEACHER" and not self.profile.qualification:
+            raise ValueError("La qualification est obligatoire pour un enseignant.")
         if self.role == "ADMIN" and not self.profile.job_title:
             raise ValueError("La fonction est obligatoire pour un administrateur.")
-        if self.role == "GUARDIAN" and not self.profile.phone:
-            raise ValueError("Le téléphone est obligatoire pour un responsable.")
+        if self.role == "GUARDIAN" and (
+            not self.profile.occupation or not self.profile.employer
+        ):
+            raise ValueError(
+                "La profession et l'employeur sont obligatoires pour un responsable."
+            )
         return self
