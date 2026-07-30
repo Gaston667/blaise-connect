@@ -22,7 +22,7 @@
 .tp-btn-search { background: var(--button-secondary-bg); border: var(--border-width-thin) solid var(--button-secondary-border); border-radius: var(--radius-md); padding: var(--button-padding-lg); cursor: pointer; color: var(--button-secondary-text); }
 .tp-btn-primary { background: var(--button-primary-bg); color: var(--button-primary-text); border: none; border-radius: var(--radius-md); padding: var(--button-padding-lg); font-weight: var(--font-weight-semibold); cursor: pointer; }
 .tp-btn-primary:disabled { background: var(--button-disabled-bg); color: var(--button-disabled-text); cursor: not-allowed; }
-
+.tp-row { cursor: pointer; }
 .tp-list { background: var(--table-bg); border: var(--border-default); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
 .tp-table { width: 100%; border-collapse: collapse; }
 .tp-table th { text-align: left; font-size: var(--font-size-xs); text-transform: uppercase; color: var(--table-header-text); background: var(--table-header-bg); padding: var(--space-3) var(--space-5); }

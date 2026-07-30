@@ -5,3 +5,8 @@ export async function getTeachersOverview(q) {
   if (!res.ok) throw new Error('Échec du chargement des enseignants')
   return await res.json()
 }
+export async function getTeacherDetail(id) {
+  const res = await fetch(`/api/teachers/${id}/detail`, { credentials: 'include' })
+  if (!res.ok) throw new Error('Échec du chargement de l\'enseignant')
+  return await res.json()
+}

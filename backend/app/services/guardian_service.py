@@ -190,3 +190,70 @@ def unlink_guardian_from_student(db: Session, student_id: str, guardian_id: str)
     ).first()
     db.commit()
     return result is not None
+def get_guardian_detail(db: Session, guardian_id: str) -> dict | None:
+    """Vue détaillée d'un responsable : profil + élèves rattachés."""
+    guardian_row = db.execute(
+        text(
+            """
+            SELECT id, account_id, first_name, last_name, email, phone,
+                   address, occupation, employer, created_at, updated_at
+            FROM guardians WHERE id = :id
+            """
+        ),
+        {"id": guardian_id},
+    ).first()
+
+    if not guardian_row:
+        return None
+
+    students_rows = db.execute(
+        text(
+            """
+            SELECT
+                s.id, s.first_name, s.last_name, s.status,
+                a.registration_number,
+                l.relationship, l.is_primary_contact,
+                cl.name AS level_name, c.group_label
+            FROM student_guardian_links l
+            JOIN students s ON s.id = l.student_id
+            JOIN accounts a ON a.id = s.account_id
+            LEFT JOIN LATERAL (
+                SELECT class_id FROM student_enrollments se
+                WHERE se.student_id = s.id AND se.end_date IS NULL LIMIT 1
+            ) se ON true
+            LEFT JOIN classes c ON c.id = se.class_id
+            LEFT JOIN class_levels cl ON cl.id = c.class_level_id
+            WHERE l.guardian_id = :guardian_id
+            ORDER BY s.last_name
+            """
+        ),
+        {"guardian_id": guardian_id},
+    ).all()
+
+    return {
+        "id": guardian_row.id,
+        "account_id": guardian_row.account_id,
+        "first_name": guardian_row.first_name,
+        "last_name": guardian_row.last_name,
+        "email": guardian_row.email,
+        "phone": guardian_row.phone,
+        "address": guardian_row.address,
+        "occupation": guardian_row.occupation,
+        "employer": guardian_row.employer,
+        "created_at": guardian_row.created_at,
+        "updated_at": guardian_row.updated_at,
+        "students": [
+            {
+                "id": str(row.id),
+                "first_name": row.first_name,
+                "last_name": row.last_name,
+                "registration_number": row.registration_number,
+                "status": row.status,
+                "relationship": row.relationship,
+                "relationship_label": RELATIONSHIP_LABELS.get(row.relationship, row.relationship),
+                "is_primary_contact": row.is_primary_contact,
+                "class_name": f"{row.level_name} {row.group_label}" if row.level_name else None,
+            }
+            for row in students_rows
+        ],
+    }

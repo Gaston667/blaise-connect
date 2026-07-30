@@ -5,7 +5,7 @@ export async function getClassLevels() {
 }
 
 export async function getTeachers() {
-  const res = await fetch('/api/teachers', { credentials: 'include' })
+  const res = await fetch('/api/teachers/overview', { credentials: 'include' })
   if (!res.ok) throw new Error('Échec du chargement des enseignants')
   return await res.json()
 }

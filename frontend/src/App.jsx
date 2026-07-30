@@ -15,7 +15,8 @@ import StudentDetailsPage from './pages/student_details_page.jsx'
 import StudentsPage from './pages/students_page.jsx'
 import TeachersPage from './pages/teachers_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
-
+import GuardianDetailsPage from './pages/guardian_details_page.jsx'
+import TeacherDetailsPage from './pages/teacher_details_page.jsx'
 const PAGE_PATHS = {
   home: '/',
   accounts: '/accounts',
@@ -40,6 +41,8 @@ function getCurrentPage(pathname) {
   if (pathname === '/school-years') return 'school-years'
   if (pathname === '/school-classes') return 'school-classes'
   if (pathname === '/teachers') return 'teachers'
+  if (/^\/teachers\/[^/]+$/.test(pathname)) return 'teacher-details'
+  if (/^\/guardians\/[^/]+$/.test(pathname)) return 'guardian-details'
   return 'home'
 }
 
@@ -52,6 +55,8 @@ function getNavigationPath(page, entity) {
   if (page === 'student-details' && entityId) return `/students/${entityId}`
   if (page === 'school-year-details' && entityId) return `/school-years/${entityId}`
   if (page === 'school-class-details' && entityId) return `/school-classes/${entityId}`
+  if (page === 'teacher-details' && entityId) return `/teachers/${entityId}`
+  if (page === 'guardian-details' && entityId) return `/guardians/${entityId}`
   return PAGE_PATHS[page] || '/'
 }
 
@@ -118,7 +123,9 @@ export default function App() {
       'school-year-details',
       'school-classes',
       'school-class-details',
-      'teachers'
+      'teacher-details',
+      'teachers',
+      'guardian-details',
     ]
 
     if (pagesReservedToAdmin.includes(page) && currentAccount?.role !== 'ADMIN') {
@@ -151,6 +158,11 @@ export default function App() {
         onNavigate={handleNavigate}
       />
     )
+  } else if (currentPage === 'teacher-details' && canManageSchool) {
+    pageContent = <TeacherDetailsPage teacher={selectedEntity || { id: pathId }} onNavigate={handleNavigate} />
+  }
+  else if (currentPage === 'guardian-details' && canManageSchool) {
+    pageContent = <GuardianDetailsPage guardian={selectedEntity || { id: pathId }} onNavigate={handleNavigate} />
   } else if (currentPage === 'accounts' && canManageSchool) {
     pageContent = <AccountsPage onNavigate={handleNavigate} />
   } else if (currentPage === 'account-new' && canManageSchool) {

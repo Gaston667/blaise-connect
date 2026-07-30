@@ -14,6 +14,8 @@ from app.services.guardian_service import (
     update_guardian_link,
     unlink_guardian_from_student,
 )
+from app.schemas.guardian_detail import GuardianDetail
+from app.services.guardian_service import get_guardian_detail
 
 router = APIRouter(tags=["guardians"])
 
@@ -110,3 +112,15 @@ def delete_guardian_link(
     success = unlink_guardian_from_student(db=db, student_id=student_id, guardian_id=guardian_id)
     if not success:
         raise HTTPException(status_code=404, detail="Link not found")
+
+@router.get("/guardians/{guardian_id}/detail", response_model=GuardianDetail)
+def get_guardian_detail_route(
+    guardian_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Vue détaillée d'un responsable : profil + élèves rattachés."""
+    detail = get_guardian_detail(db=db, guardian_id=guardian_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Responsable introuvable.")
+    return detail

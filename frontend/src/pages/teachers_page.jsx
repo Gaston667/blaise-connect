@@ -156,7 +156,7 @@ export default function TeachersPage({ onNavigate }) {
               <tr><td colSpan={7} className="tp-loading">Aucun enseignant trouvé.</td></tr>
             ) : (
               pageItems.map((t) => (
-                <tr key={t.id} className="tp-row">
+                <tr key={t.id} className="tp-row" onClick={() => onNavigate?.('teacher-details', t)}>
                   <td>
                     <span className="tp-avatar">{initials(t.first_name, t.last_name)}</span>
                   </td>

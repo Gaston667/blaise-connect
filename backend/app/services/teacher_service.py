@@ -59,3 +59,79 @@ def list_teachers_overview(db: Session, q: str | None = None) -> list[dict]:
         })
 
     return results
+def get_teacher_detail(db: Session, teacher_id: str) -> dict | None:
+    """Vue détaillée d'un enseignant : profil, classes enseignées, matières, effectif total."""
+    teacher_row = db.execute(
+        text(
+            """
+            SELECT t.id, a.registration_number, t.first_name, t.last_name,
+                   t.email, t.phone, t.address, t.hire_date, t.qualification
+            FROM teachers t
+            JOIN accounts a ON a.id = t.account_id
+            WHERE t.id = :teacher_id
+            """
+        ),
+        {"teacher_id": teacher_id},
+    ).first()
+
+    if not teacher_row:
+        return None
+
+    classes_rows = db.execute(
+        text(
+            """
+            SELECT
+                c.id, cl.name AS level_name, c.group_label, sy.name AS school_year_name,
+                COALESCE(enr.student_count, 0) AS student_count
+            FROM classes c
+            JOIN class_levels cl ON cl.id = c.class_level_id
+            JOIN school_years sy ON sy.id = c.school_year_id
+            LEFT JOIN (
+                SELECT class_id, COUNT(*) AS student_count
+                FROM student_enrollments WHERE end_date IS NULL GROUP BY class_id
+            ) enr ON enr.class_id = c.id
+            WHERE c.main_teacher_id = :teacher_id
+            ORDER BY sy.start_date DESC, cl.display_order
+            """
+        ),
+        {"teacher_id": teacher_id},
+    ).all()
+
+    subjects_rows = db.execute(
+        text(
+            """
+            SELECT DISTINCT s.name
+            FROM classes c
+            JOIN class_subjects cs ON cs.class_id = c.id
+            JOIN subjects s ON s.id = cs.subject_id
+            WHERE c.main_teacher_id = :teacher_id
+            """
+        ),
+        {"teacher_id": teacher_id},
+    ).all()
+
+    total_students = sum(row.student_count for row in classes_rows)
+
+    return {
+        "id": str(teacher_row.id),
+        "registration_number": teacher_row.registration_number,
+        "first_name": teacher_row.first_name,
+        "last_name": teacher_row.last_name,
+        "email": teacher_row.email,
+        "phone": teacher_row.phone,
+        "address": teacher_row.address,
+        "hire_date": teacher_row.hire_date,
+        "qualification": teacher_row.qualification,
+        "status": "ACTIVE",
+        "subjects": [row.name for row in subjects_rows],
+        "classes": [
+            {
+                "id": str(row.id),
+                "name": f"{row.level_name} {row.group_label}",
+                "school_year_name": row.school_year_name,
+                "student_count": row.student_count,
+            }
+            for row in classes_rows
+        ],
+        "total_students": total_students,
+    }
