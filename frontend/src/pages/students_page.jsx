@@ -1,84 +1,86 @@
-import { useEffect, useState } from 'react'
-import { ChevronRight, Search } from 'lucide-react'
-import { listStudents } from '../services/students_service.js'
-import '../styles/students_page.css'
-import AddStudentModal from '../components/add_student_modal.jsx'
+import { useEffect, useState } from "react";
+import { ChevronRight, Search } from "lucide-react";
+import { listStudents } from "../services/students_service.js";
+import "../styles/students_page.css";
+import AddStudentModal from "../components/add_student_modal.jsx";
 const AVATAR_PALETTE = [
-  { bg: '#E8ECFB', fg: '#3355DD' },
-  { bg: '#FDEBEA', fg: '#D9534F' },
-  { bg: '#FFF3DC', fg: '#B8860B' },
-  { bg: '#E9F7EF', fg: '#2E9E6B' },
-  { bg: '#F3E9FB', fg: '#8E44AD' },
-  { bg: '#FCE9F3', fg: '#C2185B' },
-]
+  { bg: "#E8ECFB", fg: "#3355DD" },
+  { bg: "#FDEBEA", fg: "#D9534F" },
+  { bg: "#FFF3DC", fg: "#B8860B" },
+  { bg: "#E9F7EF", fg: "#2E9E6B" },
+  { bg: "#F3E9FB", fg: "#8E44AD" },
+  { bg: "#FCE9F3", fg: "#C2185B" },
+];
 
 function avatarStyle(name) {
-  const idx = (name?.charCodeAt(0) ?? 0) % AVATAR_PALETTE.length
-  return AVATAR_PALETTE[idx]
+  const idx = (name?.charCodeAt(0) ?? 0) % AVATAR_PALETTE.length;
+  return AVATAR_PALETTE[idx];
 }
 
 function initials(first, last) {
-  return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase()
+  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase();
 }
 
 function formatDate(dateValue) {
   if (!dateValue) {
-    return '—'
+    return "—";
   }
 
-  return new Intl.DateTimeFormat('fr-FR').format(new Date(`${dateValue}T00:00:00`))
+  return new Intl.DateTimeFormat("fr-FR").format(
+    new Date(`${dateValue}T00:00:00`),
+  );
 }
 
 function genderLabel(gender) {
-  if (gender === 'MALE') {
-    return 'M'
+  if (gender === "MALE" || gender === "M") {
+    return "M";
   }
 
-  if (gender === 'FEMALE') {
-    return 'F'
+  if (gender === "FEMALE" || gender === "F") {
+    return "F";
   }
 
-  return '—'
+  return "—";
 }
 
 const STATUS_LABEL = {
-  ACTIVE: 'Actif',
-  INACTIVE: 'Inactif',
-  ARCHIVED: 'Archivé',
-}
+  ACTIVE: "Actif",
+  INACTIVE: "Inactif",
+  ARCHIVED: "Archivé",
+};
 
 const STATUS_CLASS = {
-  ACTIVE: 'sp-badge--active',
-  INACTIVE: 'sp-badge--inactive',
-  ARCHIVED: 'sp-badge--archived',
-}
+  ACTIVE: "sp-badge--active",
+  INACTIVE: "sp-badge--inactive",
+  ARCHIVED: "sp-badge--archived",
+};
 
 function StatusBadge({ status }) {
   return (
-    <span className={`sp-badge ${STATUS_CLASS[status] ?? ''}`}>
+    <span className={`sp-badge ${STATUS_CLASS[status] ?? ""}`}>
       <span className="sp-badge__dot" />
       {STATUS_LABEL[status] ?? status}
     </span>
-  )
+  );
 }
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 10;
 
 export default function StudentsPage({ onNavigate }) {
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('')
-  const [classId, setClassId] = useState('')
-  const [schoolYearId, setSchoolYearId] = useState('')
-  const [students, setStudents] = useState([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [classes, setClasses] = useState([])
-  const [schoolYears, setSchoolYears] = useState([])
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const [classId, setClassId] = useState("");
+  const [schoolYearId, setSchoolYearId] = useState("");
+  const [students, setStudents] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [classes, setClasses] = useState([]);
+  const [schoolYears, setSchoolYears] = useState([]);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   async function fetchStudents(pageIndex = page) {
-    setLoading(true)
+    setLoading(true);
     try {
       const data = await listStudents({
         q: query || null,
@@ -87,68 +89,73 @@ export default function StudentsPage({ onNavigate }) {
         school_year_id: schoolYearId || null,
         limit: PAGE_SIZE,
         offset: pageIndex * PAGE_SIZE,
-      })
-      const rows = Array.isArray(data) ? data : data.items ?? []
-      setStudents(rows)
-      setTotal(Array.isArray(data) ? rows.length : data.total ?? rows.length)
+      });
+      const rows = Array.isArray(data) ? data : (data.items ?? []);
+      setStudents(rows);
+      setTotal(Array.isArray(data) ? rows.length : (data.total ?? rows.length));
     } catch (e) {
-      console.error(e)
+      console.error(e);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function fetchInitialData() {
-    setLoading(true)
+    setLoading(true);
     try {
       const [yearsRes, classesRes] = await Promise.all([
-        import('../services/school_year_service.js').then((m) => m.getSchoolYears()),
-        import('../services/school_class_service.js').then((m) => m.getSchoolClasses()),
-      ])
-      setSchoolYears(yearsRes)
-      setClasses(classesRes)
-      await fetchStudents(0)
+        import("../services/school_year_service.js").then((m) =>
+          m.getSchoolYears(),
+        ),
+        import("../services/school_classes_overview_service.js").then((m) =>
+          m.getSchoolClassesOverview(),
+        ),
+      ]);
+      setSchoolYears(yearsRes);
+      setClasses(classesRes);
+      await fetchStudents(0);
     } catch (e) {
-      console.error(e)
+      console.error(e);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(function loadInitialDataEffect() {
-    Promise.resolve().then(fetchInitialData)
+    Promise.resolve().then(fetchInitialData);
     // Le chargement initial ne doit être exécuté qu'au montage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   function handleSearch(e) {
-    e.preventDefault()
-    setPage(0)
-    fetchStudents(0)
+    e.preventDefault();
+    setPage(0);
+    fetchStudents(0);
   }
 
   function handleReset() {
-    setQuery('')
-    setStatus('')
-    setClassId('')
-    setSchoolYearId('')
-    setPage(0)
-    setTimeout(() => fetchStudents(0), 0)
+    setQuery("");
+    setStatus("");
+    setClassId("");
+    setSchoolYearId("");
+    setPage(0);
+    setTimeout(() => fetchStudents(0), 0);
   }
 
   function goToPage(next) {
-    setPage(next)
-    fetchStudents(next)
+    setPage(next);
+    fetchStudents(next);
   }
 
   function className(id) {
-    return classes.find((c) => c.id === id)?.name ?? '—'
+    const c = classes.find((c) => c.id === id);
+    return c ? `${c.level_name} ${c.group_label}` : "—";
   }
   function yearName(id) {
-    return schoolYears.find((y) => y.id === id)?.name ?? '—'
+    return schoolYears.find((y) => y.id === id)?.name ?? "—";
   }
 
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <main className="sp-main">
@@ -156,14 +163,20 @@ export default function StudentsPage({ onNavigate }) {
         <div>
           <h1 className="sp-title">Élèves</h1>
           <nav className="sp-breadcrumb" aria-label="Fil d’Ariane">
-            <button type="button" onClick={() => onNavigate?.('home')}>Accueil</button>
+            <button type="button" onClick={() => onNavigate?.("home")}>
+              Accueil
+            </button>
             <ChevronRight aria-hidden="true" size={14} />
             <span className="sp-breadcrumb-current">Élèves</span>
           </nav>
         </div>
-        <button type="button" className="sp-btn-primary" onClick={() => setShowAddModal(true)}>
-  <span className="sp-btn-primary__plus">+</span> Ajouter un élève
-</button>
+        <button
+          type="button"
+          className="sp-btn-primary"
+          onClick={() => setShowAddModal(true)}
+        >
+          <span className="sp-btn-primary__plus">+</span> Ajouter un élève
+        </button>
       </div>
 
       <form onSubmit={handleSearch} className="sp-filters">
@@ -182,14 +195,21 @@ export default function StudentsPage({ onNavigate }) {
         <select value={classId} onChange={(e) => setClassId(e.target.value)}>
           <option value="">Toutes les classes</option>
           {classes.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.level_name} {c.group_label}
+            </option>
           ))}
         </select>
 
-        <select value={schoolYearId} onChange={(e) => setSchoolYearId(e.target.value)}>
+        <select
+          value={schoolYearId}
+          onChange={(e) => setSchoolYearId(e.target.value)}
+        >
           <option value="">Toutes les années</option>
           {schoolYears.map((y) => (
-            <option key={y.id} value={y.id}>{y.name}</option>
+            <option key={y.id} value={y.id}>
+              {y.name}
+            </option>
           ))}
         </select>
 
@@ -200,7 +220,9 @@ export default function StudentsPage({ onNavigate }) {
           <option value="ARCHIVED">Archivé</option>
         </select>
 
-        <button type="submit" className="sp-btn-search">Rechercher</button>
+        <button type="submit" className="sp-btn-search">
+          Rechercher
+        </button>
         <button type="button" className="sp-btn-reset" onClick={handleReset}>
           ⟲ Réinitialiser
         </button>
@@ -209,82 +231,96 @@ export default function StudentsPage({ onNavigate }) {
       <div className="sp-body">
         <section className="sp-list">
           <div className="sp-list__meta">
-            {loading ? 'Chargement…' : `Total : ${total} élèves`}
+            {loading ? "Chargement…" : `Total : ${total} élèves`}
           </div>
 
           <div className="sp-table-wrapper">
             <table className="sp-table">
-            <thead>
-              <tr>
-                <th>Matricule</th>
-                <th>Photo</th>
-                <th>Nom</th>
-                <th>Prénom</th>
-                <th>Sexe</th>
-                <th>Classe</th>
-                <th>Année scolaire</th>
-                <th>Statut</th>
-                <th>Date d’inscription</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((s) => {
-                const av = avatarStyle(s.last_name)
-                return (
-                  <tr
-                    key={s.id}
-                    className="sp-row"
-                    onClick={() => onNavigate?.('student-details', s)}
-                  >
-                    <td className="sp-registration-number">
-                      {s.registration_number ?? '—'}
-                    </td>
-                    <td>
-                      <span className="sp-avatar" style={{ background: av.bg, color: av.fg }}>
-                        {initials(s.first_name, s.last_name)}
-                      </span>
-                    </td>
-                    <td>{s.last_name}</td>
-                    <td>{s.first_name}</td>
-                    <td>{genderLabel(s.gender)}</td>
-                    <td>{className(s.class_id)}</td>
-                    <td>{yearName(s.school_year_id)}</td>
-                    <td><StatusBadge status={s.status} /></td>
-                    <td>{formatDate(s.admission_date)}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
+              <thead>
+                <tr>
+                  <th>Matricule</th>
+                  <th>Photo</th>
+                  <th>Nom</th>
+                  <th>Prénom</th>
+                  <th>Sexe</th>
+                  <th>Classe</th>
+                  <th>Année scolaire</th>
+                  <th>Statut</th>
+                  <th>Date d’inscription</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s) => {
+                  const av = avatarStyle(s.last_name);
+                  return (
+                    <tr
+                      key={s.id}
+                      className="sp-row"
+                      onClick={() => onNavigate?.("student-details", s)}
+                    >
+                      <td className="sp-registration-number">
+                        {s.registration_number ?? "—"}
+                      </td>
+                      <td>
+                        <span
+                          className="sp-avatar"
+                          style={{ background: av.bg, color: av.fg }}
+                        >
+                          {initials(s.first_name, s.last_name)}
+                        </span>
+                      </td>
+                      <td>{s.last_name}</td>
+                      <td>{s.first_name}</td>
+                      <td>{genderLabel(s.gender)}</td>
+                      <td>{className(s.class_id)}</td>
+                      <td>{yearName(s.school_year_id)}</td>
+                      <td>
+                        <StatusBadge status={s.status} />
+                      </td>
+                      <td>{formatDate(s.admission_date)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
             </table>
           </div>
 
           <div className="sp-pagination">
-            <button disabled={page === 0} onClick={() => goToPage(page - 1)}>‹</button>
-            {Array.from({ length: pageCount }).slice(0, 5).map((_, i) => (
-              <button
-                key={i}
-                className={i === page ? 'sp-page sp-page--active' : 'sp-page'}
-                onClick={() => goToPage(i)}
-              >
-                {i + 1}
-              </button>
-            ))}
+            <button disabled={page === 0} onClick={() => goToPage(page - 1)}>
+              ‹
+            </button>
+            {Array.from({ length: pageCount })
+              .slice(0, 5)
+              .map((_, i) => (
+                <button
+                  key={i}
+                  className={i === page ? "sp-page sp-page--active" : "sp-page"}
+                  onClick={() => goToPage(i)}
+                >
+                  {i + 1}
+                </button>
+              ))}
             {pageCount > 5 && <span>…</span>}
-            <button disabled={page >= pageCount - 1} onClick={() => goToPage(page + 1)}>›</button>
+            <button
+              disabled={page >= pageCount - 1}
+              onClick={() => goToPage(page + 1)}
+            >
+              ›
+            </button>
           </div>
         </section>
       </div>
       {showAddModal && (
-  <AddStudentModal
-  classes={classes}
-  schoolYears={schoolYears}
-  onClose={() => setShowAddModal(false)}
-  onCreated={() => {
-    setShowAddModal(false)
-    fetchStudents(page)
-  }}
-/>
-)}
+        <AddStudentModal
+          classes={classes}
+          schoolYears={schoolYears}
+          onClose={() => setShowAddModal(false)}
+          onCreated={() => {
+            setShowAddModal(false);
+            fetchStudents(page);
+          }}
+        />
+      )}
     </main>
-  )
+  );
 }
