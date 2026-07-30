@@ -141,8 +141,8 @@ export default function StudentDetailsPage({ student, onNavigate }) {
         import("../services/school_year_service.js").then((m) =>
           m.getSchoolYears(),
         ),
-        import("../services/school_class_service.js").then((m) =>
-          m.getSchoolClasses(),
+        import("../services/school_classes_overview_service.js").then((m) =>
+          m.getSchoolClassesOverview(),
         ),
       ]);
       setDetails(full);
@@ -173,7 +173,8 @@ export default function StudentDetailsPage({ student, onNavigate }) {
   }
 
   function className(id) {
-    return classes.find((c) => c.id === id)?.name ?? "—";
+    const c = classes.find((c) => c.id === id)
+    return c ? `${c.level_name} ${c.group_label}` : "—"
   }
   function yearName(id) {
     return schoolYears.find((y) => y.id === id)?.name ?? "—";
