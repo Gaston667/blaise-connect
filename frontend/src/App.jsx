@@ -6,6 +6,8 @@ import AccountDetailsPage from './pages/account_details_page.jsx'
 import AccountCreatePage from './pages/account_create_page.jsx'
 import AccountsPage from './pages/accounts_page.jsx'
 import HomePage from './pages/home_page.jsx'
+import GuardianDetailsPage from './pages/guardian_details_page.jsx'
+import GuardiansPage from './pages/guardians_page.jsx'
 import LoginPage from './pages/login_page.jsx'
 import SchoolClassDetailsPage from './pages/school_class_details_page.jsx'
 import SchoolClassesPage from './pages/school_classes_page.jsx'
@@ -22,6 +24,7 @@ const PAGE_PATHS = {
   accounts: '/accounts',
   'account-new': '/accounts/new',
   students: '/students',
+  guardians: '/guardians',
   'school-years': '/school-years',
   'school-classes': '/school-classes',
   teachers: '/teachers',
@@ -34,11 +37,13 @@ function getCurrentPage(pathname) {
   if (pathname === '/accounts/new') return 'account-new'
   if (/^\/accounts\/[^/]+$/.test(pathname)) return 'account-details'
   if (/^\/students\/[^/]+$/.test(pathname)) return 'student-details'
+  if (/^\/guardians\/[^/]+$/.test(pathname)) return 'guardian-details'
   if (/^\/school-years\/[^/]+$/.test(pathname)) return 'school-year-details'
   if (/^\/school-classes\/[^/]+$/.test(pathname)) return 'school-class-details'
   if (/^\/teachers\/[^/]+$/.test(pathname)) return 'teacher-details'
   if (pathname === '/accounts') return 'accounts'
   if (pathname === '/students') return 'students'
+  if (pathname === '/guardians') return 'guardians'
   if (pathname === '/school-years') return 'school-years'
   if (pathname === '/school-classes') return 'school-classes'
   if (pathname === '/teachers') return 'teachers'
@@ -52,6 +57,7 @@ function getNavigationPath(page, entity) {
   const entityId = typeof entity === 'string' ? entity : entity?.id
   if (page === 'account-details' && entityId) return `/accounts/${entityId}`
   if (page === 'student-details' && entityId) return `/students/${entityId}`
+  if (page === 'guardian-details' && entityId) return `/guardians/${entityId}`
   if (page === 'school-year-details' && entityId) return `/school-years/${entityId}`
   if (page === 'school-class-details' && entityId) return `/school-classes/${entityId}`
   if (page === 'teacher-details' && entityId) return `/teachers/${entityId}`
@@ -119,6 +125,8 @@ export default function App() {
       'account-new',
       'school-years',
       'school-year-details',
+      'guardians',
+      'guardian-details',
       'school-classes',
       'school-class-details',
       'teachers',
@@ -148,10 +156,19 @@ export default function App() {
 
   if (currentPage === 'students') {
     pageContent = <StudentsPage onNavigate={handleNavigate} />
+  } else if (currentPage === 'guardians' && canManageSchool) {
+    pageContent = <GuardiansPage onNavigate={handleNavigate} />
   } else if (currentPage === 'student-details') {
     pageContent = (
       <StudentDetailsPage
         student={selectedEntity || { id: pathId }}
+        onNavigate={handleNavigate}
+      />
+    )
+  } else if (currentPage === 'guardian-details' && canManageSchool) {
+    pageContent = (
+      <GuardianDetailsPage
+        guardian={selectedEntity || { id: pathId }}
         onNavigate={handleNavigate}
       />
     )

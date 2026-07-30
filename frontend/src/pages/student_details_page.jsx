@@ -18,6 +18,7 @@ import {
   Search,
   X,
 } from 'lucide-react'
+import defaultPhoto from '../assets/image_phtoto_default.png'
 import {
   getStudent,
   updateStudent,
@@ -51,6 +52,8 @@ function StatusBadge({ status }) {
 function initials(first, last) {
   return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase()
 }
+
+const DEFAULT_PHOTO = defaultPhoto
 
 function genderLabel(gender) {
   if (gender === 'MALE' || gender === 'M') return 'Masculin'
@@ -365,13 +368,11 @@ export default function StudentDetailsPage({ student, onNavigate }) {
       <div className="sdp-header">
         <div className="sdp-header__identity">
           <span className="sdp-avatar">
-            {details.photo_path && !photoFailed ? (
-              <img
-                src={details.photo_path}
-                alt={`Photo de ${details.first_name} ${details.last_name}`}
-                onError={handlePhotoError}
-              />
-            ) : initials(details.first_name, details.last_name)}
+            <img
+              src={photoFailed ? DEFAULT_PHOTO : (details.photo_path || DEFAULT_PHOTO)}
+              alt={`Photo de ${details.first_name} ${details.last_name}`}
+              onError={handlePhotoError}
+            />
           </span>
           <div>
             <h1>{details.first_name} {details.last_name}</h1>
@@ -394,11 +395,11 @@ export default function StudentDetailsPage({ student, onNavigate }) {
             type="button"
             className="sdp-btn-secondary"
             onClick={openEnrollmentModal}
-            disabled={Boolean(details.class_id)}
-            title={details.class_id ? 'Cet élève possède déjà une inscription en cours.' : ''}
+            disabled={details.status === 'ARCHIVED'}
+            title={details.status === 'ARCHIVED' ? 'Un élève archivé ne peut pas être inscrit dans une classe.' : ''}
           >
             <CalendarPlus aria-hidden="true" size={17} />
-            Inscrire dans une classe
+            {details.class_id ? 'Changer de classe' : 'Inscrire dans une classe'}
           </button>
           <div className="sdp-menu-wrapper">
             <button type="button" className="sdp-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
@@ -434,7 +435,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
           >
             <header>
               <div>
-                <h2 id="sdp-enrollment-title">Inscrire dans une classe</h2>
+                <h2 id="sdp-enrollment-title">{details.class_id ? 'Changer de classe' : 'Inscrire dans une classe'}</h2>
                 <p>Choisissez la classe annuelle et la date de début.</p>
               </div>
               <button type="button" onClick={closeEnrollmentModal} aria-label="Fermer">

@@ -1,6 +1,6 @@
 """Service métier de consultation et de gestion des élèves."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
 from sqlalchemy import text
@@ -208,7 +208,7 @@ def enroll_student(
     student_id: str,
     enrollment_data: StudentEnrollmentCreate,
 ) -> dict | None:
-    """Inscrit un élève sans inscription ouverte dans une classe annuelle."""
+    """Inscrit un élève ou le change de classe dans une année ouverte."""
 
     student = db.get(Student, student_id)
     if student is None:
@@ -217,7 +217,7 @@ def enroll_student(
     open_enrollment = db.execute(
         text(
             """
-            SELECT id
+                        SELECT id, class_id, start_date
             FROM student_enrollments
             WHERE student_id = :student_id
               AND end_date IS NULL
@@ -245,6 +245,29 @@ def enroll_student(
         raise ValueError("L'année scolaire de cette classe est clôturée.")
     if not school_class.start_date <= enrollment_data.start_date <= school_class.end_date:
         raise ValueError("La date d'inscription doit appartenir à l'année scolaire.")
+
+    if open_enrollment is not None:
+        if str(open_enrollment.class_id) == str(enrollment_data.class_id):
+            raise ValueError("Cet élève est déjà inscrit dans cette classe.")
+        if enrollment_data.start_date <= open_enrollment.start_date:
+            raise ValueError(
+                "La date de changement de classe doit être postérieure au début de l'inscription en cours."
+            )
+
+        db.execute(
+            text(
+                """
+                UPDATE student_enrollments
+                SET end_date = :end_date,
+                    end_reason = 'CLASS_CHANGE'
+                WHERE id = :enrollment_id
+                """
+            ),
+            {
+                "enrollment_id": open_enrollment.id,
+                "end_date": enrollment_data.start_date - timedelta(days=1),
+            },
+        )
 
     db.execute(
         text(

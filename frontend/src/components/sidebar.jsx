@@ -83,6 +83,22 @@ export default function Sidebar({
           Élèves
         </button>
 
+        {canManageAccounts ? (
+          <button
+            className={
+              currentPage === 'guardians' || currentPage === 'guardian-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="guardians"
+            onClick={handleNavigation}
+          >
+            <Users aria-hidden="true" size={20} />
+            Responsables légaux
+          </button>
+        ) : null}
+
        {canManageAccounts ? (
           <button
             className={

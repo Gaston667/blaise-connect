@@ -1,5 +1,42 @@
 /** Appels HTTP liés aux responsables légaux. */
 
+export async function getGuardianDetail(id) {
+  const response = await fetch(`/api/guardians/${id}/detail`, {
+    credentials: 'include',
+  })
+  if (!response.ok) {
+    let message = 'Impossible de charger ce responsable.'
+    try {
+      const body = await response.json()
+      if (body?.detail) message = body.detail
+    } catch {
+      // Le message générique est conservé si la réponse n'est pas du JSON.
+    }
+    throw new Error(message)
+  }
+  return response.json()
+}
+
+export async function updateGuardian(guardianId, payload) {
+  const response = await fetch(`/api/guardians/${guardianId}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    let message = 'Impossible de mettre à jour ce responsable.'
+    try {
+      const body = await response.json()
+      if (body?.detail) message = body.detail
+    } catch {
+      // Le message générique est conservé si la réponse n'est pas du JSON.
+    }
+    throw new Error(message)
+  }
+  return response.json()
+}
+
 export async function searchGuardians(query = '') {
   const parameters = new URLSearchParams()
   if (query.trim()) parameters.set('q', query.trim())

@@ -15,10 +15,13 @@ class GuardianResponse(BaseModel):
     account_id: UUID | None
     first_name: str
     last_name: str
+    gender: str | None
     email: str | None
     phone: str
     address: str | None
     occupation: str | None
     employer: str | None
+    photo_path: str | None
+    archived_at: datetime | None
     created_at: datetime
     updated_at: datetime

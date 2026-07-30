@@ -63,3 +63,99 @@ def list_teachers_overview(db: Session, q: str | None = None) -> list[dict]:
         })
 
     return results
+
+
+def get_teacher_detail(db: Session, teacher_id: str) -> dict | None:
+    """Retourne la vue détaillée d'un enseignant pour la page dossier."""
+
+    row = db.execute(
+        text(
+            """
+            SELECT
+                t.id,
+                a.registration_number,
+                t.first_name,
+                t.last_name,
+                t.email,
+                t.phone,
+                t.address,
+                t.hire_date,
+                t.qualification,
+                t.photo_path,
+                t.archived_at,
+                a.is_active
+            FROM teachers t
+            JOIN accounts a ON a.id = t.account_id
+            WHERE t.id = :teacher_id
+            """
+        ),
+        {"teacher_id": teacher_id},
+    ).first()
+
+    if row is None:
+        return None
+
+    classes_rows = db.execute(
+        text(
+            """
+            SELECT
+                c.id,
+                (cl.name || ' ' || c.group_label) AS name,
+                sy.name AS school_year_name,
+                COALESCE(enr.student_count, 0) AS student_count
+            FROM classes c
+            JOIN class_levels cl ON cl.id = c.class_level_id
+            JOIN school_years sy ON sy.id = c.school_year_id
+            LEFT JOIN (
+                SELECT class_id, COUNT(*) AS student_count
+                FROM student_enrollments
+                WHERE end_date IS NULL
+                GROUP BY class_id
+            ) enr ON enr.class_id = c.id
+            WHERE c.main_teacher_id = :teacher_id
+            ORDER BY sy.name DESC, cl.display_order, c.group_label
+            """
+        ),
+        {"teacher_id": teacher_id},
+    ).all()
+
+    subjects_rows = db.execute(
+        text(
+            """
+            SELECT DISTINCT s.name
+            FROM classes c
+            JOIN class_subjects cs ON cs.class_id = c.id
+            JOIN subjects s ON s.id = cs.subject_id
+            WHERE c.main_teacher_id = :teacher_id
+            ORDER BY s.name
+            """
+        ),
+        {"teacher_id": teacher_id},
+    ).all()
+
+    total_students = sum(class_row.student_count for class_row in classes_rows)
+
+    return {
+        "id": str(row.id),
+        "registration_number": row.registration_number,
+        "first_name": row.first_name,
+        "last_name": row.last_name,
+        "email": row.email,
+        "phone": row.phone,
+        "address": row.address,
+        "hire_date": row.hire_date,
+        "qualification": row.qualification,
+        "photo_path": row.photo_path,
+        "status": "ACTIVE" if row.archived_at is None and row.is_active else "INACTIVE",
+        "subjects": [subject_row.name for subject_row in subjects_rows],
+        "classes": [
+            {
+                "id": str(class_row.id),
+                "name": class_row.name,
+                "school_year_name": class_row.school_year_name,
+                "student_count": class_row.student_count,
+            }
+            for class_row in classes_rows
+        ],
+        "total_students": total_students,
+    }

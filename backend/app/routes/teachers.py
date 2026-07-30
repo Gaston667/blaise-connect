@@ -1,12 +1,12 @@
 """Routes HTTP pour consulter les enseignants."""
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
-from app.schemas.teacher_overview import TeacherOverview
-from app.services.teacher_service import list_teachers_overview
 from app.schemas.teacher_detail import TeacherDetail
-from app.services.teacher_service import get_teacher_detail
-from fastapi import APIRouter, HTTPException, Query
+from app.schemas.teacher_overview import TeacherOverview
+from app.services.teacher_service import get_teacher_detail, list_teachers_overview
+
+
 router = APIRouter(prefix="/teachers", tags=["teachers"])
 
 
@@ -18,6 +18,7 @@ def get_teachers_overview(
 ):
     """Vue enrichie des enseignants : matricule, matières, statut brut."""
     return list_teachers_overview(db=db, q=q)
+
 
 @router.get("/{teacher_id}/detail", response_model=TeacherDetail)
 def get_teacher_detail_route(

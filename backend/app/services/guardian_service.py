@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.guardian import Guardian
 from app.schemas.guardian_create import GuardianCreate
+from app.schemas.guardian_detail import GuardianDetail
 from app.schemas.guardian_link_create import GuardianLinkCreate
 from app.schemas.guardian_link_update import GuardianLinkUpdate
 from app.schemas.guardian_update import GuardianUpdate
@@ -134,39 +135,38 @@ def list_guardians(db: Session, q: str | None = None) -> list[dict]:
     """Liste au maximum cinquante responsables avec une recherche facultative."""
 
     normalized_query = q.strip() if q and q.strip() else None
-    rows = db.execute(
-        text(
-            """
-            SELECT
-                id,
-                account_id,
-                first_name,
-                last_name,
-                gender,
-                email,
-                phone,
-                address,
-                occupation,
-                employer,
-                photo_path,
-                archived_at,
-                created_at,
-                updated_at
-            FROM guardians
-            WHERE
-                :query IS NULL
-                OR first_name ILIKE :search
+    sql = """
+        SELECT
+            id,
+            account_id,
+            first_name,
+            last_name,
+            gender,
+            email,
+            phone,
+            address,
+            occupation,
+            employer,
+            photo_path,
+            archived_at,
+            created_at,
+            updated_at
+        FROM guardians
+        WHERE 1 = 1
+    """
+    params: dict = {}
+    if normalized_query:
+        sql += """
+            AND (
+                first_name ILIKE :search
                 OR last_name ILIKE :search
                 OR phone ILIKE :search
-            ORDER BY last_name, first_name
-            LIMIT 50
-            """
-        ),
-        {
-            "query": normalized_query,
-            "search": f"%{normalized_query}%" if normalized_query else None,
-        },
-    ).mappings()
+                OR email ILIKE :search
+            )
+        """
+        params["search"] = f"%{normalized_query}%"
+    sql += " ORDER BY last_name, first_name LIMIT 50"
+    rows = db.execute(text(sql), params).mappings()
     return [dict(row) for row in rows]
 
 
@@ -254,11 +254,14 @@ def list_guardians_for_student(db: Session, student_id: str) -> list[dict]:
                 g.account_id,
                 g.first_name,
                 g.last_name,
+                g.gender,
                 g.email,
                 g.phone,
                 g.address,
                 g.occupation,
                 g.employer,
+                g.photo_path,
+                g.archived_at,
                 g.created_at,
                 g.updated_at,
                 sg.relationship_type,
@@ -392,3 +395,79 @@ def unlink_guardian_from_student(
     ).first()
     db.commit()
     return deleted_link is not None
+
+
+def get_guardian_detail(db: Session, guardian_id: str) -> dict | None:
+    """Retourne la fiche détaillée d'un responsable avec tous ses élèves."""
+
+    guardian = db.execute(
+        text(
+            """
+            SELECT
+                id,
+                account_id,
+                first_name,
+                last_name,
+                gender,
+                email,
+                phone,
+                address,
+                occupation,
+                employer,
+                photo_path,
+                archived_at,
+                created_at,
+                updated_at
+            FROM guardians
+            WHERE id = :guardian_id
+            """
+        ),
+        {"guardian_id": guardian_id},
+    ).mappings().first()
+    if guardian is None:
+        return None
+
+    student_rows = db.execute(
+        text(
+            """
+            SELECT
+                s.id,
+                s.first_name,
+                s.last_name,
+                a.registration_number,
+                s.status,
+                sg.relationship_type AS relationship,
+                sg.relationship_type,
+                sg.relationship_details,
+                sg.is_primary_contact,
+                sg.is_legal_guardian,
+                CASE
+                    WHEN sg.relationship_type = 'FATHER' THEN 'Père'
+                    WHEN sg.relationship_type = 'MOTHER' THEN 'Mère'
+                    ELSE COALESCE(sg.relationship_details, 'Autre')
+                END AS relationship_label,
+                CONCAT_WS(' ', cl.name, NULLIF(c.group_label, '')) AS class_name,
+                sy.name AS school_year_name
+            FROM student_guardians sg
+            JOIN students s ON s.id = sg.student_id
+            LEFT JOIN accounts a ON a.id = s.account_id
+            LEFT JOIN LATERAL (
+                SELECT se.class_id
+                FROM student_enrollments se
+                WHERE se.student_id = s.id
+                  AND se.end_date IS NULL
+                LIMIT 1
+            ) current_enrollment ON true
+            LEFT JOIN classes c ON c.id = current_enrollment.class_id
+            LEFT JOIN class_levels cl ON cl.id = c.class_level_id
+            LEFT JOIN school_years sy ON sy.id = c.school_year_id
+            WHERE sg.guardian_id = :guardian_id
+            ORDER BY sg.is_primary_contact DESC, s.last_name, s.first_name
+            """
+        ),
+        {"guardian_id": guardian_id},
+    ).mappings().all()
+
+    detail = dict(guardian)
+    detail["students"] = [dict(row) for row in student_rows]
+    return detail

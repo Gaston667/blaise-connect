@@ -20,6 +20,7 @@ class TeacherDetail(BaseModel):
     address: str | None
     hire_date: date
     qualification: str | None
+    photo_path: str | None
     status: str
     subjects: list[str]
     classes: list[TeacherClassSummary]

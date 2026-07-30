@@ -1,0 +1,43 @@
+.glp-main { padding: var(--space-5) var(--space-4); font-family: var(--font-family-base); color: var(--color-text-primary); }
+.glp-header { margin-bottom: var(--space-5); }
+.glp-header h1 { margin: 0 0 var(--space-2); font-size: var(--font-size-xl); }
+.glp-breadcrumb { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.glp-breadcrumb button { border: none; background: none; color: var(--color-primary); padding: 0; cursor: pointer; font: inherit; }
+.glp-filters { display: grid; grid-template-columns: 1fr; gap: var(--space-3); margin-bottom: var(--space-4); }
+.glp-search { display: flex; align-items: center; gap: var(--space-2); min-height: var(--input-height-sm); padding: 0 var(--space-3); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); color: var(--color-text-muted); background: var(--input-bg); }
+.glp-search input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--input-text); font: inherit; }
+.glp-btn-primary { background: var(--button-primary-bg); color: var(--button-primary-text); border: none; border-radius: var(--radius-md); padding: var(--button-padding-lg); height: var(--button-height-md); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.glp-btn-outline { background: var(--button-secondary-bg); border: var(--border-width-thin) solid var(--button-secondary-border); color: var(--button-secondary-text); border-radius: var(--radius-md); padding: var(--button-padding-lg); height: var(--button-height-md); cursor: pointer; font-weight: var(--font-weight-medium); }
+.glp-list-card { background: var(--color-surface); border: var(--border-default); border-radius: var(--radius-lg); padding: var(--space-4); box-shadow: var(--shadow-xs); }
+.glp-list-meta { margin-bottom: var(--space-3); color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.glp-table-wrapper { overflow-x: auto; border: var(--border-default); border-radius: var(--radius-md); }
+.glp-table { width: 100%; min-width: 34rem; border-collapse: collapse; }
+.glp-table th, .glp-table td { padding: var(--space-3); text-align: left; border-bottom: var(--border-width-thin) solid var(--color-border-light); font-size: var(--font-size-sm); }
+.glp-table th { color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-xs); text-transform: uppercase; }
+.glp-row { cursor: pointer; }
+.glp-row:hover, .glp-row:focus { background: var(--color-primary-light); outline: none; }
+.glp-identity { display: flex; align-items: center; gap: var(--space-3); }
+.glp-identity span { display: flex; flex-direction: column; gap: var(--space-1); }
+.glp-identity small { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.glp-avatar { width: 40px; height: 40px; border-radius: var(--radius-full); overflow: hidden; background: var(--color-primary-light); flex-shrink: 0; }
+.glp-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.glp-badge { display: inline-flex; align-items: center; padding: var(--space-1) var(--space-3); border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+.glp-badge--active { background: var(--status-active-bg); color: var(--status-active-text); }
+.glp-badge--archived { background: var(--status-archived-bg); color: var(--status-archived-text); }
+.glp-empty { padding: var(--space-6); text-align: center; color: var(--color-text-muted); }
+.glp-pagination { margin-top: var(--space-4); display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); }
+.glp-pagination button { min-width: 2.25rem; height: 2.25rem; border-radius: var(--radius-md); border: var(--border-default); background: var(--color-surface); cursor: pointer; }
+.glp-col-tablet, .glp-col-desktop { display: none; }
+@media (min-width: 700px) {
+  .glp-col-tablet { display: table-cell; }
+  .glp-table { min-width: 44rem; }
+}
+@media (min-width: 1000px) {
+  .glp-col-desktop { display: table-cell; }
+  .glp-table { min-width: 56rem; }
+}
+@media (min-width: 900px) {
+  .glp-main { padding: var(--space-8) var(--space-10); }
+  .glp-header h1 { font-size: var(--font-size-2xl); }
+  .glp-filters { grid-template-columns: minmax(16rem, 1fr) auto auto; }
+}

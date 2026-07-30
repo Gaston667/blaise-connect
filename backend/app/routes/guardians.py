@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.schemas.guardian_create import GuardianCreate
+from app.schemas.guardian_detail import GuardianDetail
 from app.schemas.guardian_link_create import GuardianLinkCreate
 from app.schemas.guardian_link_update import GuardianLinkUpdate
 from app.schemas.guardian_response import GuardianResponse
@@ -11,6 +12,7 @@ from app.schemas.guardian_update import GuardianUpdate
 from app.schemas.student_guardian_response import StudentGuardianResponse
 from app.services.guardian_service import (
     create_guardian,
+    get_guardian_detail,
     link_guardian_to_student,
     list_guardians,
     list_guardians_for_student,
@@ -31,6 +33,20 @@ def get_guardians(
     """Liste les responsables accessibles à un administrateur."""
 
     return list_guardians(db=db, q=q)
+
+
+@router.get("/guardians/{guardian_id}/detail", response_model=GuardianDetail)
+def get_guardian_detail_route(
+    guardian_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Retourne la fiche détaillée d'un responsable légal."""
+
+    detail = get_guardian_detail(db=db, guardian_id=guardian_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Responsable introuvable.")
+    return detail
 
 
 @router.post(
