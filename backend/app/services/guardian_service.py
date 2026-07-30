@@ -435,12 +435,15 @@ def get_guardian_detail(db: Session, guardian_id: str) -> dict | None:
                 s.first_name,
                 s.last_name,
                 a.registration_number,
+                s.birth_date,
+                s.photo_path,
                 s.status,
                 sg.relationship_type AS relationship,
                 sg.relationship_type,
                 sg.relationship_details,
                 sg.is_primary_contact,
                 sg.is_legal_guardian,
+                sg.is_emergency_contact,
                 CASE
                     WHEN sg.relationship_type = 'FATHER' THEN 'Père'
                     WHEN sg.relationship_type = 'MOTHER' THEN 'Mère'
@@ -469,5 +472,10 @@ def get_guardian_detail(db: Session, guardian_id: str) -> dict | None:
     ).mappings().all()
 
     detail = dict(guardian)
-    detail["students"] = [dict(row) for row in student_rows]
+    students: list[dict] = []
+    for row in student_rows:
+        student = dict(row)
+        student["id"] = str(student["id"])
+        students.append(student)
+    detail["students"] = students
     return detail
