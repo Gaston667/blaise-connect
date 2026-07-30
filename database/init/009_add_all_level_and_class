@@ -1,0 +1,41 @@
+BEGIN;
+
+-- Insère tous les niveaux scolaires manquants (crèche à lycée)
+INSERT INTO class_levels (code, name, education_stage, display_order)
+VALUES
+    ('PETITE_SECTION', 'Petite Section', 'PRESCHOOL', 1),
+    ('MOYENNE_SECTION', 'Moyenne Section', 'PRESCHOOL', 2),
+    ('GRANDE_SECTION', 'Grande Section', 'PRESCHOOL', 3),
+    ('CP', 'CP', 'PRIMARY', 4),
+    ('CE1', 'CE1', 'PRIMARY', 5),
+    ('CE2', 'CE2', 'PRIMARY', 6),
+    ('CM1', 'CM1', 'PRIMARY', 7),
+    ('CM2', 'CM2', 'PRIMARY', 8),
+    ('SIXIEME', '6ème', 'MIDDLE_SCHOOL', 9),
+    ('CINQUIEME', '5ème', 'MIDDLE_SCHOOL', 10),
+    ('QUATRIEME', '4ème', 'MIDDLE_SCHOOL', 11),
+    ('TROISIEME', '3ème', 'MIDDLE_SCHOOL', 12),
+    ('SECONDE', '2nde', 'HIGH_SCHOOL', 13),
+    ('PREMIERE', '1ère', 'HIGH_SCHOOL', 14),
+    ('TERMINALE', 'Terminale', 'HIGH_SCHOOL', 15)
+ON CONFLICT (code) DO NOTHING;
+
+-- Normalise l'ordre d'affichage même si certains niveaux existaient déjà
+-- avec un display_order différent (ex: SIXIEME créé manuellement plus tôt).
+UPDATE class_levels SET display_order = 1 WHERE code = 'PETITE_SECTION';
+UPDATE class_levels SET display_order = 2 WHERE code = 'MOYENNE_SECTION';
+UPDATE class_levels SET display_order = 3 WHERE code = 'GRANDE_SECTION';
+UPDATE class_levels SET display_order = 4 WHERE code = 'CP';
+UPDATE class_levels SET display_order = 5 WHERE code = 'CE1';
+UPDATE class_levels SET display_order = 6 WHERE code = 'CE2';
+UPDATE class_levels SET display_order = 7 WHERE code = 'CM1';
+UPDATE class_levels SET display_order = 8 WHERE code = 'CM2';
+UPDATE class_levels SET display_order = 9 WHERE code = 'SIXIEME';
+UPDATE class_levels SET display_order = 10 WHERE code = 'CINQUIEME';
+UPDATE class_levels SET display_order = 11 WHERE code = 'QUATRIEME';
+UPDATE class_levels SET display_order = 12 WHERE code = 'TROISIEME';
+UPDATE class_levels SET display_order = 13 WHERE code = 'SECONDE';
+UPDATE class_levels SET display_order = 14 WHERE code = 'PREMIERE';
+UPDATE class_levels SET display_order = 15 WHERE code = 'TERMINALE';
+
+COMMIT;
