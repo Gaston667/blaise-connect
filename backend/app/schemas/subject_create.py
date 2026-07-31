@@ -4,8 +4,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class SubjectCreate(BaseModel):
-    """Valide le nom d'une nouvelle matière."""
+    """Valide les informations d'une nouvelle matière."""
 
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1, max_length=100)
+    description: str | None = None

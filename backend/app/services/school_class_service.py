@@ -270,15 +270,8 @@ def list_school_class_subjects(
             (t.first_name || ' ' || t.last_name) AS teacher_name
         FROM class_subjects cs
         JOIN subjects s ON s.id = cs.subject_id
-        LEFT JOIN LATERAL (
-            SELECT ta.teacher_id
-            FROM teacher_assignments ta
-            WHERE ta.class_subject_id = cs.id
-              AND ta.end_date IS NULL
-            ORDER BY ta.start_date DESC
-            LIMIT 1
-        ) latest_ta ON true
-        LEFT JOIN teachers t ON t.id = latest_ta.teacher_id
+        JOIN classes c ON c.id = cs.class_id
+        LEFT JOIN teachers t ON t.id = c.main_teacher_id
         WHERE {" AND ".join(where_clauses)}
         ORDER BY s.name
         """

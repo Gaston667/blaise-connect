@@ -1,6 +1,6 @@
 
-import { CalendarRange, ContactRound, GraduationCap, House, Users, Presentation, X } 
-from 'lucide-react' 
+import { BookOpen, CalendarRange, ContactRound, GraduationCap, House, Users, Presentation, X }
+from 'lucide-react'
 import logo from '../assets/logo-blaise-connect.png.png'
 import LogoutButton from '../pages/logout_button.jsx'
 
@@ -153,6 +153,15 @@ export default function Sidebar({
         >
           <Presentation aria-hidden="true" size={20} />
           Enseignants
+        </button>
+        <button
+          className={currentPage === 'subjects' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+          type="button"
+          data-page="subjects"
+          onClick={handleNavigation}
+        >
+          <BookOpen aria-hidden="true" size={20} />
+          Matières
         </button>
       </nav>
 

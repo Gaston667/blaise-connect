@@ -15,6 +15,7 @@ import SchoolYearDetailsPage from './pages/school_year_details_page.jsx'
 import SchoolYearsPage from './pages/school_years_page.jsx'
 import StudentDetailsPage from './pages/student_details_page.jsx'
 import StudentsPage from './pages/students_page.jsx'
+import SubjectsPage from './pages/subjects_page.jsx'
 import TeachersPage from './pages/teachers_page.jsx'
 import TeacherDetailsPage from './pages/teacher_details_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
@@ -28,6 +29,7 @@ const PAGE_PATHS = {
   'school-years': '/school-years',
   'school-classes': '/school-classes',
   teachers: '/teachers',
+  subjects: '/subjects',
 }
 
 /**
@@ -47,6 +49,7 @@ function getCurrentPage(pathname) {
   if (pathname === '/school-years') return 'school-years'
   if (pathname === '/school-classes') return 'school-classes'
   if (pathname === '/teachers') return 'teachers'
+  if (pathname === '/subjects') return 'subjects'
   return 'home'
 }
 
@@ -130,7 +133,8 @@ export default function App() {
       'school-classes',
       'school-class-details',
       'teachers',
-      'teacher-details'
+      'teacher-details',
+      'subjects',
     ]
 
     if (pagesReservedToAdmin.includes(page) && currentAccount?.role !== 'ADMIN') {
@@ -212,6 +216,9 @@ export default function App() {
         onNavigate={handleNavigate}
       />
     )
+  }
+  else if (currentPage === 'subjects' && canManageSchool) {
+    pageContent = <SubjectsPage onNavigate={handleNavigate} />
   }
   return (
     <MainLayout
