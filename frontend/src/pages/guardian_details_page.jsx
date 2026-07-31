@@ -312,21 +312,6 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
             )}
           </section>
 
-          <section className="gdp-card">
-            <h3>Contacts d’urgence</h3>
-            {emergencyStudents.length === 0 ? (
-              <p className="gdp-placeholder">Ce responsable n'est encore déclaré en urgence pour aucun élève.</p>
-            ) : (
-              <ul className="gdp-emergency-list">
-                {emergencyStudents.map((student) => (
-                  <li key={student.id}>
-                    <strong>{student.first_name} {student.last_name}</strong>
-                    <span>{student.class_name ?? 'Classe non renseignée'}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </aside>
       </div>
     </main>

@@ -543,6 +543,44 @@
   outline: none;
 }
 
+.sdp-guardians tbody tr.sdp-guardian-row--primary {
+  background: #edf8f0;
+}
+
+.sdp-guardians tbody tr.sdp-guardian-row--primary:hover,
+.sdp-guardians tbody tr.sdp-guardian-row--primary:focus-visible {
+  background: #e2f4e8;
+}
+
+.sdp-guardian-actions-cell {
+  white-space: nowrap;
+}
+
+.sdp-guardian-remove-btn {
+  border: var(--border-width-thin) solid var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.sdp-guardian-remove-btn:hover {
+  background: var(--alert-danger-bg);
+}
+
+.sdp-guardian-confirm-remove-btn {
+  color: white;
+  background: var(--color-danger);
+  border-color: var(--color-danger) !important;
+}
+
+.sdp-guardian-confirm-remove-btn:hover {
+  background: #b32025;
+}
+
 .sdp-guardians tbody tr:last-child td {
   border-bottom: 0;
 }

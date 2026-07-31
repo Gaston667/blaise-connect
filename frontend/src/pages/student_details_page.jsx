@@ -27,7 +27,11 @@ import {
   reactivateStudent,
   enrollStudent,
 } from '../services/students_service.js'
-import { linkGuardianToStudent, searchGuardians } from '../services/guardians_service.js'
+import {
+  linkGuardianToStudent,
+  searchGuardians,
+  unlinkGuardianFromStudent,
+} from '../services/guardians_service.js'
 import '../styles/student_details_page.css'
 import NotificationPopup from '../components/notification_popup.jsx'
 import { uploadAccountPhoto } from '../services/account_service.js'
@@ -88,8 +92,10 @@ export default function StudentDetailsPage({ student, onNavigate }) {
   const [guardianRelationshipDetails, setGuardianRelationshipDetails] = useState('')
   const [guardianLegal, setGuardianLegal] = useState(false)
   const [guardianPrimary, setGuardianPrimary] = useState(false)
-  const [guardianEmergency, setGuardianEmergency] = useState(false)
   const [guardianSaving, setGuardianSaving] = useState(false)
+  const [unlinkGuardianModalOpen, setUnlinkGuardianModalOpen] = useState(false)
+  const [guardianToUnlink, setGuardianToUnlink] = useState(null)
+  const [unlinkingGuardian, setUnlinkingGuardian] = useState(false)
   const [enrollmentModalOpen, setEnrollmentModalOpen] = useState(false)
   const [enrollmentClassId, setEnrollmentClassId] = useState('')
   const [enrollmentStartDate, setEnrollmentStartDate] = useState('')
@@ -165,7 +171,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
     setGuardianRelationshipDetails('')
     setGuardianLegal(false)
     setGuardianPrimary(false)
-    setGuardianEmergency(false)
     setError('')
     try {
       setGuardianResults(await searchGuardians())
@@ -205,7 +210,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
           guardianRelationship === 'OTHER' ? guardianRelationshipDetails.trim() : null,
         is_legal_guardian: guardianLegal,
         is_primary_contact: guardianPrimary,
-        is_emergency_contact: guardianEmergency,
+        is_emergency_contact: false,
       })
       closeGuardianModal()
       await load()
@@ -231,6 +236,36 @@ export default function StudentDetailsPage({ student, onNavigate }) {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       handleGuardianNavigation(event)
+    }
+  }
+
+  function openUnlinkGuardianModal(event, guardian) {
+    event.stopPropagation()
+    setGuardianToUnlink(guardian)
+    setUnlinkGuardianModalOpen(true)
+    setError('')
+  }
+
+  function closeUnlinkGuardianModal() {
+    if (unlinkingGuardian) return
+    setUnlinkGuardianModalOpen(false)
+    setGuardianToUnlink(null)
+  }
+
+  async function confirmUnlinkGuardian() {
+    if (!details?.id || !guardianToUnlink?.id) return
+    setUnlinkingGuardian(true)
+    setError('')
+    try {
+      await unlinkGuardianFromStudent(details.id, guardianToUnlink.id)
+      setUnlinkGuardianModalOpen(false)
+      setGuardianToUnlink(null)
+      setInformationMessage('Le responsable a été retiré de cet élève.')
+      await load()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setUnlinkingGuardian(false)
     }
   }
 
@@ -698,12 +733,14 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                         <th>Nom et prénom</th>
                         <th>Téléphone</th>
                         <th>Email</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {details.guardians.map((guardian) => (
                         <tr
                           key={guardian.id}
+                          className={guardian.is_primary_contact ? 'sdp-guardian-row--primary' : ''}
                           role="link"
                           tabIndex={0}
                           data-guardian-id={guardian.id}
@@ -721,6 +758,15 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                           <td>{guardian.first_name} {guardian.last_name}</td>
                           <td>{guardian.phone ?? '—'}</td>
                           <td>{guardian.email ?? '—'}</td>
+                          <td className="sdp-guardian-actions-cell">
+                            <button
+                              type="button"
+                              className="sdp-guardian-remove-btn"
+                              onClick={(event) => openUnlinkGuardianModal(event, guardian)}
+                            >
+                              Retirer
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -823,16 +869,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                     />
                     Contact principal
                   </label>
-                  <label className="sdp-guardian-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={guardianEmergency}
-                      onChange={function updateEmergencyContact(event) {
-                        setGuardianEmergency(event.target.checked)
-                      }}
-                    />
-                    Contact d’urgence
-                  </label>
                 </div>
 
                 <footer>
@@ -850,6 +886,41 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                     }
                   >
                     {guardianSaving ? 'Association…' : 'Associer'}
+                  </button>
+                </footer>
+              </section>
+            </div>
+          )}
+
+          {unlinkGuardianModalOpen && (
+            <div className="sdp-guardian-modal-backdrop" role="presentation">
+              <section className="sdp-guardian-modal" role="dialog" aria-modal="true" aria-labelledby="sdp-unlink-guardian-title">
+                <header>
+                  <div>
+                    <h2 id="sdp-unlink-guardian-title">Retirer ce responsable ?</h2>
+                    <p>
+                      Confirmez le retrait de
+                      {' '}
+                      <strong>{guardianToUnlink?.first_name} {guardianToUnlink?.last_name}</strong>
+                      {' '}
+                      pour cet élève.
+                    </p>
+                  </div>
+                  <button type="button" onClick={closeUnlinkGuardianModal} aria-label="Fermer">
+                    <X aria-hidden="true" size={20} />
+                  </button>
+                </header>
+                <footer>
+                  <button type="button" onClick={closeUnlinkGuardianModal} disabled={unlinkingGuardian}>
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    className="sdp-guardian-confirm-remove-btn"
+                    onClick={confirmUnlinkGuardian}
+                    disabled={unlinkingGuardian}
+                  >
+                    {unlinkingGuardian ? 'Retrait…' : 'Confirmer le retrait'}
                   </button>
                 </footer>
               </section>

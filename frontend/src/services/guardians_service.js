@@ -60,3 +60,23 @@ export async function linkGuardianToStudent(studentId, guardianId, linkData) {
   if (!response.ok) throw new Error('Impossible d’associer ce responsable.')
   return response.json()
 }
+
+export async function unlinkGuardianFromStudent(studentId, guardianId) {
+  const response = await fetch(
+    `/api/students/${studentId}/guardians/${guardianId}`,
+    {
+      method: 'DELETE',
+      credentials: 'include',
+    },
+  )
+  if (!response.ok) {
+    let message = 'Impossible de retirer ce responsable.'
+    try {
+      const body = await response.json()
+      if (body?.detail) message = body.detail
+    } catch {
+      // On conserve le message générique si la réponse n'est pas du JSON.
+    }
+    throw new Error(message)
+  }
+}
