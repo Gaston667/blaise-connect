@@ -38,8 +38,9 @@ services:
       - ./database/migration/003_student_guardians.sql:/docker-entrypoint-initdb.d/003_student_guardians.sql:ro
       - ./database/migration/004_school_structure.sql:/docker-entrypoint-initdb.d/004_school_structure.sql:ro
       - ./database/migration/005_open_year_deletion.sql:/docker-entrypoint-initdb.d/005_open_year_deletion.sql:ro
+      - ./database/migration/006_teacher_assignments.sql:/docker-entrypoint-initdb.d/006_teacher_assignments.sql:ro
       # Ajoute les comptes fictifs après la création complète du schéma.
-      - ./database/init/007_create_test_accounts.sql:/docker-entrypoint-initdb.d/006_create_test_accounts.sql:ro
+      - ./database/init/007_create_test_accounts.sql:/docker-entrypoint-initdb.d/007_create_test_accounts.sql:ro
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
     healthcheck:
       # pg_isready utilise l'utilisateur et la base définis dans .env.

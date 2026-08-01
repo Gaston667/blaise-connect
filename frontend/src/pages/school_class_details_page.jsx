@@ -90,6 +90,12 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   // Retrait matière
   const [confirmRemoveSubjectId, setConfirmRemoveSubjectId] = useState(null)
   const [removingSubject, setRemovingSubject] = useState(false)
+  // Affectation enseignant par matière (démonstration frontend uniquement :
+  // aucune table teacher_assignments côté backend pour l'instant, cf. discussion).
+  const [teacherAssignments, setTeacherAssignments] = useState({})
+  const [assignPickerSubjectId, setAssignPickerSubjectId] = useState(null)
+  const [assignSearch, setAssignSearch] = useState('')
+  const [historySubjectId, setHistorySubjectId] = useState(null)
 
   useEffect(() => {
     load()
@@ -280,6 +286,46 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
       setRemovingSubject(false)
     }
   }
+
+  function openAssignPicker(subjectId) {
+    setAssignSearch('')
+    setAssignPickerSubjectId(subjectId)
+  }
+
+  function closeAssignPicker() {
+    setAssignPickerSubjectId(null)
+  }
+
+  function assignSubjectTeacher(teacher) {
+    const today = new Date().toISOString().slice(0, 10)
+    setTeacherAssignments((current) => {
+      const previous = current[assignPickerSubjectId]
+      const history = previous
+        ? [...previous.history, { ...previous.current, end_date: today }]
+        : []
+      return {
+        ...current,
+        [assignPickerSubjectId]: {
+          current: { teacher_id: teacher.id, teacher_name: `${teacher.first_name} ${teacher.last_name}`, start_date: today },
+          history,
+        },
+      }
+    })
+    setAssignPickerSubjectId(null)
+  }
+
+  function openAssignmentHistory(subjectId) {
+    setHistorySubjectId(subjectId)
+  }
+
+  function closeAssignmentHistory() {
+    setHistorySubjectId(null)
+  }
+
+  const filteredAssignTeachers = teachers.filter((teacher) => {
+    const searchable = `${teacher.first_name} ${teacher.last_name} ${teacher.registration_number}`.toLowerCase()
+    return searchable.includes(assignSearch.trim().toLowerCase())
+  })
 
   function openTeacherDetails() {
     onNavigate?.('teacher-details', {
@@ -799,7 +845,41 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                             </span>
                           )}
                         </td>
-                        <td className="scd-col-teacher">{subject.teacher_name ?? <span className="scd-no-teacher">Non affecté</span>}</td>
+                        <td className="scd-col-teacher">
+                          {teacherAssignments[subject.id] ? (
+                            <span className="scd-assigned-teacher">
+                              {teacherAssignments[subject.id].current.teacher_name}
+                              <button
+                                type="button"
+                                className="scd-btn-icon"
+                                title="Réaffecter la matière"
+                                onClick={() => openAssignPicker(subject.id)}
+                              >
+                                ✎
+                              </button>
+                              <button
+                                type="button"
+                                className="scd-btn-icon"
+                                title="Voir l'historique"
+                                onClick={() => openAssignmentHistory(subject.id)}
+                              >
+                                🕘
+                              </button>
+                            </span>
+                          ) : (
+                            <span className="scd-no-teacher">
+                              Non affecté
+                              <button
+                                type="button"
+                                className="scd-btn-icon"
+                                title="Affecter un enseignant"
+                                onClick={() => openAssignPicker(subject.id)}
+                              >
+                                + Affecter
+                              </button>
+                            </span>
+                          )}
+                        </td>
                         <td>
                           <span className={subject.is_active
                             ? 'scd-subject-status scd-subject-status--active'
@@ -980,6 +1060,84 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
               <button type="button" className="scd-btn-danger" disabled={removingSubject} onClick={handleRemoveSubject}>
                 {removingSubject ? 'Retrait…' : 'Oui, retirer'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {assignPickerSubjectId && (
+        <div className="scd-confirm-overlay" onClick={closeAssignPicker}>
+          <section
+            className="scd-teacher-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="assign-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="scd-teacher-picker__header">
+              <div>
+                <h3 id="assign-picker-title">Affecter un enseignant</h3>
+                <p>Recherchez un enseignant par nom, prénom ou matricule.</p>
+              </div>
+              <button type="button" className="scd-btn-outline" onClick={closeAssignPicker}>Fermer</button>
+            </div>
+
+            <label className="scd-teacher-search">
+              <Search aria-hidden="true" size={18} />
+              <input
+                autoFocus
+                type="search"
+                placeholder="Nom ou matricule…"
+                value={assignSearch}
+                onChange={(event) => setAssignSearch(event.target.value)}
+              />
+            </label>
+
+            <div className="scd-teacher-results">
+              {filteredAssignTeachers.map((teacher) => (
+                <button
+                  key={teacher.id}
+                  type="button"
+                  className="scd-teacher-result"
+                  onClick={() => assignSubjectTeacher(teacher)}
+                >
+                  <span className="scd-avatar">{initials(teacher.first_name, teacher.last_name)}</span>
+                  <span>
+                    <strong>{teacher.first_name} {teacher.last_name}</strong>
+                    <small>Matricule : {teacher.registration_number}</small>
+                  </span>
+                </button>
+              ))}
+              {filteredAssignTeachers.length === 0 && (
+                <p className="scd-teacher-results__empty">Aucun enseignant trouvé.</p>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {historySubjectId && (
+        <div className="scd-confirm-overlay" onClick={closeAssignmentHistory}>
+          <div className="scd-confirm-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Historique des affectations</h3>
+            {teacherAssignments[historySubjectId] ? (
+              <ul className="scd-assignment-history">
+                <li>
+                  <strong>{teacherAssignments[historySubjectId].current.teacher_name}</strong>
+                  <span>Depuis le {formatDate(teacherAssignments[historySubjectId].current.start_date)} — en cours</span>
+                </li>
+                {[...teacherAssignments[historySubjectId].history].reverse().map((entry, index) => (
+                  <li key={index}>
+                    <strong>{entry.teacher_name}</strong>
+                    <span>Du {formatDate(entry.start_date)} au {formatDate(entry.end_date)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>Aucun enseignant n'a encore été affecté à cette matière.</p>
+            )}
+            <div className="scd-confirm-actions">
+              <button type="button" className="scd-btn-outline" onClick={closeAssignmentHistory}>Fermer</button>
             </div>
           </div>
         </div>

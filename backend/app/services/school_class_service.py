@@ -259,6 +259,11 @@ def list_school_class_subjects(
         where_clauses.append("s.is_active = :is_active")
         parameters["is_active"] = is_active
 
+    # NOTE: l'affectation d'un enseignant par matière de classe n'existe pas
+    # encore en base (table teacher_assignments documentée mais non créée,
+    # cf. database/migration/006_teacher_assignments.sql en attente).
+    # teacher_name reste donc toujours NULL ici pour ne pas afficher une
+    # donnée inventée ; l'assignation est prototypée côté frontend seul.
     statement = sql_text(
         f"""
         SELECT
@@ -267,11 +272,9 @@ def list_school_class_subjects(
             s.name,
             cs.coefficient,
             s.is_active,
-            (t.first_name || ' ' || t.last_name) AS teacher_name
+            NULL::text AS teacher_name
         FROM class_subjects cs
         JOIN subjects s ON s.id = cs.subject_id
-        JOIN classes c ON c.id = cs.class_id
-        LEFT JOIN teachers t ON t.id = c.main_teacher_id
         WHERE {" AND ".join(where_clauses)}
         ORDER BY s.name
         """
