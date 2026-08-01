@@ -55,6 +55,10 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('fr-FR').format(new Date(value))
 }
 
+function isHighSchoolLevel(level) {
+  return level?.education_stage === 'HIGH_SCHOOL'
+}
+
 export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   const [details, setDetails] = useState(schoolClass)
   const [activeTab, setActiveTab] = useState('info')
@@ -562,7 +566,14 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                         disabled={levelIsLocked}
                       >
                         {classLevels.map((level) => (
-                          <option key={level.id} value={level.id}>{level.name}</option>
+                          <option
+                            key={level.id}
+                            value={level.id}
+                            disabled={!isHighSchoolLevel(level)}
+                          >
+                            {level.name}
+                            {!isHighSchoolLevel(level) ? ' (indisponible)' : ''}
+                          </option>
                         ))}
                       </select>
                       {levelIsLocked && <Lock aria-label="Niveau verrouillé" size={17} />}
