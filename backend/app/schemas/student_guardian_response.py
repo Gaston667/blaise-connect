@@ -10,5 +10,4 @@ class StudentGuardianResponse(GuardianResponse):
     relationship_details: str | None
     relationship_label: str
     is_legal_guardian: bool
-    is_primary_contact: bool
     is_emergency_contact: bool

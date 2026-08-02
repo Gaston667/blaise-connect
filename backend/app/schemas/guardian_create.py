@@ -21,7 +21,6 @@ class GuardianCreate(BaseModel):
     relationship_type: Literal["FATHER", "MOTHER", "OTHER"] | None = None
     relationship_details: str | None = Field(default=None, max_length=100)
     is_legal_guardian: bool = False
-    is_primary_contact: bool = False
     is_emergency_contact: bool = False
 
     @model_validator(mode="after")
@@ -34,7 +33,6 @@ class GuardianCreate(BaseModel):
                 self.relationship_type is not None
                 or details is not None
                 or self.is_legal_guardian
-                or self.is_primary_contact
                 or self.is_emergency_contact
             )
             if has_link_data:

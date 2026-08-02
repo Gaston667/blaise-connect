@@ -91,7 +91,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
   const [guardianRelationship, setGuardianRelationship] = useState('FATHER')
   const [guardianRelationshipDetails, setGuardianRelationshipDetails] = useState('')
   const [guardianLegal, setGuardianLegal] = useState(false)
-  const [guardianPrimary, setGuardianPrimary] = useState(false)
   const [guardianSaving, setGuardianSaving] = useState(false)
   const [unlinkGuardianModalOpen, setUnlinkGuardianModalOpen] = useState(false)
   const [guardianToUnlink, setGuardianToUnlink] = useState(null)
@@ -170,7 +169,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
     setGuardianRelationship('FATHER')
     setGuardianRelationshipDetails('')
     setGuardianLegal(false)
-    setGuardianPrimary(false)
     setError('')
     try {
       setGuardianResults(await searchGuardians())
@@ -209,7 +207,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
         relationship_details:
           guardianRelationship === 'OTHER' ? guardianRelationshipDetails.trim() : null,
         is_legal_guardian: guardianLegal,
-        is_primary_contact: guardianPrimary,
         is_emergency_contact: false,
       })
       closeGuardianModal()
@@ -740,7 +737,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                       {details.guardians.map((guardian) => (
                         <tr
                           key={guardian.id}
-                          className={guardian.is_primary_contact ? 'sdp-guardian-row--primary' : ''}
                           role="link"
                           tabIndex={0}
                           data-guardian-id={guardian.id}
@@ -858,16 +854,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                       }}
                     />
                     Responsable légal
-                  </label>
-                  <label className="sdp-guardian-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={guardianPrimary}
-                      onChange={function updatePrimaryContact(event) {
-                        setGuardianPrimary(event.target.checked)
-                      }}
-                    />
-                    Contact principal
                   </label>
                 </div>
 

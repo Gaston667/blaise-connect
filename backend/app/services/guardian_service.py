@@ -56,22 +56,6 @@ def _normalize_relationship(
     return relationship_type, details
 
 
-def _clear_primary_contact(db: Session, student_id: str) -> None:
-    """Retire l'indicateur principal des autres responsables de l'élève."""
-
-    db.execute(
-        text(
-            """
-            UPDATE student_guardians
-            SET is_primary_contact = false
-            WHERE student_id = :student_id
-              AND is_primary_contact = true
-            """
-        ),
-        {"student_id": student_id},
-    )
-
-
 def _insert_guardian_link(
     db: Session,
     student_id: str,
@@ -84,8 +68,6 @@ def _insert_guardian_link(
         data.relationship_type,
         data.relationship_details,
     )
-    if data.is_primary_contact:
-        _clear_primary_contact(db=db, student_id=student_id)
 
     row = db.execute(
         text(
@@ -96,7 +78,6 @@ def _insert_guardian_link(
                 relationship_type,
                 relationship_details,
                 is_legal_guardian,
-                is_primary_contact,
                 is_emergency_contact
             )
             VALUES (
@@ -105,7 +86,6 @@ def _insert_guardian_link(
                 :relationship_type,
                 :relationship_details,
                 :is_legal_guardian,
-                :is_primary_contact,
                 :is_emergency_contact
             )
             RETURNING
@@ -114,7 +94,6 @@ def _insert_guardian_link(
                 relationship_type,
                 relationship_details,
                 is_legal_guardian,
-                is_primary_contact,
                 is_emergency_contact
             """
         ),
@@ -124,7 +103,6 @@ def _insert_guardian_link(
             "relationship_type": relationship_type,
             "relationship_details": relationship_details,
             "is_legal_guardian": data.is_legal_guardian,
-            "is_primary_contact": data.is_primary_contact,
             "is_emergency_contact": data.is_emergency_contact,
         },
     ).mappings().one()
@@ -191,7 +169,6 @@ def create_guardian(db: Session, data: GuardianCreate) -> dict:
             relationship_type=data.relationship_type,
             relationship_details=data.relationship_details,
             is_legal_guardian=data.is_legal_guardian,
-            is_primary_contact=data.is_primary_contact,
             is_emergency_contact=data.is_emergency_contact,
         )
         _insert_guardian_link(
@@ -267,12 +244,11 @@ def list_guardians_for_student(db: Session, student_id: str) -> list[dict]:
                 sg.relationship_type,
                 sg.relationship_details,
                 sg.is_legal_guardian,
-                sg.is_primary_contact,
                 sg.is_emergency_contact
             FROM student_guardians AS sg
             JOIN guardians AS g ON g.id = sg.guardian_id
             WHERE sg.student_id = :student_id
-            ORDER BY sg.is_primary_contact DESC, g.last_name, g.first_name
+            ORDER BY g.last_name, g.first_name
             """
         ),
         {"student_id": student_id},
@@ -301,7 +277,6 @@ def update_guardian_link(
                 relationship_type,
                 relationship_details,
                 is_legal_guardian,
-                is_primary_contact,
                 is_emergency_contact
             FROM student_guardians
             WHERE student_id = :student_id
@@ -327,17 +302,10 @@ def update_guardian_link(
         "is_legal_guardian",
         current["is_legal_guardian"],
     )
-    is_primary_contact = updates.get(
-        "is_primary_contact",
-        current["is_primary_contact"],
-    )
     is_emergency_contact = updates.get(
         "is_emergency_contact",
         current["is_emergency_contact"],
     )
-
-    if is_primary_contact:
-        _clear_primary_contact(db=db, student_id=student_id)
 
     row = db.execute(
         text(
@@ -347,7 +315,6 @@ def update_guardian_link(
                 relationship_type = :relationship_type,
                 relationship_details = :relationship_details,
                 is_legal_guardian = :is_legal_guardian,
-                is_primary_contact = :is_primary_contact,
                 is_emergency_contact = :is_emergency_contact
             WHERE student_id = :student_id
               AND guardian_id = :guardian_id
@@ -357,7 +324,6 @@ def update_guardian_link(
                 relationship_type,
                 relationship_details,
                 is_legal_guardian,
-                is_primary_contact,
                 is_emergency_contact
             """
         ),
@@ -367,7 +333,6 @@ def update_guardian_link(
             "relationship_type": relationship_type,
             "relationship_details": relationship_details,
             "is_legal_guardian": is_legal_guardian,
-            "is_primary_contact": is_primary_contact,
             "is_emergency_contact": is_emergency_contact,
         },
     ).mappings().one()
@@ -441,7 +406,6 @@ def get_guardian_detail(db: Session, guardian_id: str) -> dict | None:
                 sg.relationship_type AS relationship,
                 sg.relationship_type,
                 sg.relationship_details,
-                sg.is_primary_contact,
                 sg.is_legal_guardian,
                 sg.is_emergency_contact,
                 CASE
@@ -465,7 +429,7 @@ def get_guardian_detail(db: Session, guardian_id: str) -> dict | None:
             LEFT JOIN class_levels cl ON cl.id = c.class_level_id
             LEFT JOIN school_years sy ON sy.id = c.school_year_id
             WHERE sg.guardian_id = :guardian_id
-            ORDER BY sg.is_primary_contact DESC, s.last_name, s.first_name
+            ORDER BY s.last_name, s.first_name
             """
         ),
         {"guardian_id": guardian_id},
