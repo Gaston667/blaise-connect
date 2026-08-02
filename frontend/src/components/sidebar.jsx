@@ -1,5 +1,5 @@
 
-import { BookOpen, CalendarRange, ContactRound, GraduationCap, House, NotebookPen, Users, Presentation, X }
+import { BookOpen, CalendarRange, ContactRound, GraduationCap, House, NotebookPen, ShieldCheck, Users, Presentation, X }
 from 'lucide-react'
 import logo from '../assets/logo-blaise-connect.png.png'
 import LogoutButton from '../pages/logout_button.jsx'
@@ -154,6 +154,21 @@ export default function Sidebar({
           <Presentation aria-hidden="true" size={20} />
           Enseignants
         </button>
+        {canManageAccounts ? (
+          <button
+            className={
+              currentPage === 'administrators' || currentPage === 'administrator-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="administrators"
+            onClick={handleNavigation}
+          >
+            <ShieldCheck aria-hidden="true" size={20} />
+            Administrateurs
+          </button>
+        ) : null}
         <button
           className={currentPage === 'subjects' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
           type="button"
