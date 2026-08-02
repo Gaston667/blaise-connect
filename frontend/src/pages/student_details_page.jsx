@@ -36,6 +36,7 @@ import '../styles/student_details_page.css'
 import NotificationPopup from '../components/notification_popup.jsx'
 import { formatProfileName } from '../utils/profileDisplay.js'
 import { uploadAccountPhoto } from '../services/account_service.js'
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 const RELATIONSHIP_ICON_CLASS = {
   FATHER: 'sdp-guardian-icon--pere',
   MOTHER: 'sdp-guardian-icon--mere',
@@ -103,6 +104,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
   const [informationMessage, setInformationMessage] = useState('')
   const [editPhoto, setEditPhoto] = useState(null)
   const [editPhotoPreview, setEditPhotoPreview] = useState('')
+  const debouncedGuardianQuery = useDebouncedValue(guardianQuery)
 
   function handleHomeNavigation() {
     onNavigate?.('home')
@@ -178,17 +180,15 @@ export default function StudentDetailsPage({ student, onNavigate }) {
     }
   }
 
+  useEffect(() => {
+    if (!guardianModalOpen) return
+    searchGuardians(debouncedGuardianQuery)
+      .then(setGuardianResults)
+      .catch((requestError) => setError(requestError.message))
+  }, [debouncedGuardianQuery, guardianModalOpen])
+
   function closeGuardianModal() {
     setGuardianModalOpen(false)
-  }
-
-  async function handleGuardianSearch(event) {
-    event.preventDefault()
-    try {
-      setGuardianResults(await searchGuardians(guardianQuery))
-    } catch (requestError) {
-      setError(requestError.message)
-    }
   }
 
   function selectGuardian(event) {
@@ -786,7 +786,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                   </button>
                 </header>
 
-                <form className="sdp-guardian-search" onSubmit={handleGuardianSearch}>
+                <form className="sdp-guardian-search" onSubmit={(event) => event.preventDefault()}>
                   <Search aria-hidden="true" size={18} />
                   <input
                     value={guardianQuery}
@@ -795,7 +795,6 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                     }}
                     placeholder="Nom ou téléphone"
                   />
-                  <button type="submit">Rechercher</button>
                 </form>
 
                 <div className="sdp-guardian-results">

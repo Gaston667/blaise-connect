@@ -15,6 +15,7 @@ import {
   Users,
 } from 'lucide-react'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import {
   deleteSchoolClass,
   getClassLevels,
@@ -101,6 +102,10 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   const [assignPickerSubjectId, setAssignPickerSubjectId] = useState(null)
   const [assignSearch, setAssignSearch] = useState('')
   const [historySubjectId, setHistorySubjectId] = useState(null)
+  const debouncedStudentSearch = useDebouncedValue(studentSearch)
+  const debouncedStudentStatus = useDebouncedValue(studentStatus)
+  const debouncedSubjectSearch = useDebouncedValue(subjectSearch)
+  const debouncedSubjectStatus = useDebouncedValue(subjectStatus)
 
   useEffect(() => {
     load()
@@ -113,11 +118,23 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     }
   }, [activeTab, schoolClass?.id])
 
+  useEffect(function reactiveStudentFiltersEffect() {
+    if (activeTab === 'students') {
+      loadClassStudents({ q: debouncedStudentSearch, status: debouncedStudentStatus })
+    }
+  }, [activeTab, debouncedStudentSearch, debouncedStudentStatus, schoolClass?.id])
+
   useEffect(function loadClassSubjectsEffect() {
     if (activeTab === 'subjects') {
       loadClassSubjects()
     }
   }, [activeTab, schoolClass?.id])
+
+  useEffect(function reactiveSubjectFiltersEffect() {
+    if (activeTab === 'subjects') {
+      loadClassSubjects({ q: debouncedSubjectSearch, status: debouncedSubjectStatus })
+    }
+  }, [activeTab, debouncedSubjectSearch, debouncedSubjectStatus, schoolClass?.id])
 
   async function load() {
     if (!schoolClass?.id) return
@@ -193,26 +210,14 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     }
   }
 
-  function handleStudentSearch(event) {
-    event.preventDefault()
-    loadClassStudents()
-  }
-
   function resetStudentFilters() {
     setStudentSearch('')
     setStudentStatus('')
-    loadClassStudents({ q: '', status: '' })
-  }
-
-  function handleSubjectSearch(event) {
-    event.preventDefault()
-    loadClassSubjects()
   }
 
   function resetSubjectFilters() {
     setSubjectSearch('')
     setSubjectStatus('')
-    loadClassSubjects({ q: '', status: '' })
   }
 
   async function openSubjectPicker() {
@@ -682,7 +687,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                 </div>
               </div>
 
-              <form className="scd-student-filters" onSubmit={handleStudentSearch}>
+              <form className="scd-student-filters" onSubmit={(event) => event.preventDefault()}>
                 <label className="scd-student-search">
                   <Search aria-hidden="true" size={18} />
                   <input
@@ -702,7 +707,6 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   <option value="INACTIVE">Inactifs</option>
                   <option value="ARCHIVED">Archivés</option>
                 </select>
-                <button type="submit" className="scd-btn-primary">Rechercher</button>
                 <button type="button" className="scd-btn-outline" onClick={resetStudentFilters}>
                   Réinitialiser
                 </button>
@@ -768,7 +772,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                 </button>
               </div>
 
-              <form className="scd-subject-filters" onSubmit={handleSubjectSearch}>
+              <form className="scd-subject-filters" onSubmit={(event) => event.preventDefault()}>
                 <label className="scd-subject-search">
                   <Search aria-hidden="true" size={18} />
                   <input
@@ -787,7 +791,6 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   <option value="true">Actives</option>
                   <option value="false">Inactives</option>
                 </select>
-                <button type="submit" className="scd-btn-primary">Rechercher</button>
                 <button type="button" className="scd-btn-outline" onClick={resetSubjectFilters}>
                   Réinitialiser
                 </button>

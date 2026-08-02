@@ -3,11 +3,13 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.schemas.subject_create import SubjectCreate
+from app.schemas.subject_detail import SubjectDetail
 from app.schemas.subject_overview import SubjectOverview
 from app.schemas.subject_response import SubjectResponse
 from app.schemas.subject_update import SubjectUpdate
 from app.services.subject_service import (
     create_subject,
+    get_subject_detail,
     list_subjects_overview,
     update_subject,
 )
@@ -28,6 +30,20 @@ def get_subjects_overview(
     return list_subjects_overview(
         db=db, q=q, class_id=class_id, teacher_id=teacher_id, is_active=is_active
     )
+
+
+@router.get("/{subject_id}/detail", response_model=SubjectDetail)
+def get_subject_detail_route(
+    subject_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Retourne la fiche d'une matière et ses classes associées."""
+
+    detail = get_subject_detail(db=db, subject_id=subject_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Matière introuvable.")
+    return detail
 
 
 @router.post("", response_model=SubjectResponse, status_code=status.HTTP_201_CREATED)

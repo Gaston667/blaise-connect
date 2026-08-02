@@ -4,11 +4,13 @@ export function getCivilTitle(gender) {
   return ''
 }
 
-export function formatProfileName(firstName, lastName, gender, { order = 'first-last', fallback = 'Non renseigne' } = {}) {
+export function formatProfileName(firstName, lastName, gender, { order = 'last-first', fallback = 'Non renseigne' } = {}) {
   const title = getCivilTitle(gender)
+  const normalizedLastName = String(lastName ?? '').trim().toLocaleUpperCase('fr-FR')
+  const normalizedFirstName = String(firstName ?? '').trim()
   const parts = order === 'last-first'
-    ? [lastName, firstName]
-    : [firstName, lastName]
+    ? [normalizedLastName, normalizedFirstName]
+    : [normalizedFirstName, normalizedLastName]
   const fullName = parts.filter(Boolean).join(' ').trim()
 
   if (!fullName) return fallback

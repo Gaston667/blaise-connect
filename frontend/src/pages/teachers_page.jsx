@@ -50,6 +50,10 @@ export default function TeachersPage({ onNavigate }) {
     fetchTeachers()
   }, [])
 
+  useEffect(() => {
+    setPage(0)
+  }, [query, statusFilter, hireYearFilter])
+
   async function fetchTeachers() {
     setLoading(true)
     try {
@@ -60,11 +64,6 @@ export default function TeachersPage({ onNavigate }) {
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleSearch(event) {
-    event.preventDefault()
-    setPage(0)
   }
 
   function handleReset() {
@@ -143,7 +142,7 @@ export default function TeachersPage({ onNavigate }) {
         </article>
       </section>
 
-      <form onSubmit={handleSearch} className="tp-filters">
+      <form className="tp-filters" onSubmit={(event) => event.preventDefault()}>
         <label className="tp-search">
           <Search className="tp-search__icon" aria-hidden="true" size={18} />
           <input
@@ -163,7 +162,6 @@ export default function TeachersPage({ onNavigate }) {
           <option value="">Toutes les années d’embauche</option>
           {hireYears.map((year) => <option key={year} value={year}>{year}</option>)}
         </select>
-        <button type="submit" className="tp-btn-search">Rechercher</button>
         <button type="button" className="tp-btn-reset" onClick={handleReset}>Réinitialiser</button>
       </form>
 

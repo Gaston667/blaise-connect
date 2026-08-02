@@ -882,46 +882,40 @@ export default function TeacherDetailsPage({ teacher }) {
             <div className="tdp-panel__head tdp-panel__head--stacked">
               <div>
                 <h3>Liste des évaluations</h3>
-                <p className="tdp-panel__description">
-                  Vue orientée évaluations uniquement.
-                </p>
               </div>
+            </div>
+
+            <div className="tdp-sort-toolbar" aria-label="Tri des évaluations">
+              <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('title')}>
+                Titre {getSortLabel('title')}
+              </button>
+              <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('subject_name')}>
+                Matière {getSortLabel('subject_name')}
+              </button>
+              <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('class_name')}>
+                Classe {getSortLabel('class_name')}
+              </button>
+              <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('date')}>
+                Date {getSortLabel('date')}
+              </button>
+              <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('coefficient')}>
+                Coefficient {getSortLabel('coefficient')}
+              </button>
+              <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('maximum_score')}>
+                Barème {getSortLabel('maximum_score')}
+              </button>
             </div>
 
             <div className="tdp-table-wrap">
               <table className="tdp-table tdp-table--evaluations">
                 <thead>
                   <tr>
-                    <th>
-                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('title')}>
-                        Titre {getSortLabel('title')}
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('subject_name')}>
-                        Matière {getSortLabel('subject_name')}
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('class_name')}>
-                        Classe {getSortLabel('class_name')}
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('date')}>
-                        Date {getSortLabel('date')}
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('coefficient')}>
-                        Coefficient {getSortLabel('coefficient')}
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('maximum_score')}>
-                        Barème {getSortLabel('maximum_score')}
-                      </button>
-                    </th>
+                    <th>Titre</th>
+                    <th>Matière</th>
+                    <th>Classe</th>
+                    <th>Date</th>
+                    <th>Coefficient</th>
+                    <th>Barème</th>
                   </tr>
                 </thead>
                 <tbody>

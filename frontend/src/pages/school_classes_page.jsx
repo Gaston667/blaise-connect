@@ -8,6 +8,7 @@ import {
   getTeachers,
   getSchoolClassesOverview,
 } from '../services/school_classes_overview_service.js'
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import '../styles/school_classes_page.css'
 const AVATAR_PALETTE = [
   { bg: '#E8ECFB', fg: '#3355DD' },
@@ -77,19 +78,33 @@ export default function SchoolClassesPage({ onNavigate }) {
   const [creating, setCreating] = useState(false)
   const [showTeacherPicker, setShowTeacherPicker] = useState(false)
   const [teacherQuery, setTeacherQuery] = useState('')
+  const debouncedQuery = useDebouncedValue(query)
+  const debouncedSchoolYearId = useDebouncedValue(schoolYearId)
+  const debouncedClassLevelId = useDebouncedValue(classLevelId)
+  const debouncedStatus = useDebouncedValue(status)
 
   useEffect(() => {
     fetchInitialData()
   }, [])
 
-  async function fetchClasses(pageIndex = page) {
+  useEffect(() => {
+    fetchClasses(0, {
+      q: debouncedQuery,
+      schoolYearId: debouncedSchoolYearId,
+      classLevelId: debouncedClassLevelId,
+      status: debouncedStatus,
+    })
+    setPage(0)
+  }, [debouncedQuery, debouncedSchoolYearId, debouncedClassLevelId, debouncedStatus])
+
+  async function fetchClasses(pageIndex = page, overrides = {}) {
     setLoading(true)
     try {
       const data = await getSchoolClassesOverview({
-        q: query || null,
-        schoolYearId: schoolYearId || null,
-        classLevelId: classLevelId || null,
-        status: status || null,
+        q: 'q' in overrides ? overrides.q || null : query || null,
+        schoolYearId: 'schoolYearId' in overrides ? overrides.schoolYearId || null : schoolYearId || null,
+        classLevelId: 'classLevelId' in overrides ? overrides.classLevelId || null : classLevelId || null,
+        status: 'status' in overrides ? overrides.status || null : status || null,
         limit: PAGE_SIZE,
         offset: pageIndex * PAGE_SIZE,
       })
@@ -128,19 +143,11 @@ export default function SchoolClassesPage({ onNavigate }) {
     }
   }
 
-  function handleSearch(e) {
-    e.preventDefault()
-    setPage(0)
-    fetchClasses(0)
-  }
-
   function handleReset() {
     setQuery('')
     setSchoolYearId('')
     setClassLevelId('')
     setStatus('')
-    setPage(0)
-    setTimeout(() => fetchClasses(0), 0)
   }
 
   function goToPage(next) {
@@ -238,7 +245,7 @@ export default function SchoolClassesPage({ onNavigate }) {
         </div>
       )}
 
-      <form onSubmit={handleSearch} className="scp-filters">
+      <form className="scp-filters" onSubmit={(event) => event.preventDefault()}>
         <div className="scp-search">
           <span className="scp-search__icon">⌕</span>
           <input
@@ -269,7 +276,6 @@ export default function SchoolClassesPage({ onNavigate }) {
           <option value="ARCHIVEE">Archivée</option>
         </select>
 
-        <button type="submit" className="scp-btn-search">Rechercher</button>
         <button type="button" className="scp-btn-reset" onClick={handleReset}>
           ⟲ Réinitialiser
         </button>

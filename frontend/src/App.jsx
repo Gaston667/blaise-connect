@@ -16,6 +16,7 @@ import SchoolYearsPage from './pages/school_years_page.jsx'
 import StudentDetailsPage from './pages/student_details_page.jsx'
 import StudentsPage from './pages/students_page.jsx'
 import SubjectsPage from './pages/subjects_page.jsx'
+import SubjectDetailsPage from './pages/subject_details_page.jsx'
 import NotesPage from './pages/notes_page.jsx'
 import AdministratorsPage from './pages/administrators_page.jsx'
 import AdministratorDetailsPage from './pages/administrator_details_page.jsx'
@@ -48,6 +49,7 @@ function getCurrentPage(pathname) {
   if (/^\/school-years\/[^/]+$/.test(pathname)) return 'school-year-details'
   if (/^\/school-classes\/[^/]+$/.test(pathname)) return 'school-class-details'
   if (/^\/teachers\/[^/]+$/.test(pathname)) return 'teacher-details'
+  if (/^\/subjects\/[^/]+$/.test(pathname)) return 'subject-details'
   if (/^\/administrators\/[^/]+$/.test(pathname)) return 'administrator-details'
   if (pathname === '/accounts') return 'accounts'
   if (pathname === '/students') return 'students'
@@ -72,6 +74,7 @@ function getNavigationPath(page, entity) {
   if (page === 'school-year-details' && entityId) return `/school-years/${entityId}`
   if (page === 'school-class-details' && entityId) return `/school-classes/${entityId}`
   if (page === 'teacher-details' && entityId) return `/teachers/${entityId}`
+  if (page === 'subject-details' && entityId) return `/subjects/${entityId}`
   if (page === 'administrator-details' && entityId) return `/administrators/${entityId}`
   return PAGE_PATHS[page] || '/'
 }
@@ -144,6 +147,7 @@ export default function App() {
       'teachers',
       'teacher-details',
       'subjects',
+      'subject-details',
       'notes',
       'administrators',
       'administrator-details',
@@ -231,6 +235,14 @@ export default function App() {
   }
   else if (currentPage === 'subjects' && canManageSchool) {
     pageContent = <SubjectsPage onNavigate={handleNavigate} />
+  }
+  else if (currentPage === 'subject-details' && canManageSchool) {
+    pageContent = (
+      <SubjectDetailsPage
+        subject={selectedEntity || { id: pathId }}
+        onNavigate={handleNavigate}
+      />
+    )
   }
   else if (currentPage === 'notes' && canManageSchool) {
     pageContent = <NotesPage onNavigate={handleNavigate} />

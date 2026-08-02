@@ -42,6 +42,10 @@ export default function NotesPage({ onNavigate }) {
     refreshGrades()
   }, [])
 
+  useEffect(() => {
+    refreshGrades()
+  }, [query, classFilter, subjectFilter, periodFilter])
+
   function refreshGrades(overrides = {}) {
     setGrades(listMockGrades({
       classId: 'classId' in overrides ? overrides.classId : classFilter,
@@ -51,17 +55,11 @@ export default function NotesPage({ onNavigate }) {
     }))
   }
 
-  function handleSearch(event) {
-    event.preventDefault()
-    refreshGrades()
-  }
-
   function handleReset() {
     setQuery('')
     setClassFilter('')
     setSubjectFilter('')
     setPeriodFilter('')
-    refreshGrades({ classId: '', subjectId: '', periodId: '', q: '' })
   }
 
   const subjectOptionsForFilter = useMemo(() => {
@@ -171,7 +169,7 @@ export default function NotesPage({ onNavigate }) {
         Écran de démonstration : les notes saisies ici restent dans ce navigateur, elles ne sont pas encore enregistrées en base.
       </div>
 
-      <form onSubmit={handleSearch} className="ntp-filters">
+      <form onSubmit={(event) => event.preventDefault()} className="ntp-filters">
         <label className="ntp-search">
           <Search className="ntp-search__icon" aria-hidden="true" size={18} />
           <input
@@ -202,7 +200,6 @@ export default function NotesPage({ onNavigate }) {
           {MOCK_PERIODS.map((period) => <option key={period.id} value={period.id}>{period.name}</option>)}
         </select>
 
-        <button type="submit" className="ntp-btn-search">Rechercher</button>
         <button type="button" className="ntp-btn-reset" onClick={handleReset}>⟲ Réinitialiser</button>
       </form>
 

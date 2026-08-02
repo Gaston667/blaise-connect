@@ -25,6 +25,7 @@ package "VUE - React" #E8F5E9 {
   class "pages/school_year_details_page.jsx" as SchoolYearDetailsPage
   class "pages/school_classes_page.jsx" as SchoolClassesPage
   class "pages/subjects_page.jsx" as SubjectsPage
+  class "pages/subject_details_page.jsx" as SubjectDetailsPage
   class "pages/teachers_page.jsx" as TeachersPage
   class "pages/teacher_details_page.jsx" as TeacherDetailsPage
 
@@ -79,6 +80,8 @@ package "CONTRATS - Pydantic" #FFEBEE {
   class SubjectCreate
   class SubjectUpdate
   class SubjectResponse
+  class SubjectDetail
+  class SubjectClassDetail
   class ClassSubjectCreate
   class ClassSubjectResponse
   class TeacherCreate
@@ -123,6 +126,7 @@ App --> SchoolYearsPage
 App --> SchoolYearDetailsPage
 App --> SchoolClassesPage
 App --> SubjectsPage
+App --> SubjectDetailsPage
 App --> TeachersPage
 App --> TeacherDetailsPage
 
@@ -132,6 +136,7 @@ SchoolYearsPage ..> FrontSchoolYearService
 SchoolYearDetailsPage --> FrontSchoolYearService
 SchoolClassesPage ..> FrontSchoolClassService
 SubjectsPage ..> FrontSubjectService
+SubjectDetailsPage --> FrontSubjectService
 TeachersPage ..> FrontTeacherService
 TeacherDetailsPage --> FrontTeacherService
 

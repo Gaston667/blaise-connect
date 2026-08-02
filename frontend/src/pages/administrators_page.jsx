@@ -49,6 +49,10 @@ export default function AdministratorsPage({ onNavigate }) {
     fetchAdministrators()
   }, [])
 
+  useEffect(() => {
+    setPage(0)
+  }, [query, statusFilter])
+
   async function fetchAdministrators() {
     setLoading(true)
     try {
@@ -59,11 +63,6 @@ export default function AdministratorsPage({ onNavigate }) {
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleSearch(event) {
-    event.preventDefault()
-    setPage(0)
   }
 
   function handleReset() {
@@ -133,7 +132,7 @@ export default function AdministratorsPage({ onNavigate }) {
         </article>
       </section>
 
-      <form onSubmit={handleSearch} className="adp-filters">
+      <form className="adp-filters" onSubmit={(event) => event.preventDefault()}>
         <label className="adp-search">
           <Search className="adp-search__icon" aria-hidden="true" size={18} />
           <input
@@ -149,7 +148,6 @@ export default function AdministratorsPage({ onNavigate }) {
           <option value="ACTIVE">Actifs</option>
           <option value="INACTIVE">Inactifs</option>
         </select>
-        <button type="submit" className="adp-btn-search">Rechercher</button>
         <button type="button" className="adp-btn-reset" onClick={handleReset}>Réinitialiser</button>
       </form>
 
