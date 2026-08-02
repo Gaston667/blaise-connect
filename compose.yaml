@@ -38,6 +38,7 @@ services:
       - ./database/migration/003_student_guardians.sql:/docker-entrypoint-initdb.d/003_student_guardians.sql:ro
       - ./database/migration/004_school_structure.sql:/docker-entrypoint-initdb.d/004_school_structure.sql:ro
       - ./database/migration/005_open_year_deletion.sql:/docker-entrypoint-initdb.d/005_open_year_deletion.sql:ro
+      - ./database/migration/007_class_subjects_delete_grant.sql:/docker-entrypoint-initdb.d/007_class_subjects_delete_grant.sql:ro
       # Ajoute les données fictives fusionnées (007 + 008 + 009) après le schéma.
       - ./database/init/050_creat_teste_data.sql:/docker-entrypoint-initdb.d/050_creat_teste_data.sql:ro
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.

@@ -17,6 +17,8 @@ import StudentDetailsPage from './pages/student_details_page.jsx'
 import StudentsPage from './pages/students_page.jsx'
 import SubjectsPage from './pages/subjects_page.jsx'
 import NotesPage from './pages/notes_page.jsx'
+import AdministratorsPage from './pages/administrators_page.jsx'
+import AdministratorDetailsPage from './pages/administrator_details_page.jsx'
 import TeachersPage from './pages/teachers_page.jsx'
 import TeacherDetailsPage from './pages/teacher_details_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
@@ -32,6 +34,7 @@ const PAGE_PATHS = {
   teachers: '/teachers',
   subjects: '/subjects',
   notes: '/notes',
+  administrators: '/administrators',
 }
 
 /**
@@ -45,6 +48,7 @@ function getCurrentPage(pathname) {
   if (/^\/school-years\/[^/]+$/.test(pathname)) return 'school-year-details'
   if (/^\/school-classes\/[^/]+$/.test(pathname)) return 'school-class-details'
   if (/^\/teachers\/[^/]+$/.test(pathname)) return 'teacher-details'
+  if (/^\/administrators\/[^/]+$/.test(pathname)) return 'administrator-details'
   if (pathname === '/accounts') return 'accounts'
   if (pathname === '/students') return 'students'
   if (pathname === '/guardians') return 'guardians'
@@ -53,6 +57,7 @@ function getCurrentPage(pathname) {
   if (pathname === '/teachers') return 'teachers'
   if (pathname === '/subjects') return 'subjects'
   if (pathname === '/notes') return 'notes'
+  if (pathname === '/administrators') return 'administrators'
   return 'home'
 }
 
@@ -67,6 +72,7 @@ function getNavigationPath(page, entity) {
   if (page === 'school-year-details' && entityId) return `/school-years/${entityId}`
   if (page === 'school-class-details' && entityId) return `/school-classes/${entityId}`
   if (page === 'teacher-details' && entityId) return `/teachers/${entityId}`
+  if (page === 'administrator-details' && entityId) return `/administrators/${entityId}`
   return PAGE_PATHS[page] || '/'
 }
 
@@ -139,6 +145,8 @@ export default function App() {
       'teacher-details',
       'subjects',
       'notes',
+      'administrators',
+      'administrator-details',
     ]
 
     if (pagesReservedToAdmin.includes(page) && currentAccount?.role !== 'ADMIN') {
@@ -226,6 +234,17 @@ export default function App() {
   }
   else if (currentPage === 'notes' && canManageSchool) {
     pageContent = <NotesPage onNavigate={handleNavigate} />
+  }
+  else if (currentPage === 'administrators' && canManageSchool) {
+    pageContent = <AdministratorsPage onNavigate={handleNavigate} />
+  }
+  else if (currentPage === 'administrator-details' && canManageSchool) {
+    pageContent = (
+      <AdministratorDetailsPage
+        administrator={selectedEntity || { id: pathId }}
+        onNavigate={handleNavigate}
+      />
+    )
   }
   return (
     <MainLayout
