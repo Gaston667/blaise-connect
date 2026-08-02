@@ -1,5 +1,9 @@
 """Point d'entrée de l'API FastAPI de BlaiseConnect."""
-from fastapi import FastAPI
+
+from fastapi import FastAPI, Request
+
+from app.core.exception_handlers import register_exception_handlers
+from app.core.api_response import wrap_success_responses
 from app.routes.accounts import router as accounts_router
 from app.routes.school_years import router as school_years_router
 from app.routes.reporting_periods import router as reporting_periods_router
@@ -18,6 +22,14 @@ app = FastAPI(
     title="BlaiseConnect API",
     version="0.1.0",
 )
+
+register_exception_handlers(app)
+
+
+@app.middleware("http")
+async def standardize_success_response(request: Request, call_next):
+    return await wrap_success_responses(request, call_next)
+
 # Enregistre les routes dans l'application principale.
 app.include_router(health_router)
 app.include_router(auth_router)
