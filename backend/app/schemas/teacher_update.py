@@ -1,5 +1,7 @@
 """Contrat de modification d'un profil enseignant."""
 
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -10,6 +12,7 @@ class TeacherUpdate(BaseModel):
 
     first_name: str | None = Field(default=None, min_length=1, max_length=100)
     last_name: str | None = Field(default=None, min_length=1, max_length=100)
+    birth_date: date | None = None
     gender: str | None = Field(default=None, max_length=20)
     email: str | None = Field(default=None, max_length=254)
     phone: str | None = Field(default=None, max_length=30)

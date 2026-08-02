@@ -1,9 +1,12 @@
-export async function getAdministratorsOverview(q) {
+import { apiRequestJson } from '../utils/apiErrorHandler.js'
+
+export function getAdministratorsOverview(q) {
   const params = new URLSearchParams()
   if (q) params.append('q', q)
-  const res = await fetch(`/api/administrators/overview?${params.toString()}`, { credentials: 'include' })
-  if (!res.ok) throw new Error('Échec du chargement des administrateurs')
-  return await res.json()
+  return apiRequestJson(`/api/administrators/overview?${params.toString()}`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des administrateurs',
+  })
 }
 
 /**

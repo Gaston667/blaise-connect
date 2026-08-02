@@ -72,14 +72,20 @@ package "VUE - React" #E8F5E9 {
     - searchQuery
     - isLoading
     + loadTeachers()
-    + handleCreateTeacher(data)
-    + handleDeactivateTeacher(id)
+    + openTeacherDetails(id)
   }
-  class "services/teacher_service.js" as FrontTeacherService {
-    + listTeachers(filters)
-    + createTeacher(data)
-    + updateTeacher(id, data)
-    + deactivateTeacher(id)
+  class "pages/teacher_details_page.jsx" as TeacherDetailsPage {
+    - details
+    - activeTab
+    - personalForm
+    + loadTeacher()
+    + startPersonalEdit()
+    + savePersonalInfo()
+  }
+  class "services/teachers_overview_service.js" as FrontTeacherService {
+    + getTeachersOverview(query)
+    + getTeacherDetail(id)
+    + updateTeacherProfile(id, data)
   }
 }
 
@@ -147,17 +153,14 @@ package "CONTROLEUR - FastAPI" #FFF3E0 {
   }
 
   class "routes/teachers.py" as TeacherRoutes {
-    + get_teachers(filters, db, admin)
-    + post_teacher(data, db, admin)
-    + patch_teacher(id, data, db, admin)
-    + deactivate_teacher(id, db, admin)
+    + get_teachers_overview(query, db, admin)
+    + get_teacher_detail_route(id, db, admin)
+    + patch_teacher_route(id, data, db, admin)
   }
   class "services/teacher_service.py" as TeacherService {
-    + list_teachers(db, filters)
-    + create_teacher(db, data)
-    + update_teacher(db, id, data)
-    + deactivate_teacher(db, id)
-    + validate_teacher_photo(file)
+    + list_teachers_overview(db, query)
+    + get_teacher_detail(db, id)
+    + update_teacher_profile(db, id, data)
   }
 }
 
@@ -185,6 +188,8 @@ package "CONTRATS - Pydantic" #FFEBEE {
   class TeacherCreate
   class TeacherUpdate
   class TeacherResponse
+  class TeacherOverview
+  class TeacherDetail
 }
 
 package "MODELE - SQLAlchemy" #E3F2FD {
@@ -245,12 +250,13 @@ SchoolYearDetailsPage --> FrontSchoolYearService
 SchoolClassesPage --> FrontSchoolClassService
 SubjectsPage --> FrontSubjectService
 TeachersPage --> FrontTeacherService
+TeacherDetailsPage --> FrontTeacherService
 
 FrontSchoolYearService ..> SchoolYearRoutes : HTTP
 FrontSchoolYearService ..> ReportingPeriodRoutes : HTTP
-FrontSchoolClassService ..> SchoolClassRoutes : HTTP futur
-FrontSubjectService ..> SubjectRoutes : HTTP futur
-FrontTeacherService ..> TeacherRoutes : HTTP futur
+FrontSchoolClassService ..> SchoolClassRoutes : HTTP
+FrontSubjectService ..> SubjectRoutes : HTTP
+FrontTeacherService ..> TeacherRoutes : HTTP
 
 SchoolYearRoutes ..> SchoolYearService
 ReportingPeriodRoutes --> ReportingPeriodService

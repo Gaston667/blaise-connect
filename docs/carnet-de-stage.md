@@ -80,3 +80,4 @@ Amélioration de la gestion des enseignants : filtres, lignes cliquables et nouv
 Correction du chargement de la gestion des classes après l’évolution de la route des enseignants.
 Réorganisation de la sécurité des comptes et ajout d’une réinitialisation de mot de passe confirmée par l’administrateur.
 Amélioration de la fiche compte : actions d’état compactes et réinitialisation sécurisée du mot de passe.
+02/08/2026 — Fiche enseignant complétée et affectations matière-classe historisées sans suppression.

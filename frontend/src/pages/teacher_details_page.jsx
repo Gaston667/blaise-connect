@@ -3,20 +3,28 @@ import {
   BadgeInfo,
   BookOpen,
   CalendarDays,
-  Ellipsis,
-  ChevronDown,
   GraduationCap,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   Shield,
+  Unlink,
   UserRound,
-  UsersRound,
   X,
 } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
-import { getTeacherDetail } from '../services/teachers_overview_service.js'
-import { getSchoolClassesOverview, updateSchoolClass } from '../services/school_classes_overview_service.js'
+import AlertBanner from '../components/feedback/AlertBanner.jsx'
+import ConfirmationDialog from '../components/feedback/ConfirmationDialog.jsx'
+import FieldError from '../components/feedback/FieldError.jsx'
+import { useToast } from '../components/feedback/ToastProvider.jsx'
+import {
+  createTeacherAssignment,
+  endTeacherAssignment,
+  getAvailableTeacherAssignments,
+  getTeacherDetail,
+  updateTeacherProfile,
+} from '../services/teachers_overview_service.js'
 import '../styles/teacher_details_page.css'
 
 const DEFAULT_PHOTO = defaultPhoto
@@ -36,17 +44,86 @@ function isActive(details) {
   return details.status === 'ACTIVE'
 }
 
+function isMainTeacherOfClass(schoolClass) {
+  return schoolClass.is_main_teacher === true
+}
+
+function hasMainTeacherClass(classes) {
+  return classes.some(isMainTeacherOfClass)
+}
+
+function toDateInput(value) {
+  if (!value) return ''
+  return String(value).slice(0, 10)
+}
+
+function normalizeOptionalString(value) {
+  const trimmed = String(value ?? '').trim()
+  return trimmed ? trimmed : null
+}
+
+function toComparable(value) {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'number') return value
+  return String(value).toLowerCase()
+}
+
+function currentDateInput() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function clampDateToSchoolYear(value, option) {
+  if (!option) return value
+  if (value < option.school_year_start_date) return option.school_year_start_date
+  if (value > option.school_year_end_date) return option.school_year_end_date
+  return value
+}
+
+function getAssignmentEndDate(assignment) {
+  const today = currentDateInput()
+  if (today < assignment.start_date) return assignment.start_date
+  if (today > assignment.school_year_end_date) return assignment.school_year_end_date
+  return today
+}
+
 export default function TeacherDetailsPage({ teacher }) {
+  const toast = useToast()
   const [details, setDetails] = useState(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [activeTab, setActiveTab] = useState('personal')
-  const [assignModalOpen, setAssignModalOpen] = useState(false)
-  const [assignClasses, setAssignClasses] = useState([])
-  const [assignClassId, setAssignClassId] = useState('')
-  const [assignLoading, setAssignLoading] = useState(false)
-  const [assignSaving, setAssignSaving] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
+  const [isEditingPersonal, setIsEditingPersonal] = useState(false)
+  const [personalSaving, setPersonalSaving] = useState(false)
+  const [personalForm, setPersonalForm] = useState({
+    first_name: '',
+    last_name: '',
+    birth_date: '',
+    gender: '',
+    email: '',
+    phone: '',
+    address: '',
+    qualification: '',
+  })
+  const [personalFieldErrors, setPersonalFieldErrors] = useState({})
+
+  const [subjectAssignOpen, setSubjectAssignOpen] = useState(false)
+  const [subjectAssignClassId, setSubjectAssignClassId] = useState('')
+  const [subjectAssignClassSubjectId, setSubjectAssignClassSubjectId] = useState('')
+  const [subjectAssignStartDate, setSubjectAssignStartDate] = useState(currentDateInput())
+  const [subjectAssignOptions, setSubjectAssignOptions] = useState([])
+  const [subjectAssignLoading, setSubjectAssignLoading] = useState(false)
+  const [subjectAssignSaving, setSubjectAssignSaving] = useState(false)
+  const [subjectAssignError, setSubjectAssignError] = useState('')
+  const [subjectToRemove, setSubjectToRemove] = useState(null)
+  const [subjectRemoving, setSubjectRemoving] = useState(false)
+
+  const [evaluationClassFilter, setEvaluationClassFilter] = useState('all')
+  const [evaluationSubjectFilter, setEvaluationSubjectFilter] = useState('all')
+  const [evaluationSort, setEvaluationSort] = useState({ key: 'subject_name', direction: 'asc' })
 
   useEffect(function loadTeacherDetailsEffect() {
     if (!teacher?.id) {
@@ -59,10 +136,12 @@ export default function TeacherDetailsPage({ teacher }) {
 
   async function loadTeacher() {
     if (!teacher?.id) return
+    setErrorMessage('')
     try {
       setDetails(await getTeacherDetail(teacher.id))
     } catch (error) {
       setErrorMessage(error.message)
+      setDetails(null)
     } finally {
       setLoading(false)
     }
@@ -73,46 +152,301 @@ export default function TeacherDetailsPage({ teacher }) {
     return details.subjects.slice(0, 2).join(', ')
   }, [details?.subjects])
 
-  const evaluationRows = useMemo(() => details?.taught_subjects ?? [], [details?.taught_subjects])
-  const assignableClasses = useMemo(
-    () => assignClasses.filter((schoolClass) => schoolClass.main_teacher_id !== teacher?.id),
-    [assignClasses, teacher?.id],
+  const teachingClasses = useMemo(() => {
+    const classes = details?.classes ?? []
+    return [...classes].sort((a, b) => {
+      const byYear = String(b.school_year_name ?? '').localeCompare(String(a.school_year_name ?? ''), 'fr')
+      if (byYear !== 0) return byYear
+      return String(a.name ?? '').localeCompare(String(b.name ?? ''), 'fr')
+    })
+  }, [details?.classes])
+
+  const evaluationRows = useMemo(() => {
+    return details?.evaluations ?? []
+  }, [details?.evaluations])
+
+  const availableSubjectNames = useMemo(() => {
+    if (!evaluationRows.length) return []
+    return Array.from(new Set(evaluationRows.map((row) => row.subject_name))).sort((a, b) => a.localeCompare(b, 'fr'))
+  }, [evaluationRows])
+
+  const filteredAndSortedEvaluations = useMemo(() => {
+    const filtered = evaluationRows.filter((row) => {
+      if (evaluationClassFilter !== 'all' && row.class_id !== evaluationClassFilter) return false
+      if (evaluationSubjectFilter !== 'all' && row.subject_name !== evaluationSubjectFilter) return false
+      return true
+    })
+
+    const directionFactor = evaluationSort.direction === 'asc' ? 1 : -1
+    return [...filtered].sort((left, right) => {
+      const leftValue = toComparable(left[evaluationSort.key])
+      const rightValue = toComparable(right[evaluationSort.key])
+
+      if (leftValue < rightValue) return -1 * directionFactor
+      if (leftValue > rightValue) return 1 * directionFactor
+      return 0
+    })
+  }, [evaluationClassFilter, evaluationRows, evaluationSort, evaluationSubjectFilter])
+
+  const evaluationSummary = useMemo(() => {
+    const total = filteredAndSortedEvaluations.length
+    const classes = new Set(filteredAndSortedEvaluations.map((row) => row.class_id)).size
+    const subjects = new Set(filteredAndSortedEvaluations.map((row) => row.subject_name)).size
+    const coefficientAverage = total === 0
+      ? 0
+      : filteredAndSortedEvaluations.reduce((sum, row) => sum + Number(row.coefficient || 0), 0) / total
+
+    return {
+      total,
+      classes,
+      subjects,
+      coefficientAverage,
+    }
+  }, [filteredAndSortedEvaluations])
+
+  function syncPersonalForm(source) {
+    setPersonalForm({
+      first_name: source.first_name ?? '',
+      last_name: source.last_name ?? '',
+      birth_date: toDateInput(source.birth_date),
+      gender: source.gender ?? '',
+      email: source.email ?? '',
+      phone: source.phone ?? '',
+      address: source.address ?? '',
+      qualification: source.qualification ?? '',
+    })
+  }
+
+  function startPersonalEdit() {
+    if (!details) return
+    syncPersonalForm(details)
+    setPersonalFieldErrors({})
+    setErrorMessage('')
+    setIsEditingPersonal(true)
+  }
+
+  function cancelPersonalEdit() {
+    if (!details || personalSaving) return
+    syncPersonalForm(details)
+    setPersonalFieldErrors({})
+    setErrorMessage('')
+    setIsEditingPersonal(false)
+  }
+
+  function handlePersonalFieldChange(field, value) {
+    setPersonalForm((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
+  function validatePersonalForm() {
+    const errors = {}
+
+    const firstName = personalForm.first_name.trim()
+    const lastName = personalForm.last_name.trim()
+    const email = personalForm.email.trim()
+    const phone = personalForm.phone.trim()
+    const gender = personalForm.gender.trim()
+
+    if (!firstName) errors.first_name = 'Le prénom est obligatoire.'
+    if (!lastName) errors.last_name = 'Le nom est obligatoire.'
+    if (firstName.length > 100) errors.first_name = 'Le prénom ne peut pas dépasser 100 caractères.'
+    if (lastName.length > 100) errors.last_name = 'Le nom ne peut pas dépasser 100 caractères.'
+    if (gender && gender.length > 20) errors.gender = 'Le sexe ne peut pas dépasser 20 caractères.'
+    if (phone && phone.length > 30) errors.phone = 'Le téléphone ne peut pas dépasser 30 caractères.'
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'L\'adresse email est invalide.'
+
+    return errors
+  }
+
+  async function savePersonalInfo() {
+    if (!teacher?.id || personalSaving) return
+
+    const validationErrors = validatePersonalForm()
+    setPersonalFieldErrors(validationErrors)
+    if (Object.keys(validationErrors).length > 0) return
+
+    const payload = {
+      first_name: personalForm.first_name.trim(),
+      last_name: personalForm.last_name.trim(),
+      birth_date: personalForm.birth_date || null,
+      gender: normalizeOptionalString(personalForm.gender),
+      email: normalizeOptionalString(personalForm.email),
+      phone: normalizeOptionalString(personalForm.phone),
+      address: normalizeOptionalString(personalForm.address),
+      qualification: normalizeOptionalString(personalForm.qualification),
+    }
+
+    setPersonalSaving(true)
+    setErrorMessage('')
+    try {
+      const updated = await updateTeacherProfile(teacher.id, payload)
+      setDetails(updated)
+      setIsEditingPersonal(false)
+      toast.success('Informations enseignant mises à jour avec succès.')
+    } catch (error) {
+      setErrorMessage(error.message)
+      toast.error(error.message || 'Échec de la mise à jour.')
+    } finally {
+      setPersonalSaving(false)
+    }
+  }
+
+  function openSubjectAssignModal() {
+    setErrorMessage('')
+    setSubjectAssignError('')
+    setSubjectAssignOpen(true)
+    setSubjectAssignClassId('')
+    setSubjectAssignClassSubjectId('')
+    setSubjectAssignStartDate(currentDateInput())
+  }
+
+  function closeSubjectAssignModal() {
+    if (subjectAssignSaving) return
+    setSubjectAssignOpen(false)
+    setSubjectAssignClassId('')
+    setSubjectAssignClassSubjectId('')
+    setSubjectAssignOptions([])
+    setSubjectAssignError('')
+  }
+
+  useEffect(function loadAvailableAssignmentsEffect() {
+    async function loadAvailableAssignments() {
+      if (!subjectAssignOpen || !teacher?.id) {
+        setSubjectAssignOptions([])
+        setSubjectAssignClassSubjectId('')
+        return
+      }
+
+      setSubjectAssignLoading(true)
+      setSubjectAssignError('')
+      try {
+        const options = await getAvailableTeacherAssignments(teacher.id)
+        setSubjectAssignOptions(options)
+        const firstOption = options[0]
+        setSubjectAssignClassId(firstOption?.class_id || '')
+        setSubjectAssignClassSubjectId(firstOption?.class_subject_id || '')
+        setSubjectAssignStartDate(clampDateToSchoolYear(currentDateInput(), firstOption))
+      } catch (error) {
+        setSubjectAssignError(error.message)
+        setSubjectAssignOptions([])
+        setSubjectAssignClassSubjectId('')
+      } finally {
+        setSubjectAssignLoading(false)
+      }
+    }
+
+    loadAvailableAssignments()
+  }, [subjectAssignOpen, teacher?.id])
+
+  const availableAssignmentClasses = useMemo(() => {
+    const byId = new Map()
+    for (const option of subjectAssignOptions) {
+      if (!byId.has(option.class_id)) byId.set(option.class_id, option)
+    }
+    return Array.from(byId.values())
+  }, [subjectAssignOptions])
+
+  const availableAssignmentsForClass = useMemo(
+    () => subjectAssignOptions.filter((option) => option.class_id === subjectAssignClassId),
+    [subjectAssignClassId, subjectAssignOptions],
   )
 
-  async function openAssignModal() {
-    setAssignModalOpen(true)
-    setAssignClassId('')
-    setAssignLoading(true)
+  const selectedAssignmentOption = useMemo(
+    () => subjectAssignOptions.find((option) => option.class_subject_id === subjectAssignClassSubjectId),
+    [subjectAssignClassSubjectId, subjectAssignOptions],
+  )
+
+  function selectAssignmentClass(classId) {
+    const firstOption = subjectAssignOptions.find((option) => option.class_id === classId)
+    setSubjectAssignClassId(classId)
+    setSubjectAssignClassSubjectId(firstOption?.class_subject_id || '')
+    setSubjectAssignStartDate(clampDateToSchoolYear(currentDateInput(), firstOption))
+  }
+
+  async function confirmSubjectAssign() {
+    if (!teacher?.id || !subjectAssignClassSubjectId || !subjectAssignStartDate) return
+
+    if (
+      selectedAssignmentOption
+      && (
+        subjectAssignStartDate < selectedAssignmentOption.school_year_start_date
+        || subjectAssignStartDate > selectedAssignmentOption.school_year_end_date
+      )
+    ) {
+      setSubjectAssignError('La date de début doit appartenir à l’année scolaire de la classe.')
+      return
+    }
+
+    setSubjectAssignSaving(true)
+    setSubjectAssignError('')
     setErrorMessage('')
     try {
-      const classes = await getSchoolClassesOverview({ limit: 200 })
-      setAssignClasses(classes)
+      const updated = await createTeacherAssignment(teacher.id, {
+        class_subject_id: subjectAssignClassSubjectId,
+        start_date: subjectAssignStartDate,
+      })
+      setDetails(updated)
+      setSubjectAssignOpen(false)
+      setSubjectAssignClassId('')
+      setSubjectAssignClassSubjectId('')
+      setSubjectAssignOptions([])
+      toast.success('Matière affectée avec succès.')
     } catch (error) {
-      setErrorMessage(error.message)
+      setSubjectAssignError(error.message)
+      toast.error(error.message || 'Échec de l\'affectation de la matière.')
     } finally {
-      setAssignLoading(false)
+      setSubjectAssignSaving(false)
     }
   }
 
-  function closeAssignModal() {
-    if (assignSaving) return
-    setAssignModalOpen(false)
-    setAssignClassId('')
+  function requestSubjectRemoval(row) {
+    setSubjectToRemove(row)
   }
 
-  async function confirmAssignClass() {
-    if (!assignClassId || !teacher?.id) return
-    setAssignSaving(true)
+  async function confirmSubjectRemoval() {
+    if (!teacher?.id || !subjectToRemove) return
+    setSubjectRemoving(true)
     setErrorMessage('')
     try {
-      await updateSchoolClass(assignClassId, { main_teacher_id: teacher.id })
-      closeAssignModal()
-      await loadTeacher()
+      const updated = await endTeacherAssignment(
+        teacher.id,
+        subjectToRemove.id,
+        getAssignmentEndDate(subjectToRemove),
+      )
+      setDetails(updated)
+      setSubjectToRemove(null)
+      toast.success('Matière désaffectée avec succès.')
     } catch (error) {
       setErrorMessage(error.message)
+      toast.error(error.message || 'Échec de la désaffectation.')
     } finally {
-      setAssignSaving(false)
+      setSubjectRemoving(false)
     }
+  }
+
+  function cancelSubjectRemoval() {
+    if (subjectRemoving) return
+    setSubjectToRemove(null)
+  }
+
+  function toggleEvaluationSort(key) {
+    setEvaluationSort((current) => {
+      if (current.key !== key) {
+        return { key, direction: 'asc' }
+      }
+      return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+    })
+  }
+
+  function getSortLabel(key) {
+    if (evaluationSort.key !== key) return '↕'
+    return evaluationSort.direction === 'asc' ? '↑' : '↓'
+  }
+
+  function openEvaluationRow(row) {
+    toast.info(`Détail non disponible V1 pour ${row.subject_name} (${row.class_name}).`)
   }
 
   if (loading) return <main className="tdp-main"><p>Chargement de l’enseignant…</p></main>
@@ -121,6 +455,12 @@ export default function TeacherDetailsPage({ teacher }) {
   return (
     <main className="tdp-main">
       <h1 className="tdp-title">Détails de l’enseignant</h1>
+
+      <AlertBanner
+        type="error"
+        message={errorMessage}
+        onDismiss={() => setErrorMessage('')}
+      />
 
       <section className="tdp-hero">
         <div className="tdp-hero__top">
@@ -141,15 +481,12 @@ export default function TeacherDetailsPage({ teacher }) {
                 <span className={`tdp-pill ${isActive(details) ? 'tdp-pill--active' : 'tdp-pill--inactive'}`}>
                   {isActive(details) ? 'Actif' : 'Inactif'}
                 </span>
-                {details.classes.length > 0 && <span className="tdp-pill tdp-pill--main">Professeur principal</span>}
+                {hasMainTeacherClass(details.classes) && (
+                  <span className="tdp-pill tdp-pill--main">Professeur principal</span>
+                )}
               </div>
             </div>
           </div>
-
-          <button type="button" className="tdp-actions" aria-label="Actions enseignant">
-            Actions
-            <ChevronDown aria-hidden="true" size={16} />
-          </button>
         </div>
 
         <dl className="tdp-hero__stats">
@@ -200,55 +537,163 @@ export default function TeacherDetailsPage({ teacher }) {
             className={activeTab === 'evaluations' ? 'tdp-tab tdp-tab--active' : 'tdp-tab'}
             onClick={() => setActiveTab('evaluations')}
           >
-            Évaluations et notes
+            Évaluations
           </button>
         </nav>
 
         {activeTab === 'personal' && (
           <article className="tdp-panel tdp-panel--personal">
-            <h3>Informations personnelles</h3>
-            <dl className="tdp-personal-list">
+            <div className="tdp-panel__head tdp-panel__head--classes">
               <div>
-                <dt><UserRound aria-hidden="true" size={16} /> Prénom</dt>
-                <dd>{details.first_name || '—'}</dd>
+                <h3>Informations personnelles</h3>
+                <p className="tdp-panel__description">Données administratives du dossier enseignant.</p>
               </div>
-              <div>
-                <dt><UserRound aria-hidden="true" size={16} /> Nom</dt>
-                <dd>{details.last_name || '—'}</dd>
-              </div>
-              <div>
-                <dt><CalendarDays aria-hidden="true" size={16} /> Date de naissance</dt>
-                <dd>{formatDate(details.birth_date)}</dd>
-              </div>
-              <div>
-                <dt><Shield aria-hidden="true" size={16} /> Sexe</dt>
-                <dd>{genderLabel(details.gender)}</dd>
-              </div>
-              <div>
-                <dt><MapPin aria-hidden="true" size={16} /> Adresse</dt>
-                <dd>{details.address ?? 'Non renseignée'}</dd>
-              </div>
-              <div>
-                <dt><Phone aria-hidden="true" size={16} /> Téléphone</dt>
-                <dd>{details.phone ?? 'Non renseigné'}</dd>
-              </div>
-              <div>
-                <dt><Mail aria-hidden="true" size={16} /> Email</dt>
-                <dd>{details.email ?? 'Non renseigné'}</dd>
-              </div>
-              <div>
-                <dt><BadgeInfo aria-hidden="true" size={16} /> Matricule</dt>
-                <dd>{details.registration_number}</dd>
-              </div>
-              <div>
-                <dt><CalendarDays aria-hidden="true" size={16} /> Date d’embauche</dt>
-                <dd>{formatDate(details.hire_date)}</dd>
-              </div>
-              <div>
-                <dt><GraduationCap aria-hidden="true" size={16} /> Qualification</dt>
-                <dd>{details.qualification ?? 'Non renseignée'}</dd>
-              </div>
-            </dl>
+              {!isEditingPersonal ? (
+                <button type="button" className="tdp-assign-button" onClick={startPersonalEdit}>
+                  <Pencil aria-hidden="true" size={16} />
+                  Modifier
+                </button>
+              ) : (
+                <div className="tdp-actions-row">
+                  <button type="button" className="tdp-modal__secondary" onClick={cancelPersonalEdit} disabled={personalSaving}>
+                    Annuler
+                  </button>
+                  <button type="button" className="tdp-modal__primary" onClick={savePersonalInfo} disabled={personalSaving}>
+                    {personalSaving ? 'Enregistrement…' : 'Enregistrer'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {!isEditingPersonal ? (
+              <dl className="tdp-personal-list">
+                <div>
+                  <dt><UserRound aria-hidden="true" size={16} /> Prénom</dt>
+                  <dd>{details.first_name || '—'}</dd>
+                </div>
+                <div>
+                  <dt><UserRound aria-hidden="true" size={16} /> Nom</dt>
+                  <dd>{details.last_name || '—'}</dd>
+                </div>
+                <div>
+                  <dt><CalendarDays aria-hidden="true" size={16} /> Date de naissance</dt>
+                  <dd>{formatDate(details.birth_date)}</dd>
+                </div>
+                <div>
+                  <dt><Shield aria-hidden="true" size={16} /> Sexe</dt>
+                  <dd>{genderLabel(details.gender)}</dd>
+                </div>
+                <div>
+                  <dt><MapPin aria-hidden="true" size={16} /> Adresse</dt>
+                  <dd>{details.address ?? 'Non renseignée'}</dd>
+                </div>
+                <div>
+                  <dt><Phone aria-hidden="true" size={16} /> Téléphone</dt>
+                  <dd>{details.phone ?? 'Non renseigné'}</dd>
+                </div>
+                <div>
+                  <dt><Mail aria-hidden="true" size={16} /> Email</dt>
+                  <dd>{details.email ?? 'Non renseigné'}</dd>
+                </div>
+                <div>
+                  <dt><BadgeInfo aria-hidden="true" size={16} /> Matricule</dt>
+                  <dd>{details.registration_number}</dd>
+                </div>
+                <div>
+                  <dt><CalendarDays aria-hidden="true" size={16} /> Date d’embauche</dt>
+                  <dd>{formatDate(details.hire_date)}</dd>
+                </div>
+                <div>
+                  <dt><GraduationCap aria-hidden="true" size={16} /> Qualification</dt>
+                  <dd>{details.qualification ?? 'Non renseignée'}</dd>
+                </div>
+              </dl>
+            ) : (
+              <form className="tdp-edit-form" onSubmit={(event) => event.preventDefault()}>
+                <label>
+                  <span>Prénom</span>
+                  <input
+                    type="text"
+                    value={personalForm.first_name}
+                    onChange={(event) => handlePersonalFieldChange('first_name', event.target.value)}
+                    maxLength={100}
+                  />
+                  <FieldError message={personalFieldErrors.first_name} />
+                </label>
+
+                <label>
+                  <span>Nom</span>
+                  <input
+                    type="text"
+                    value={personalForm.last_name}
+                    onChange={(event) => handlePersonalFieldChange('last_name', event.target.value)}
+                    maxLength={100}
+                  />
+                  <FieldError message={personalFieldErrors.last_name} />
+                </label>
+
+                <label>
+                  <span>Date de naissance</span>
+                  <input
+                    type="date"
+                    value={personalForm.birth_date}
+                    onChange={(event) => handlePersonalFieldChange('birth_date', event.target.value)}
+                  />
+                </label>
+
+                <label>
+                  <span>Sexe</span>
+                  <input
+                    type="text"
+                    value={personalForm.gender}
+                    onChange={(event) => handlePersonalFieldChange('gender', event.target.value)}
+                    maxLength={20}
+                    placeholder="Ex: M, F, MALE, FEMALE"
+                  />
+                  <FieldError message={personalFieldErrors.gender} />
+                </label>
+
+                <label>
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={personalForm.email}
+                    onChange={(event) => handlePersonalFieldChange('email', event.target.value)}
+                    maxLength={254}
+                  />
+                  <FieldError message={personalFieldErrors.email} />
+                </label>
+
+                <label>
+                  <span>Téléphone</span>
+                  <input
+                    type="text"
+                    value={personalForm.phone}
+                    onChange={(event) => handlePersonalFieldChange('phone', event.target.value)}
+                    maxLength={30}
+                  />
+                  <FieldError message={personalFieldErrors.phone} />
+                </label>
+
+                <label className="tdp-edit-form__full">
+                  <span>Adresse</span>
+                  <textarea
+                    value={personalForm.address}
+                    onChange={(event) => handlePersonalFieldChange('address', event.target.value)}
+                    rows={3}
+                  />
+                </label>
+
+                <label className="tdp-edit-form__full">
+                  <span>Qualification</span>
+                  <textarea
+                    value={personalForm.qualification}
+                    onChange={(event) => handlePersonalFieldChange('qualification', event.target.value)}
+                    rows={3}
+                  />
+                </label>
+              </form>
+            )}
           </article>
         )}
 
@@ -258,13 +703,9 @@ export default function TeacherDetailsPage({ teacher }) {
               <div>
                 <h3>Classes encadrées</h3>
                 <p className="tdp-panel__description">
-                  Liste des classes dans lesquelles l’enseignant est professeur principal.
+                  Liste de toutes les classes dans lesquelles cet enseignant intervient.
                 </p>
               </div>
-              <button type="button" className="tdp-assign-button" onClick={openAssignModal}>
-                <UsersRound aria-hidden="true" size={16} />
-                Affecter à une classe
-              </button>
             </div>
 
             <div className="tdp-table-wrap">
@@ -279,12 +720,12 @@ export default function TeacherDetailsPage({ teacher }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {details.classes.length === 0 ? (
+                  {teachingClasses.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="tdp-empty">Aucune classe principale assignée.</td>
+                      <td colSpan={5} className="tdp-empty">Aucune classe d’enseignement associée.</td>
                     </tr>
                   ) : (
-                    details.classes.map((schoolClass, index) => (
+                    teachingClasses.map((schoolClass, index) => (
                       <tr key={schoolClass.id}>
                         <td>
                           <span className="tdp-class-name">
@@ -297,8 +738,12 @@ export default function TeacherDetailsPage({ teacher }) {
                         </td>
                         <td>{schoolClass.level_name}</td>
                         <td>{schoolClass.school_year_name}</td>
-                        <td><span className="tdp-role-badge">{schoolClass.role_label}</span></td>
-                        <td>{schoolClass.student_count} élève(s)</td>
+                        <td>
+                          {schoolClass.is_main_teacher
+                            ? <span className="tdp-role-badge">Professeur principal</span>
+                            : '—'}
+                        </td>
+                        <td>{schoolClass.student_count === null ? '—' : `${schoolClass.student_count} élève(s)`}</td>
                       </tr>
                     ))
                   )}
@@ -307,13 +752,8 @@ export default function TeacherDetailsPage({ teacher }) {
             </div>
 
             <div className="tdp-table-footer">
-              <span>Affichage 1 à {details.classes.length} sur {details.classes.length} classes</span>
+              <span>Affichage 1 à {teachingClasses.length} sur {teachingClasses.length} classes</span>
             </div>
-
-            <aside className="tdp-note">
-              <strong>Bon à savoir</strong>
-              <p>Les classes listées correspondent aux classes dont cet enseignant est actuellement professeur principal.</p>
-            </aside>
           </article>
         )}
 
@@ -326,9 +766,9 @@ export default function TeacherDetailsPage({ teacher }) {
                   Liste des matières que l’enseignant enseigne et des classes associées.
                 </p>
               </div>
-              <button type="button" className="tdp-assign-button" disabled>
+              <button type="button" className="tdp-assign-button" onClick={openSubjectAssignModal}>
                 <BookOpen aria-hidden="true" size={16} />
-                Ajouter une matière
+                Affecter une matière
               </button>
             </div>
 
@@ -340,13 +780,18 @@ export default function TeacherDetailsPage({ teacher }) {
                     <th>Niveau / Classe</th>
                     <th>Coefficient</th>
                     <th>Année scolaire</th>
-                    <th>Actions</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {details.taught_subjects.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="tdp-empty">Aucune matière rattachée.</td>
+                      <td colSpan={5} className="tdp-empty">
+                        Aucune matière rattachée.{' '}
+                        <button type="button" className="tdp-empty-cta" onClick={openSubjectAssignModal}>
+                          Affecter une matière
+                        </button>
+                      </td>
                     </tr>
                   ) : (
                     details.taught_subjects.map((subjectRow, index) => (
@@ -368,8 +813,13 @@ export default function TeacherDetailsPage({ teacher }) {
                         <td>{subjectRow.coefficient}</td>
                         <td>{subjectRow.school_year_name}</td>
                         <td>
-                          <button type="button" className="tdp-icon-action" aria-label={`Actions pour ${subjectRow.subject_name}`}>
-                            <Ellipsis aria-hidden="true" size={16} />
+                          <button
+                            type="button"
+                            className="tdp-danger-action"
+                            onClick={() => requestSubjectRemoval(subjectRow)}
+                          >
+                            <Unlink aria-hidden="true" size={14} />
+                            Désaffecter
                           </button>
                         </td>
                       </tr>
@@ -383,43 +833,42 @@ export default function TeacherDetailsPage({ teacher }) {
 
         {activeTab === 'evaluations' && (
           <article className="tdp-panel">
+            <section className="tdp-panel tdp-panel--nested">
+              <h3>Synthèse des performances</h3>
+              <div className="tdp-kpi-grid">
+                <article><span>Évaluations listées</span><strong>{evaluationSummary.total}</strong></article>
+                <article><span>Classes couvertes</span><strong>{evaluationSummary.classes}</strong></article>
+                <article><span>Matières couvertes</span><strong>{evaluationSummary.subjects}</strong></article>
+                <article><span>Coefficient moyen</span><strong>{evaluationSummary.coefficientAverage.toFixed(2)}</strong></article>
+              </div>
+            </section>
+
             <div className="tdp-eval-filters">
               <label>
                 <span>Classe</span>
-                <select defaultValue="all">
+                <select value={evaluationClassFilter} onChange={(event) => setEvaluationClassFilter(event.target.value)}>
                   <option value="all">Toutes les classes</option>
-                  {details.classes.map((schoolClass) => (
+                  {teachingClasses.map((schoolClass) => (
                     <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>
                   ))}
                 </select>
               </label>
               <label>
                 <span>Matière</span>
-                <select defaultValue="all">
+                <select value={evaluationSubjectFilter} onChange={(event) => setEvaluationSubjectFilter(event.target.value)}>
                   <option value="all">Toutes les matières</option>
-                  {details.subjects.map((subject) => (
+                  {availableSubjectNames.map((subject) => (
                     <option key={subject} value={subject}>{subject}</option>
                   ))}
                 </select>
               </label>
-              <label>
-                <span>Période</span>
-                <input type="text" value="Non disponible V1" readOnly />
-              </label>
-              <label>
-                <span>Type d’évaluation</span>
-                <input type="text" value="Non disponible V1" readOnly />
-              </label>
-              <button type="button" className="tdp-create-button" disabled>
-                + Créer une évaluation
-              </button>
             </div>
 
             <div className="tdp-panel__head tdp-panel__head--stacked">
               <div>
                 <h3>Liste des évaluations</h3>
                 <p className="tdp-panel__description">
-                  Les colonnes non encore gérées par le backend sont indiquées par Non disponible V1.
+                  Vue orientée évaluations uniquement.
                 </p>
               </div>
             </div>
@@ -428,144 +877,181 @@ export default function TeacherDetailsPage({ teacher }) {
               <table className="tdp-table tdp-table--evaluations">
                 <thead>
                   <tr>
-                    <th>Titre de l’évaluation</th>
-                    <th>Matière</th>
-                    <th>Classe</th>
-                    <th>Date</th>
-                    <th>Coefficient</th>
-                    <th>Note max</th>
-                    <th>Élèves</th>
-                    <th>Saisie</th>
-                    <th>Actions</th>
+                    <th>
+                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('title')}>
+                        Titre {getSortLabel('title')}
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('subject_name')}>
+                        Matière {getSortLabel('subject_name')}
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('class_name')}>
+                        Classe {getSortLabel('class_name')}
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('date')}>
+                        Date {getSortLabel('date')}
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('coefficient')}>
+                        Coefficient {getSortLabel('coefficient')}
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('maximum_score')}>
+                        Barème {getSortLabel('maximum_score')}
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {evaluationRows.length === 0 ? (
+                  {filteredAndSortedEvaluations.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="tdp-empty">Aucune matière liée pour préparer les évaluations.</td>
+                      <td colSpan={6} className="tdp-empty">Aucune évaluation disponible pour ces filtres.</td>
                     </tr>
                   ) : (
-                    evaluationRows.map((row) => (
-                      <tr key={row.id}>
-                        <td>Non disponible V1</td>
+                    filteredAndSortedEvaluations.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="tdp-row-clickable"
+                        onClick={() => openEvaluationRow(row)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            openEvaluationRow(row)
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <td>{row.title}</td>
                         <td>{row.subject_name}</td>
                         <td>{row.class_name}</td>
-                        <td>Non disponible V1</td>
-                        <td>Non disponible V1</td>
-                        <td>Non disponible V1</td>
-                        <td>Non disponible V1</td>
-                        <td><span className="tdp-v1-badge">Non disponible V1</span></td>
-                        <td>
-                          <button type="button" className="tdp-icon-action" aria-label={`Actions pour ${row.subject_name}`}>
-                            <Ellipsis aria-hidden="true" size={16} />
-                          </button>
-                        </td>
+                        <td>{row.date ? formatDate(row.date) : 'Non disponible V1'}</td>
+                        <td>{row.coefficient}</td>
+                        <td>{row.maximum_score ?? 'Non disponible V1'}</td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
             </div>
-
-            <div className="tdp-eval-summary-grid">
-              <section className="tdp-panel tdp-panel--nested">
-                <h3>Récapitulatif par classe et matière</h3>
-                <div className="tdp-table-wrap">
-                  <table className="tdp-table">
-                    <thead>
-                      <tr>
-                        <th>Classe</th>
-                        <th>Matière</th>
-                        <th>Moyenne générale</th>
-                        <th>Moyenne la plus haute</th>
-                        <th>Moyenne la plus basse</th>
-                        <th>Élèves évalués</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {evaluationRows.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="tdp-empty">Aucune donnée disponible.</td>
-                        </tr>
-                      ) : (
-                        evaluationRows.map((row) => (
-                          <tr key={`summary-${row.id}`}>
-                            <td>{row.class_name}</td>
-                            <td>{row.subject_name}</td>
-                            <td>Non disponible V1</td>
-                            <td>Non disponible V1</td>
-                            <td>Non disponible V1</td>
-                            <td>Non disponible V1</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-
-              <section className="tdp-panel tdp-panel--nested">
-                <h3>Synthèse des performances</h3>
-                <div className="tdp-kpi-grid">
-                  <article><span>Moyenne générale</span><strong>Non disponible V1</strong></article>
-                  <article><span>Taux de réussite</span><strong>Non disponible V1</strong></article>
-                  <article><span>Évaluations créées</span><strong>Non disponible V1</strong></article>
-                  <article><span>Notes saisies</span><strong>Non disponible V1</strong></article>
-                </div>
-              </section>
-            </div>
           </article>
         )}
 
-        {assignModalOpen && (
+        {subjectAssignOpen && (
           <div className="tdp-modal-backdrop" role="presentation">
-            <section className="tdp-modal" role="dialog" aria-modal="true" aria-labelledby="tdp-assign-title">
+            <section className="tdp-modal" role="dialog" aria-modal="true" aria-labelledby="tdp-assign-subject-title">
               <header className="tdp-modal__header">
                 <div>
-                  <h3 id="tdp-assign-title">Affecter à une classe</h3>
-                  <p>Sélectionnez une classe existante à réaffecter à cet enseignant.</p>
+                  <h3 id="tdp-assign-subject-title">Affecter une matière</h3>
+                  <p>Associez une matière à une classe pour cet enseignant.</p>
                 </div>
-                <button type="button" className="tdp-modal__close" onClick={closeAssignModal} aria-label="Fermer">
+                <button type="button" className="tdp-modal__close" onClick={closeSubjectAssignModal} aria-label="Fermer">
                   <X aria-hidden="true" size={16} />
                 </button>
               </header>
 
               <div className="tdp-modal__body">
-                {assignLoading ? (
-                  <p>Chargement des classes…</p>
-                ) : assignableClasses.length === 0 ? (
-                  <p>Toutes les classes disponibles sont deja attribuees a cet enseignant ou aucune classe n'est disponible pour le moment.</p>
+                {subjectAssignError && (
+                  <AlertBanner type="error" message={subjectAssignError} onDismiss={() => setSubjectAssignError('')} />
+                )}
+
+                {!subjectAssignLoading && availableAssignmentClasses.length === 0 ? (
+                  <p>Aucune classe disponible pour cette affectation.</p>
                 ) : (
-                  <label className="tdp-modal__field">
-                    <span>Classe</span>
-                    <select value={assignClassId} onChange={(event) => setAssignClassId(event.target.value)}>
-                      <option value="">Choisir une classe</option>
-                      {assignableClasses.map((schoolClass) => (
-                        <option key={schoolClass.id} value={schoolClass.id}>
-                          {schoolClass.level_name} {schoolClass.group_label} - {schoolClass.school_year_name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <>
+                    <label className="tdp-modal__field">
+                      <span>Classe</span>
+                      <select value={subjectAssignClassId} onChange={(event) => selectAssignmentClass(event.target.value)}>
+                        <option value="">Choisir une classe</option>
+                        {availableAssignmentClasses.map((schoolClass) => (
+                          <option key={schoolClass.class_id} value={schoolClass.class_id}>
+                            {schoolClass.class_name} - {schoolClass.school_year_name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="tdp-modal__field">
+                      <span>Matière</span>
+                      <select
+                        value={subjectAssignClassSubjectId}
+                        onChange={(event) => setSubjectAssignClassSubjectId(event.target.value)}
+                        disabled={subjectAssignLoading || !subjectAssignClassId}
+                      >
+                        <option value="">Choisir une matière</option>
+                        {availableAssignmentsForClass.map((subject) => (
+                          <option key={subject.class_subject_id} value={subject.class_subject_id}>
+                            {subject.subject_name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="tdp-modal__field">
+                      <span>Date de début</span>
+                      <input
+                        type="date"
+                        value={subjectAssignStartDate}
+                        onChange={(event) => setSubjectAssignStartDate(event.target.value)}
+                        min={selectedAssignmentOption?.school_year_start_date}
+                        max={selectedAssignmentOption?.school_year_end_date}
+                      />
+                    </label>
+
+                    {subjectAssignLoading && <p>Chargement des matières disponibles…</p>}
+                    {!subjectAssignLoading && subjectAssignClassId && availableAssignmentsForClass.length === 0 && (
+                      <p>Toutes les matières de cette classe sont déjà affectées à cet enseignant.</p>
+                    )}
+                  </>
                 )}
               </div>
 
               <footer className="tdp-modal__actions">
-                <button type="button" className="tdp-modal__secondary" onClick={closeAssignModal} disabled={assignSaving}>
+                <button type="button" className="tdp-modal__secondary" onClick={closeSubjectAssignModal} disabled={subjectAssignSaving}>
                   Annuler
                 </button>
                 <button
                   type="button"
                   className="tdp-modal__primary"
-                  onClick={confirmAssignClass}
-                  disabled={!assignClassId || assignSaving || assignLoading}
+                  onClick={confirmSubjectAssign}
+                  disabled={
+                    !subjectAssignClassId
+                    || !subjectAssignClassSubjectId
+                    || !subjectAssignStartDate
+                    || subjectAssignSaving
+                    || subjectAssignLoading
+                    || availableAssignmentClasses.length === 0
+                  }
                 >
-                  {assignSaving ? 'Affectation…' : 'Confirmer'}
+                  {subjectAssignSaving ? 'Affectation…' : 'Confirmer'}
                 </button>
               </footer>
             </section>
           </div>
         )}
+
+        <ConfirmationDialog
+          open={Boolean(subjectToRemove)}
+          title="Désaffecter une matière"
+          message={
+            subjectToRemove
+              ? `Confirmer la désaffectation de ${subjectToRemove.subject_name} pour ${subjectToRemove.class_name} ?`
+              : ''
+          }
+          confirmLabel="Désaffecter"
+          cancelLabel="Annuler"
+          tone="danger"
+          loading={subjectRemoving}
+          onCancel={cancelSubjectRemoval}
+          onConfirm={confirmSubjectRemoval}
+        />
 
       </section>
     </main>
