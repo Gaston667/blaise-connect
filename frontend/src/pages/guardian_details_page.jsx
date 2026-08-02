@@ -168,7 +168,6 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
 
   const relatedStudents = details.students ?? []
   const emergencyStudents = relatedStudents.filter((student) => student.is_emergency_contact)
-  const primaryStudents = relatedStudents.filter((student) => student.is_primary_contact)
   const relationshipSummary = [...new Set(relatedStudents.map((student) => student.relationship_label))]
     .filter(Boolean)
     .join(', ')
@@ -267,10 +266,6 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
                 <span className="gdp-stat-card__value">{emergencyStudents.length}</span>
                 <span className="gdp-stat-card__label">Contact(s) d’urgence</span>
               </article>
-              <article className="gdp-stat-card gdp-stat-card--primary">
-                <span className="gdp-stat-card__value">{primaryStudents.length}</span>
-                <span className="gdp-stat-card__label">Contact(s) principal(aux)</span>
-              </article>
             </div>
           </section>
 
@@ -303,7 +298,6 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
                       <span className="gdp-student-meta">
                         {student.relationship_label}
                         {student.is_legal_guardian ? ' · Responsable légal' : ''}
-                        {student.is_primary_contact ? ' · Contact principal' : ''}
                       </span>
                     </span>
                   </button>

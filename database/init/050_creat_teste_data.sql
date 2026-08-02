@@ -1,14 +1,12 @@
 -- =========================================================
--- JEU DE DONNEES FICTIF DE DEVELOPPEMENT
+-- 050 - JEU DE DONNEES DE TEST (FUSION 007 + 008 + 009)
 -- =========================================================
--- Mot de passe commun : test@1234
--- Exécuté uniquement lors de la première initialisation du volume PostgreSQL.
--- Le fichier reste idempotent afin de faciliter son utilisation manuelle.
+-- Mot de passe commun des comptes : test@1234
+-- Script idempotent: peut etre rejoue sans doublons.
 
 BEGIN;
 
--- 1. Comptes : 3 administrateurs, 7 enseignants, 10 élèves
---    et 10 responsables, soit 30 comptes fictifs.
+-- 1. Comptes: 3 admins, 7 enseignants, 10 eleves, 10 responsables.
 INSERT INTO accounts (
     registration_number,
     password_hash,
@@ -33,23 +31,13 @@ SELECT
     TIMESTAMPTZ '2026-07-01 08:00:00+00',
     TIMESTAMPTZ '2026-07-28 08:00:00+00'
 FROM (
-    SELECT 'a', account_number, 'ADMIN'
-    FROM generate_series(1, 3) AS account_number
-
+    SELECT 'a', account_number, 'ADMIN' FROM generate_series(1, 3) AS account_number
     UNION ALL
-
-    SELECT 'e', account_number, 'TEACHER'
-    FROM generate_series(1, 7) AS account_number
-
+    SELECT 'e', account_number, 'TEACHER' FROM generate_series(1, 7) AS account_number
     UNION ALL
-
-    SELECT 'u', account_number, 'STUDENT'
-    FROM generate_series(1, 10) AS account_number
-
+    SELECT 'u', account_number, 'STUDENT' FROM generate_series(1, 10) AS account_number
     UNION ALL
-
-    SELECT 'p', account_number, 'GUARDIAN'
-    FROM generate_series(1, 10) AS account_number
+    SELECT 'p', account_number, 'GUARDIAN' FROM generate_series(1, 10) AS account_number
 ) AS generated_accounts(account_prefix, account_number, account_role)
 ON CONFLICT (registration_number) DO NOTHING;
 
@@ -129,7 +117,7 @@ JOIN LATERAL (
 WHERE accounts.role = 'TEACHER'
 ON CONFLICT (account_id) DO NOTHING;
 
--- 4. Profils élèves.
+-- 4. Profils eleves.
 INSERT INTO students (
     account_id,
     first_name,
@@ -218,7 +206,7 @@ JOIN LATERAL (
 WHERE accounts.role = 'GUARDIAN'
 ON CONFLICT (account_id) DO NOTHING;
 
--- 6. Un responsable principal et légal fictif par élève.
+-- 6. Lien responsable principal/legal fictif par eleve.
 WITH ordered_students AS (
     SELECT
         students.id,
@@ -245,20 +233,16 @@ INSERT INTO student_guardians (
 SELECT
     ordered_students.id,
     ordered_guardians.id,
-    CASE
-        WHEN ordered_students.row_number % 2 = 0 THEN 'MOTHER'
-        ELSE 'FATHER'
-    END,
+    CASE WHEN ordered_students.row_number % 2 = 0 THEN 'MOTHER' ELSE 'FATHER' END,
     NULL,
     true,
     true,
     true
 FROM ordered_students
-JOIN ordered_guardians
-    ON ordered_guardians.row_number = ordered_students.row_number
+JOIN ordered_guardians ON ordered_guardians.row_number = ordered_students.row_number
 ON CONFLICT (student_id, guardian_id) DO NOTHING;
 
--- 7. Année scolaire courante.
+-- 7. Annee scolaire courante.
 INSERT INTO school_years (
     name,
     start_date,
@@ -273,7 +257,7 @@ VALUES (
 )
 ON CONFLICT (name) DO NOTHING;
 
--- 8. Périodes contiguës de l'année fictive.
+-- 8. Periodes de bulletin.
 INSERT INTO reporting_periods (
     school_year_id,
     name,
@@ -300,31 +284,62 @@ WHERE school_years.name = '2026-2027'
         AND reporting_periods.start_date = period_data.start_date
   );
 
--- 9. Niveaux utilisés par les classes fictives.
-INSERT INTO class_levels (
-    code,
-    name,
-    education_stage,
-    display_order
-)
+-- 9. Tous les niveaux (de la maternelle au lycee), mais seuls les niveaux lycee restent actifs.
+INSERT INTO class_levels (code, name, education_stage, display_order, is_active)
 VALUES
-    ('SIXIEME', 'Sixième', 'MIDDLE_SCHOOL', 10),
-    ('CINQUIEME', 'Cinquième', 'MIDDLE_SCHOOL', 11),
-    ('QUATRIEME', 'Quatrième', 'MIDDLE_SCHOOL', 12)
+    ('PETITE_SECTION', 'Petite Section', 'PRESCHOOL', 1, false),
+    ('MOYENNE_SECTION', 'Moyenne Section', 'PRESCHOOL', 2, false),
+    ('GRANDE_SECTION', 'Grande Section', 'PRESCHOOL', 3, false),
+    ('CP', 'CP', 'PRIMARY', 4, false),
+    ('CE1', 'CE1', 'PRIMARY', 5, false),
+    ('CE2', 'CE2', 'PRIMARY', 6, false),
+    ('CM1', 'CM1', 'PRIMARY', 7, false),
+    ('CM2', 'CM2', 'PRIMARY', 8, false),
+    ('SIXIEME', '6ème', 'MIDDLE_SCHOOL', 9, false),
+    ('CINQUIEME', '5ème', 'MIDDLE_SCHOOL', 10, false),
+    ('QUATRIEME', '4ème', 'MIDDLE_SCHOOL', 11, false),
+    ('TROISIEME', '3ème', 'MIDDLE_SCHOOL', 12, false),
+    ('SECONDE', '2nde', 'HIGH_SCHOOL', 13, true),
+    ('PREMIERE', '1ère', 'HIGH_SCHOOL', 14, true),
+    ('TERMINALE', 'Terminale', 'HIGH_SCHOOL', 15, true)
 ON CONFLICT (code) DO NOTHING;
 
--- 10. Matières.
-INSERT INTO subjects (name, description)
+-- Normalisation des display_order (si des valeurs existaient deja).
+UPDATE class_levels SET display_order = 1 WHERE code = 'PETITE_SECTION';
+UPDATE class_levels SET display_order = 2 WHERE code = 'MOYENNE_SECTION';
+UPDATE class_levels SET display_order = 3 WHERE code = 'GRANDE_SECTION';
+UPDATE class_levels SET display_order = 4 WHERE code = 'CP';
+UPDATE class_levels SET display_order = 5 WHERE code = 'CE1';
+UPDATE class_levels SET display_order = 6 WHERE code = 'CE2';
+UPDATE class_levels SET display_order = 7 WHERE code = 'CM1';
+UPDATE class_levels SET display_order = 8 WHERE code = 'CM2';
+UPDATE class_levels SET display_order = 9 WHERE code = 'SIXIEME';
+UPDATE class_levels SET display_order = 10 WHERE code = 'CINQUIEME';
+UPDATE class_levels SET display_order = 11 WHERE code = 'QUATRIEME';
+UPDATE class_levels SET display_order = 12 WHERE code = 'TROISIEME';
+UPDATE class_levels SET display_order = 13 WHERE code = 'SECONDE';
+UPDATE class_levels SET display_order = 14 WHERE code = 'PREMIERE';
+UPDATE class_levels SET display_order = 15 WHERE code = 'TERMINALE';
+
+UPDATE class_levels SET is_active = false WHERE education_stage <> 'HIGH_SCHOOL';
+UPDATE class_levels SET is_active = true WHERE education_stage = 'HIGH_SCHOOL';
+
+-- 10. Matieres de test.
+INSERT INTO subjects (
+    name,
+    description,
+    is_active
+)
 VALUES
-    ('Mathématiques', 'Matière fictive de développement'),
-    ('Français', 'Matière fictive de développement'),
-    ('Anglais', 'Matière fictive de développement'),
-    ('Histoire-Géographie', 'Matière fictive de développement'),
-    ('Sciences', 'Matière fictive de développement'),
-    ('Informatique', 'Matière fictive de développement')
+    ('Mathématiques', 'Matière fictive de développement', true),
+    ('Français', 'Matière fictive de développement', true),
+    ('Anglais', 'Matière fictive de développement', true),
+    ('Histoire-Géographie', 'Matière fictive de développement', true),
+    ('Sciences', 'Matière fictive de développement', true),
+    ('Informatique', 'Matière fictive de développement', true)
 ON CONFLICT DO NOTHING;
 
--- 11. Classes annuelles avec professeur principal.
+-- 11. Classes annuelles de test.
 INSERT INTO classes (
     school_year_id,
     class_level_id,
@@ -344,17 +359,13 @@ FROM (
         ('CINQUIEME', 'e000002'),
         ('QUATRIEME', 'e000003')
 ) AS class_data(level_code, teacher_registration_number)
-JOIN school_years
-    ON school_years.name = '2026-2027'
-JOIN class_levels
-    ON class_levels.code::text = class_data.level_code
-JOIN accounts
-    ON accounts.registration_number = class_data.teacher_registration_number
-JOIN teachers
-    ON teachers.account_id = accounts.id
+JOIN school_years ON school_years.name = '2026-2027'
+JOIN class_levels ON class_levels.code::text = class_data.level_code
+JOIN accounts ON accounts.registration_number = class_data.teacher_registration_number
+JOIN teachers ON teachers.account_id = accounts.id
 ON CONFLICT (school_year_id, class_level_id, group_label) DO NOTHING;
 
--- 12. Matières et coefficients de chaque classe.
+-- 12. Association de toutes les matieres de test aux classes de 2026-2027.
 INSERT INTO class_subjects (
     class_id,
     subject_id,
@@ -367,16 +378,27 @@ SELECT
         WHEN 'Mathématiques' THEN 4.00
         WHEN 'Français' THEN 4.00
         WHEN 'Anglais' THEN 3.00
-        ELSE 2.00
+        WHEN 'Histoire-Géographie' THEN 2.00
+        WHEN 'Sciences' THEN 2.00
+        WHEN 'Informatique' THEN 2.00
+        ELSE 1.00
     END
 FROM classes
-JOIN school_years
-    ON school_years.id = classes.school_year_id
+JOIN school_years ON school_years.id = classes.school_year_id
 CROSS JOIN subjects
 WHERE school_years.name = '2026-2027'
+  AND subjects.name IN (
+      'Mathématiques',
+      'Français',
+      'Anglais',
+      'Histoire-Géographie',
+      'Sciences',
+      'Informatique'
+  )
+  AND subjects.is_active = true
 ON CONFLICT (class_id, subject_id) DO NOTHING;
 
--- 13. Répartition régulière des 10 élèves dans les trois classes.
+-- 13. Repartition des eleves dans 3 classes.
 WITH ordered_students AS (
     SELECT
         students.id,
@@ -384,8 +406,7 @@ WITH ordered_students AS (
             ORDER BY accounts.registration_number
         ) AS row_number
     FROM students
-    JOIN accounts
-        ON accounts.id = students.account_id
+    JOIN accounts ON accounts.id = students.account_id
     WHERE accounts.role = 'STUDENT'
 ),
 ordered_classes AS (
@@ -395,10 +416,8 @@ ordered_classes AS (
             ORDER BY class_levels.display_order
         ) AS row_number
     FROM classes
-    JOIN school_years
-        ON school_years.id = classes.school_year_id
-    JOIN class_levels
-        ON class_levels.id = classes.class_level_id
+    JOIN school_years ON school_years.id = classes.school_year_id
+    JOIN class_levels ON class_levels.id = classes.class_level_id
     WHERE school_years.name = '2026-2027'
 )
 INSERT INTO student_enrollments (
@@ -412,11 +431,7 @@ SELECT
     DATE '2026-09-01'
 FROM ordered_students
 JOIN ordered_classes
-    ON ordered_classes.row_number
-        = ((ordered_students.row_number - 1) % 3) + 1
+    ON ordered_classes.row_number = ((ordered_students.row_number - 1) % 3) + 1
 ON CONFLICT (student_id, class_id) DO NOTHING;
 
 COMMIT;
-
--- Les affectations enseignant-matière, évaluations et notes seront ajoutées
--- lorsque leurs tables auront été créées par des migrations versionnées.

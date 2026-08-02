@@ -11,5 +11,4 @@ class GuardianLinkUpdate(BaseModel):
     relationship_type: Literal["FATHER", "MOTHER", "OTHER"] | None = None
     relationship_details: str | None = Field(default=None, max_length=100)
     is_legal_guardian: bool | None = None
-    is_primary_contact: bool | None = None
     is_emergency_contact: bool | None = None

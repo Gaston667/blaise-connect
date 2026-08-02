@@ -1,9 +1,12 @@
-export async function getTeachersOverview(q) {
+import { apiRequestJson } from '../utils/apiErrorHandler.js'
+
+export function getTeachersOverview(q) {
   const params = new URLSearchParams()
   if (q) params.append('q', q)
-  const res = await fetch(`/api/teachers/overview?${params.toString()}`, { credentials: 'include' })
-  if (!res.ok) throw new Error('Échec du chargement des enseignants')
-  return await res.json()
+  return apiRequestJson(`/api/teachers/overview?${params.toString()}`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des enseignants',
+  })
 }
 
 /**

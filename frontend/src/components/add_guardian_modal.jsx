@@ -19,7 +19,6 @@ export default function AddGuardianModal({ studentId, onClose, onLinked }) {
   const [selected, setSelected] = useState(null)
   const [creating, setCreating] = useState(false)
   const [relationship, setRelationship] = useState('')
-  const [isPrimary, setIsPrimary] = useState(false)
   const [newGuardian, setNewGuardian] = useState({
     first_name: '', last_name: '', phone: '', email: '', address: '', occupation: '', employer: '',
   })
@@ -63,10 +62,9 @@ export default function AddGuardianModal({ studentId, onClose, onLinked }) {
           ...newGuardian,
           student_id: studentId,
           relationship,
-          is_primary_contact: isPrimary,
         })
       } else if (selected) {
-        await linkGuardianToStudent(studentId, selected.id, relationship, isPrimary)
+        await linkGuardianToStudent(studentId, selected.id, relationship)
       } else {
         setError('Sélectionnez un responsable ou créez-en un nouveau.')
         setSaving(false)
@@ -173,10 +171,6 @@ export default function AddGuardianModal({ studentId, onClose, onLinked }) {
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
-              </label>
-              <label className="agm-checkbox-label">
-                <input type="checkbox" checked={isPrimary} onChange={(e) => setIsPrimary(e.target.checked)} />
-                Contact principal
               </label>
             </div>
 

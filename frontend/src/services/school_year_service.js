@@ -1,102 +1,55 @@
-const SCHOOL_YEARS_API_URL = '/api/school-years'
+import { apiRequest, apiRequestJson } from '../utils/apiErrorHandler.js'
 
-/** Extrait un message lisible d'une erreur FastAPI. */
-async function getSchoolYearsApiErrorMessage(response) {
-  try {
-    const errorData = await response.json()
-    if (typeof errorData.detail === 'string') {
-      return errorData.detail
-    }
-    return 'La requête sur les années scolaires a échoué.'
-  } catch {
-    return 'Le serveur ne répond pas correctement.'
-  }
-}
+const SCHOOL_YEARS_API_URL = '/api/school-years'
 
 /** Récupère les années scolaires visibles par l'administrateur connecté. */
 export async function getSchoolYears() {
-  const response = await fetch(SCHOOL_YEARS_API_URL, {
+  return apiRequestJson(SCHOOL_YEARS_API_URL, {
     method: 'GET',
-    credentials: 'include',
+    fallbackMessage: 'La requête sur les années scolaires a échoué.',
   })
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
 }
 
 /** Récupère le détail d'une année scolaire. */
 export async function getSchoolYear(schoolYearId) {
-  const response = await fetch(`${SCHOOL_YEARS_API_URL}/${schoolYearId}`, {
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}`, {
     method: 'GET',
-    credentials: 'include',
+    fallbackMessage: 'La requête sur les années scolaires a échoué.',
   })
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
 }
 
 /** Crée une nouvelle année scolaire. */
 export async function createSchoolYear(schoolYearData) {
-  const response = await fetch(SCHOOL_YEARS_API_URL, {
+  return apiRequestJson(SCHOOL_YEARS_API_URL, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(schoolYearData),
+    fallbackMessage: 'Impossible de créer l’année scolaire.',
   })
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
 }
 
 /** Définit une année scolaire comme l'unique année courante. */
 export async function setCurrentSchoolYear(schoolYearId) {
-  const response = await fetch(
-    `${SCHOOL_YEARS_API_URL}/${schoolYearId}/set-current`,
-    { method: 'POST', credentials: 'include' },
-  )
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}/set-current`, {
+    method: 'POST',
+    fallbackMessage: 'Impossible de définir l’année courante.',
+  })
 }
 
 /** Clôture une année scolaire. */
 export async function closeSchoolYear(schoolYearId) {
-  const response = await fetch(
-    `${SCHOOL_YEARS_API_URL}/${schoolYearId}/close`,
-    { method: 'POST', credentials: 'include' },
-  )
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}/close`, {
+    method: 'POST',
+    fallbackMessage: 'Impossible de clôturer l’année scolaire.',
+  })
 }
 
 /** Récupère les périodes d'une année scolaire. */
 export async function getReportingPeriods(schoolYearId) {
-  const response = await fetch(
-    `${SCHOOL_YEARS_API_URL}/${schoolYearId}/reporting-periods`,
-    { method: 'GET', credentials: 'include' },
-  )
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}/reporting-periods`, {
+    method: 'GET',
+    fallbackMessage: 'La requête sur les périodes a échoué.',
+  })
 }
 
 /**
@@ -106,86 +59,51 @@ export async function getReportingPeriods(schoolYearId) {
  * calcule la date de début.
  */
 export async function createReportingPeriod(schoolYearId, periodData) {
-  const response = await fetch(
-    `${SCHOOL_YEARS_API_URL}/${schoolYearId}/reporting-periods`,
-    {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ school_year_id: schoolYearId, ...periodData }),
-    },
-  )
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}/reporting-periods`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ school_year_id: schoolYearId, ...periodData }),
+    fallbackMessage: 'Impossible de créer la période.',
+  })
 }
 
 /** Modifie les informations d'une année scolaire non clôturée. */
 export async function updateSchoolYear(schoolYearId, schoolYearData) {
-  const response = await fetch(`${SCHOOL_YEARS_API_URL}/${schoolYearId}`, {
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}`, {
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(schoolYearData),
+    fallbackMessage: 'Impossible de modifier l’année scolaire.',
   })
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
 }
 
 /** Modifie une année et toutes ses périodes dans une transaction backend. */
 export async function updateSchoolYearDetails(schoolYearId, detailsData) {
-  const response = await fetch(
-    `${SCHOOL_YEARS_API_URL}/${schoolYearId}/details`,
-    {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(detailsData),
-    },
-  )
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}/details`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(detailsData),
+    fallbackMessage: 'Impossible de modifier les détails de l’année scolaire.',
+  })
 }
 
 /** Compte les données concernées avant une suppression définitive. */
 export async function getSchoolYearDeletionPreview(schoolYearId) {
-  const response = await fetch(
-    `${SCHOOL_YEARS_API_URL}/${schoolYearId}/deletion-preview`,
-    { method: 'GET', credentials: 'include' },
-  )
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}/deletion-preview`, {
+    method: 'GET',
+    fallbackMessage: 'Impossible de charger l’aperçu de suppression.',
+  })
 }
 
 /** Supprime une année ouverte après confirmation exacte de son nom. */
 export async function deleteSchoolYear(schoolYearId, confirmationName) {
-  const response = await fetch(`${SCHOOL_YEARS_API_URL}/${schoolYearId}`, {
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}`, {
     method: 'DELETE',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirmation_name: confirmationName }),
+    expectJson: true,
+    fallbackMessage: 'Impossible de supprimer l’année scolaire.',
   })
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
 }
 
 /** Modifie une période et laisse le backend ajuster la période suivante. */
@@ -194,19 +112,10 @@ export async function updateReportingPeriod(
   reportingPeriodId,
   periodData,
 ) {
-  const response = await fetch(
-    `${SCHOOL_YEARS_API_URL}/${schoolYearId}/reporting-periods/${reportingPeriodId}`,
-    {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(periodData),
-    },
-  )
-
-  if (!response.ok) {
-    throw new Error(await getSchoolYearsApiErrorMessage(response))
-  }
-
-  return response.json()
+  return apiRequestJson(`${SCHOOL_YEARS_API_URL}/${schoolYearId}/reporting-periods/${reportingPeriodId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(periodData),
+    fallbackMessage: 'Impossible de modifier la période.',
+  })
 }
