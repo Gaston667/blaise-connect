@@ -19,3 +19,10 @@ export async function getTeacherOverview(teacherId) {
   if (!teacher) throw new Error('Enseignant introuvable.')
   return teacher
 }
+
+export function getTeacherDetail(teacherId) {
+  return apiRequestJson(`/api/teachers/${teacherId}/detail`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement du dossier enseignant.',
+  })
+}
