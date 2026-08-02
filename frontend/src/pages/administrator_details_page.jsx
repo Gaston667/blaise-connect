@@ -3,6 +3,7 @@ import { ArrowLeft, Briefcase, CalendarDays, Mail, Phone, UserRound } from 'luci
 import defaultPhoto from '../assets/image_phtoto_default.png'
 
 import { getAdministratorOverview } from '../services/administrators_overview_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/administrator_details_page.css'
 
 const DEFAULT_PHOTO = defaultPhoto
@@ -70,7 +71,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
       <section className="addp-identity">
         <ProfilePhoto photoPath={details.photo_path} />
         <div className="addp-name">
-          <h2>{details.first_name} {details.last_name}</h2>
+          <h2>{formatProfileName(details.first_name, details.last_name, details.gender)}</h2>
           <span className={`adp-badge ${details.status === 'ACTIVE' ? 'adp-badge--active' : 'adp-badge--inactive'}`}>
             <span className="adp-badge__dot" />
             {details.status === 'ACTIVE' ? 'Actif' : 'Inactif'}
@@ -87,7 +88,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
         <div className="addp-information-grid">
           <article>
             <UserRound aria-hidden="true" size={20} />
-            <div><span>Nom complet</span><strong>{details.first_name} {details.last_name}</strong></div>
+            <div><span>Nom complet</span><strong>{formatProfileName(details.first_name, details.last_name, details.gender)}</strong></div>
           </article>
           <article>
             <Briefcase aria-hidden="true" size={20} />

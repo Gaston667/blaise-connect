@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 import { getSchoolYears } from '../services/school_year_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import {
   createSchoolClass,
   getClassLevels,
@@ -399,7 +400,7 @@ export default function SchoolClassesPage({ onNavigate }) {
                     <>
                       <span className="scp-teacher-avatar">{teacherInitials(selectedTeacher)}</span>
                       <span>
-                        <strong>{selectedTeacher.first_name} {selectedTeacher.last_name}</strong>
+                        <strong>{formatProfileName(selectedTeacher.first_name, selectedTeacher.last_name, selectedTeacher.gender)}</strong>
                         <small>Matricule : {selectedTeacher.registration_number}</small>
                       </span>
                     </>
@@ -461,7 +462,7 @@ export default function SchoolClassesPage({ onNavigate }) {
                 >
                   <span className="scp-teacher-avatar">{teacherInitials(teacher)}</span>
                   <span>
-                    <strong>{teacher.first_name} {teacher.last_name}</strong>
+                    <strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong>
                     <small>Matricule : {teacher.registration_number}</small>
                   </span>
                 </button>

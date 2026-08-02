@@ -363,7 +363,7 @@ La paire classe/matière est unique et `coefficient > 0`.
 | `start_date` | `date` | Début de l'affectation. |
 | `end_date` | `date` | Fin facultative, notamment en cas de remplacement. |
 
-`end_date >= start_date`. Interdire le chevauchement de deux affectations identiques pour le même enseignant et la même matière de classe. Les dates doivent rester dans l'année de la classe.
+`end_date >= start_date`. Une matière de classe ne possède qu'un seul enseignant sur une même plage de dates : deux affectations du même `class_subject_id` ne peuvent pas se chevaucher, même si leurs enseignants diffèrent. Les dates doivent rester dans l'année de la classe. Une désaffectation renseigne `end_date` et ne supprime jamais l'historique.
 
 ### 5.16 `assessments`
 

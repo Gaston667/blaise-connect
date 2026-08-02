@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronRight, Search } from 'lucide-react'
 import { listStudents } from '../services/students_service.js'
 import defaultPhoto from '../assets/image_phtoto_default.png'
+import { getCivilTitle } from '../utils/profileDisplay.js'
 import '../styles/students_page.css'
 const AVATAR_PALETTE = [
   { bg: '#E8ECFB', fg: '#3355DD' },
@@ -252,7 +253,7 @@ export default function StudentsPage({ onNavigate }) {
                     <td>
                       <ProfilePhoto photoPath={s.photo_path} />
                     </td>
-                    <td>{s.last_name}</td>
+                    <td>{[getCivilTitle(s.gender), s.last_name].filter(Boolean).join(' ') || '—'}</td>
                     <td>{s.first_name}</td>
                     <td>{genderLabel(s.gender)}</td>
                     <td>{s.class_name ?? className(s.class_id)}</td>

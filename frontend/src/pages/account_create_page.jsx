@@ -5,6 +5,7 @@ import { createAccount, uploadAccountPhoto } from '../services/account_service.j
 import { generateSecurePassword } from '../services/password_generator.js'
 import ConfirmationPopup from '../components/confirmation_popup.jsx'
 import NotificationPopup from '../components/notification_popup.jsx'
+import { formatProfileName } from '../utils/profileDisplay.js'
 
 const INITIAL_FORM = {
   role: '',
@@ -235,13 +236,13 @@ export default function AccountCreatePage({ onNavigate }) {
           <header>
             <div>
               <span className="creation-compte-summary-status">Compte actif</span>
-              <h2>{summaryProfile.first_name} {summaryProfile.last_name}</h2>
+              <h2>{formatProfileName(summaryProfile.first_name, summaryProfile.last_name, summaryProfile.gender)}</h2>
             </div>
             {summaryProfile.photo_path ? (
               <img
                 className="creation-compte-summary-photo"
                 src={summaryProfile.photo_path}
-                alt={`Photo de ${summaryProfile.first_name} ${summaryProfile.last_name}`}
+                alt={`Photo de ${formatProfileName(summaryProfile.first_name, summaryProfile.last_name, summaryProfile.gender, { fallback: 'ce profil' })}`}
               />
             ) : (
               <UserRoundPlus size={34} aria-hidden="true" />

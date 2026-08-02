@@ -19,6 +19,7 @@ class SchoolClassDetail(BaseModel):
     school_year_end: date
     teacher_first_name: str
     teacher_last_name: str
+    teacher_gender: str | None
     teacher_email: str | None
     teacher_phone: str | None
     teacher_status: str

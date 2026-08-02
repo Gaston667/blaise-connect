@@ -192,6 +192,7 @@ end note
 note bottom of TeacherAssignment
 Relie un enseignant à une matière déjà associée à une classe.
 La désaffectation renseigne end_date et conserve l'historique.
+Deux affectations d'une même matière de classe ne se chevauchent pas.
 end note
 
 @enduml

@@ -4,6 +4,7 @@ import { Search } from 'lucide-react'
 import { getSchoolClassesOverview, getSchoolClassSubjects } from '../services/school_classes_overview_service.js'
 import { listStudents } from '../services/students_service.js'
 import { MOCK_PERIODS, addMockGrade, listMockGrades } from '../services/notes_mock_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/notes_page.css'
 
 const EMPTY_FORM = {
@@ -137,7 +138,7 @@ export default function NotesPage({ onNavigate }) {
       subject_id: form.subject_id,
       subject_name: subject?.name ?? '—',
       student_id: form.student_id,
-      student_name: student ? `${student.first_name} ${student.last_name}` : '—',
+      student_name: student ? formatProfileName(student.first_name, student.last_name, student.gender, { fallback: '—' }) : '—',
       period_id: form.period_id,
       period_name: period?.name ?? '—',
       score,
@@ -297,7 +298,7 @@ export default function NotesPage({ onNavigate }) {
                 <select name="student_id" value={form.student_id} onChange={updateField} disabled={!form.class_id} required>
                   <option value="">Sélectionner un élève</option>
                   {formStudents.map((student) => (
-                    <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>
+                    <option key={student.id} value={student.id}>{formatProfileName(student.first_name, student.last_name, student.gender, { fallback: '—' })}</option>
                   ))}
                 </select>
               </label>

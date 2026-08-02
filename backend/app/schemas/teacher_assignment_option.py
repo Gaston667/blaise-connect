@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 
 class TeacherAssignmentOption(BaseModel):
-    """Décrit une matière de classe sélectionnable dans le formulaire."""
+    """Décrit une matière de classe et son éventuelle affectation active."""
 
     class_subject_id: str
     class_id: str
@@ -17,3 +17,5 @@ class TeacherAssignmentOption(BaseModel):
     school_year_end_date: date
     subject_name: str
     coefficient: float
+    is_assigned: bool
+    assigned_teacher_name: str | None

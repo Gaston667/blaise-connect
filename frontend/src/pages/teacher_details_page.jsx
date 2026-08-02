@@ -25,6 +25,7 @@ import {
   getTeacherDetail,
   updateTeacherProfile,
 } from '../services/teachers_overview_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/teacher_details_page.css'
 
 const DEFAULT_PHOTO = defaultPhoto
@@ -324,10 +325,9 @@ export default function TeacherDetailsPage({ teacher }) {
       try {
         const options = await getAvailableTeacherAssignments(teacher.id)
         setSubjectAssignOptions(options)
-        const firstOption = options[0]
-        setSubjectAssignClassId(firstOption?.class_id || '')
-        setSubjectAssignClassSubjectId(firstOption?.class_subject_id || '')
-        setSubjectAssignStartDate(clampDateToSchoolYear(currentDateInput(), firstOption))
+        setSubjectAssignClassId('')
+        setSubjectAssignClassSubjectId('')
+        setSubjectAssignStartDate(currentDateInput())
       } catch (error) {
         setSubjectAssignError(error.message)
         setSubjectAssignOptions([])
@@ -353,6 +353,16 @@ export default function TeacherDetailsPage({ teacher }) {
     [subjectAssignClassId, subjectAssignOptions],
   )
 
+  const selectedAssignmentClass = useMemo(
+    () => subjectAssignOptions.find((option) => option.class_id === subjectAssignClassId),
+    [subjectAssignClassId, subjectAssignOptions],
+  )
+
+  const classHasAvailableSubject = useMemo(
+    () => availableAssignmentsForClass.some((option) => !option.is_assigned),
+    [availableAssignmentsForClass],
+  )
+
   const selectedAssignmentOption = useMemo(
     () => subjectAssignOptions.find((option) => option.class_subject_id === subjectAssignClassSubjectId),
     [subjectAssignClassSubjectId, subjectAssignOptions],
@@ -361,12 +371,17 @@ export default function TeacherDetailsPage({ teacher }) {
   function selectAssignmentClass(classId) {
     const firstOption = subjectAssignOptions.find((option) => option.class_id === classId)
     setSubjectAssignClassId(classId)
-    setSubjectAssignClassSubjectId(firstOption?.class_subject_id || '')
+    setSubjectAssignClassSubjectId('')
     setSubjectAssignStartDate(clampDateToSchoolYear(currentDateInput(), firstOption))
   }
 
   async function confirmSubjectAssign() {
     if (!teacher?.id || !subjectAssignClassSubjectId || !subjectAssignStartDate) return
+
+    if (selectedAssignmentOption?.is_assigned) {
+      setSubjectAssignError('Cette matière possède déjà un enseignant actif.')
+      return
+    }
 
     if (
       selectedAssignmentOption
@@ -476,7 +491,7 @@ export default function TeacherDetailsPage({ teacher }) {
             </span>
 
             <div>
-              <h2 className="tdp-hero__name">{details.first_name} {details.last_name}</h2>
+              <h2 className="tdp-hero__name">{formatProfileName(details.first_name, details.last_name, details.gender)}</h2>
               <div className="tdp-hero__badges">
                 <span className={`tdp-pill ${isActive(details) ? 'tdp-pill--active' : 'tdp-pill--inactive'}`}>
                   {isActive(details) ? 'Actif' : 'Inactif'}
@@ -950,7 +965,7 @@ export default function TeacherDetailsPage({ teacher }) {
               <header className="tdp-modal__header">
                 <div>
                   <h3 id="tdp-assign-subject-title">Affecter une matière</h3>
-                  <p>Associez une matière à une classe pour cet enseignant.</p>
+                  <p>Choisissez une classe, puis l’une de ses matières disponibles.</p>
                 </div>
                 <button type="button" className="tdp-modal__close" onClick={closeSubjectAssignModal} aria-label="Fermer">
                   <X aria-hidden="true" size={16} />
@@ -987,11 +1002,21 @@ export default function TeacherDetailsPage({ teacher }) {
                       >
                         <option value="">Choisir une matière</option>
                         {availableAssignmentsForClass.map((subject) => (
-                          <option key={subject.class_subject_id} value={subject.class_subject_id}>
+                          <option
+                            key={subject.class_subject_id}
+                            value={subject.class_subject_id}
+                            disabled={subject.is_assigned}
+                          >
                             {subject.subject_name}
+                            {subject.is_assigned
+                              ? ` — déjà affectée à ${subject.assigned_teacher_name || 'un enseignant'}`
+                              : ''}
                           </option>
                         ))}
                       </select>
+                      {subjectAssignClassId && (
+                        <small>Les matières grisées possèdent déjà un enseignant actif.</small>
+                      )}
                     </label>
 
                     <label className="tdp-modal__field">
@@ -1000,14 +1025,14 @@ export default function TeacherDetailsPage({ teacher }) {
                         type="date"
                         value={subjectAssignStartDate}
                         onChange={(event) => setSubjectAssignStartDate(event.target.value)}
-                        min={selectedAssignmentOption?.school_year_start_date}
-                        max={selectedAssignmentOption?.school_year_end_date}
+                        min={selectedAssignmentClass?.school_year_start_date}
+                        max={selectedAssignmentClass?.school_year_end_date}
                       />
                     </label>
 
                     {subjectAssignLoading && <p>Chargement des matières disponibles…</p>}
-                    {!subjectAssignLoading && subjectAssignClassId && availableAssignmentsForClass.length === 0 && (
-                      <p>Toutes les matières de cette classe sont déjà affectées à cet enseignant.</p>
+                    {!subjectAssignLoading && subjectAssignClassId && !classHasAvailableSubject && (
+                      <p>Toutes les matières de cette classe possèdent déjà un enseignant actif.</p>
                     )}
                   </>
                 )}
@@ -1027,6 +1052,7 @@ export default function TeacherDetailsPage({ teacher }) {
                     || !subjectAssignStartDate
                     || subjectAssignSaving
                     || subjectAssignLoading
+                    || selectedAssignmentOption?.is_assigned
                     || availableAssignmentClasses.length === 0
                   }
                 >

@@ -1,3 +1,4 @@
+import { formatProfileName } from '../utils/profileDisplay.js'
 import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 
@@ -227,7 +228,7 @@ export default function SubjectsPage({ onNavigate }) {
           <option value="">Tous les enseignants</option>
           {teachers.map((teacher) => (
             <option key={teacher.id} value={teacher.id}>
-              {teacher.first_name} {teacher.last_name}
+              {formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}
             </option>
           ))}
         </select>

@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.core.postgres_error_message import extract_postgres_error_message
+from app.core.teacher_assignment_conflict_error import TeacherAssignmentConflictError
 from app.schemas.teacher_assignment_create import TeacherAssignmentCreate
 from app.schemas.teacher_assignment_end import TeacherAssignmentEnd
 from app.schemas.teacher_assignment_option import TeacherAssignmentOption
@@ -98,6 +99,9 @@ def post_teacher_assignment_route(
 
     try:
         create_teacher_assignment(db=db, teacher_id=teacher_id, data=body)
+    except TeacherAssignmentConflictError as error:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
     except IntegrityError as error:

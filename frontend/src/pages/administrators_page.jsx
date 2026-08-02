@@ -3,6 +3,7 @@ import { Search, ShieldCheck, Users, UserX } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 
 import { getAdministratorsOverview } from '../services/administrators_overview_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/administrators_page.css'
 
 const PAGE_SIZE = 6
@@ -179,11 +180,11 @@ export default function AdministratorsPage({ onNavigate }) {
                     tabIndex="0"
                     onClick={() => openAdministratorDetails(administrator)}
                     onKeyDown={(event) => handleRowKeyDown(event, administrator)}
-                    aria-label={`Voir le dossier de ${administrator.first_name} ${administrator.last_name}`}
+                    aria-label={`Voir le dossier de ${formatProfileName(administrator.first_name, administrator.last_name, administrator.gender, { fallback: 'cet administrateur' })}`}
                   >
                     <td><ProfilePhoto photoPath={administrator.photo_path} /></td>
                     <td>{administrator.registration_number}</td>
-                    <td><strong>{administrator.first_name} {administrator.last_name}</strong></td>
+                    <td><strong>{formatProfileName(administrator.first_name, administrator.last_name, administrator.gender)}</strong></td>
                     <td>{administrator.job_title}</td>
                     <td><StatusBadge status={administrator.status} /></td>
                     <td>{administrator.email ?? '—'}</td>

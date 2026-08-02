@@ -3,6 +3,7 @@ import { Search, UserCheck, Users, UserX } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 
 import { getTeachersOverview } from '../services/teachers_overview_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/teachers_page.css'
 
 const PAGE_SIZE = 6
@@ -192,11 +193,11 @@ export default function TeachersPage({ onNavigate }) {
                     tabIndex="0"
                     onClick={() => openTeacherDetails(teacher)}
                     onKeyDown={(event) => handleRowKeyDown(event, teacher)}
-                    aria-label={`Voir le dossier de ${teacher.first_name} ${teacher.last_name}`}
+                    aria-label={`Voir le dossier de ${formatProfileName(teacher.first_name, teacher.last_name, teacher.gender, { fallback: 'cet enseignant' })}`}
                   >
                     <td><ProfilePhoto photoPath={teacher.photo_path} /></td>
                     <td>{teacher.registration_number}</td>
-                    <td><strong>{teacher.first_name} {teacher.last_name}</strong></td>
+                    <td><strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong></td>
                     <td><StatusBadge status={teacher.status} /></td>
                     <td>{teacher.email ?? '—'}</td>
                     <td>{teacher.phone ?? '—'}</td>

@@ -34,6 +34,7 @@ import {
 } from '../services/guardians_service.js'
 import '../styles/student_details_page.css'
 import NotificationPopup from '../components/notification_popup.jsx'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import { uploadAccountPhoto } from '../services/account_service.js'
 const RELATIONSHIP_ICON_CLASS = {
   FATHER: 'sdp-guardian-icon--pere',
@@ -402,12 +403,12 @@ export default function StudentDetailsPage({ student, onNavigate }) {
           <span className="sdp-avatar">
             <img
               src={photoFailed ? DEFAULT_PHOTO : (details.photo_path || DEFAULT_PHOTO)}
-              alt={`Photo de ${details.first_name} ${details.last_name}`}
+              alt={`Photo de ${formatProfileName(details.first_name, details.last_name, details.gender, { fallback: 'cet eleve' })}`}
               onError={handlePhotoError}
             />
           </span>
           <div>
-            <h1>{details.first_name} {details.last_name}</h1>
+            <h1>{formatProfileName(details.first_name, details.last_name, details.gender)}</h1>
             <div className="sdp-header__badges">
               <StatusBadge status={details.status} />
             </div>
@@ -751,7 +752,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
     {guardian.relationship_label ?? guardian.relationship_type ?? '—'}
   </span>
 </td>
-                          <td>{guardian.first_name} {guardian.last_name}</td>
+                          <td>{formatProfileName(guardian.first_name, guardian.last_name, guardian.gender)}</td>
                           <td>{guardian.phone ?? '—'}</td>
                           <td>{guardian.email ?? '—'}</td>
                           <td className="sdp-guardian-actions-cell">
@@ -810,7 +811,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                           : 'sdp-guardian-result'
                       }
                     >
-                      <strong>{guardian.first_name} {guardian.last_name}</strong>
+                      <strong>{formatProfileName(guardian.first_name, guardian.last_name, guardian.gender)}</strong>
                       <span>{guardian.phone}</span>
                     </button>
                   ))}
@@ -887,7 +888,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                     <p>
                       Confirmez le retrait de
                       {' '}
-                      <strong>{guardianToUnlink?.first_name} {guardianToUnlink?.last_name}</strong>
+                      <strong>{formatProfileName(guardianToUnlink?.first_name, guardianToUnlink?.last_name, guardianToUnlink?.gender, { fallback: 'ce responsable' })}</strong>
                       {' '}
                       pour cet élève.
                     </p>

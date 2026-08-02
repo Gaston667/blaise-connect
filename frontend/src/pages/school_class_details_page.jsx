@@ -14,6 +14,7 @@ import {
   UserRoundCheck,
   Users,
 } from 'lucide-react'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import {
   deleteSchoolClass,
   getClassLevels,
@@ -493,7 +494,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                     </span>
                     <div className="scd-teacher-summary__identity">
                       <div className="scd-teacher-summary__heading">
-                        <strong>{details.teacher_first_name} {details.teacher_last_name}</strong>
+                        <strong>{formatProfileName(details.teacher_first_name, details.teacher_last_name, details.teacher_gender)}</strong>
                         <span className={`scd-teacher-status ${
                           details.teacher_status === 'ACTIVE'
                             ? 'scd-teacher-status--active'
@@ -613,7 +614,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                       <span>
                         <strong>
                           {selectedTeacher
-                            ? `${selectedTeacher.first_name} ${selectedTeacher.last_name}`
+                            ? formatProfileName(selectedTeacher.first_name, selectedTeacher.last_name, selectedTeacher.gender)
                             : 'Choisir un enseignant'}
                         </strong>
                         {selectedTeacher && <small>{selectedTeacher.registration_number}</small>}
@@ -734,7 +735,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                             <span className="scd-student-avatar">
                               {initials(student.first_name, student.last_name)}
                             </span>
-                            <strong>{student.last_name} {student.first_name}</strong>
+                            <strong>{formatProfileName(student.first_name, student.last_name, student.gender, { order: 'last-first' })}</strong>
                           </span>
                         </td>
                         <td>{student.gender === 'MALE' ? 'Masculin' : student.gender === 'FEMALE' ? 'Féminin' : '—'}</td>
@@ -970,7 +971,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                     {initials(teacher.first_name, teacher.last_name)}
                   </span>
                   <span>
-                    <strong>{teacher.first_name} {teacher.last_name}</strong>
+                    <strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong>
                     <small>Matricule : {teacher.registration_number}</small>
                   </span>
                 </button>
@@ -1114,7 +1115,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                 >
                   <span className="scd-avatar">{initials(teacher.first_name, teacher.last_name)}</span>
                   <span>
-                    <strong>{teacher.first_name} {teacher.last_name}</strong>
+                    <strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong>
                     <small>Matricule : {teacher.registration_number}</small>
                   </span>
                 </button>

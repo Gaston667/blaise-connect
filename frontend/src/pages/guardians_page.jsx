@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getGuardiansOverview } from '../services/guardians_overview_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/guardians_page.css'
 
 const STATUS_LABEL = { ACTIVE: 'Actif', ARCHIVED: 'Archivé' }
@@ -16,7 +17,7 @@ function ProfilePhoto({ photoPath, firstName, lastName }) {
     <span className="glp-avatar">
       <img
         src={photoPath || defaultPhoto}
-        alt={`Photo de ${firstName} ${lastName}`}
+        alt={`Photo de ${formatProfileName(firstName, lastName, undefined, { fallback: 'ce responsable' })}`}
         onError={(event) => { event.currentTarget.src = defaultPhoto }}
       />
     </span>
@@ -130,7 +131,7 @@ export default function GuardiansPage({ onNavigate }) {
                           lastName={guardian.last_name}
                         />
                         <span>
-                          <strong>{guardian.first_name} {guardian.last_name}</strong>
+                          <strong>{formatProfileName(guardian.first_name, guardian.last_name, guardian.gender)}</strong>
                           <small>{guardian.gender === 'MALE' ? 'Masculin' : guardian.gender === 'FEMALE' ? 'Féminin' : '—'}</small>
                         </span>
                       </span>

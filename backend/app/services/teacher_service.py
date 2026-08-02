@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.teacher_assignment_conflict_error import TeacherAssignmentConflictError
 from app.schemas.teacher_assignment_create import TeacherAssignmentCreate
 from app.schemas.teacher_assignment_end import TeacherAssignmentEnd
 from app.schemas.teacher_update import TeacherUpdate
@@ -31,6 +32,7 @@ def list_teachers_overview(db: Session, q: str | None = None) -> list[dict]:
             a.registration_number,
             t.first_name,
             t.last_name,
+            t.gender,
             t.email,
             t.phone,
             t.hire_date,
@@ -76,6 +78,7 @@ def list_teachers_overview(db: Session, q: str | None = None) -> list[dict]:
                 "registration_number": teacher.registration_number,
                 "first_name": teacher.first_name,
                 "last_name": teacher.last_name,
+                "gender": teacher.gender,
                 "email": teacher.email,
                 "phone": teacher.phone,
                 "hire_date": teacher.hire_date,
@@ -259,7 +262,7 @@ def get_teacher_detail(db: Session, teacher_id: str) -> dict | None:
 
 
 def list_available_teacher_assignments(db: Session, teacher_id: UUID) -> list[dict]:
-    """Liste les matières de classes ouvertes non affectées à cet enseignant."""
+    """Liste les matières des classes ouvertes et leur affectation active."""
 
     rows = db.execute(
         text(
@@ -273,25 +276,37 @@ def list_available_teacher_assignments(db: Session, teacher_id: UUID) -> list[di
                 sy.start_date AS school_year_start_date,
                 sy.end_date AS school_year_end_date,
                 s.name AS subject_name,
-                cs.coefficient
+                cs.coefficient,
+                active_assignment.teacher_id IS NOT NULL AS is_assigned,
+                CASE
+                    WHEN active_teacher.id IS NULL THEN NULL
+                    ELSE
+                        (CASE
+                            WHEN active_teacher.gender IN ('MALE', 'M') THEN 'M. '
+                            WHEN active_teacher.gender IN ('FEMALE', 'F') THEN 'Mme '
+                            ELSE ''
+                        END) || active_teacher.first_name || ' ' || active_teacher.last_name
+                END AS assigned_teacher_name
             FROM class_subjects AS cs
             JOIN classes AS c ON c.id = cs.class_id
             JOIN class_levels AS cl ON cl.id = c.class_level_id
             JOIN school_years AS sy ON sy.id = c.school_year_id
             JOIN subjects AS s ON s.id = cs.subject_id
+            LEFT JOIN LATERAL (
+                SELECT ta.teacher_id
+                FROM teacher_assignments AS ta
+                WHERE ta.class_subject_id = cs.id
+                  AND ta.end_date IS NULL
+                ORDER BY ta.start_date DESC, ta.created_at DESC
+                LIMIT 1
+            ) AS active_assignment ON true
+            LEFT JOIN teachers AS active_teacher
+                ON active_teacher.id = active_assignment.teacher_id
             WHERE sy.closed_at IS NULL
               AND s.is_active = true
-              AND NOT EXISTS (
-                    SELECT 1
-                    FROM teacher_assignments AS ta
-                    WHERE ta.teacher_id = :teacher_id
-                      AND ta.class_subject_id = cs.id
-                      AND ta.end_date IS NULL
-              )
             ORDER BY sy.name DESC, cl.display_order, c.group_label, s.name
             """
         ),
-        {"teacher_id": teacher_id},
     ).all()
 
     return [
@@ -305,6 +320,8 @@ def list_available_teacher_assignments(db: Session, teacher_id: UUID) -> list[di
             "school_year_end_date": row.school_year_end_date,
             "subject_name": row.subject_name,
             "coefficient": float(row.coefficient),
+            "is_assigned": row.is_assigned,
+            "assigned_teacher_name": row.assigned_teacher_name,
         }
         for row in rows
     ]
@@ -323,6 +340,30 @@ def create_teacher_assignment(
     ).first()
     if teacher_exists is None:
         raise ValueError("Enseignant introuvable.")
+
+    active_assignment = db.execute(
+        text(
+            """
+                        SELECT t.first_name, t.last_name, t.gender
+            FROM teacher_assignments AS ta
+            JOIN teachers AS t ON t.id = ta.teacher_id
+            WHERE ta.class_subject_id = :class_subject_id
+              AND ta.end_date IS NULL
+            LIMIT 1
+            """
+        ),
+        {"class_subject_id": data.class_subject_id},
+    ).first()
+    if active_assignment is not None:
+        civil_title = ""
+        if active_assignment.gender in ("MALE", "M"):
+            civil_title = "M. "
+        elif active_assignment.gender in ("FEMALE", "F"):
+            civil_title = "Mme "
+        teacher_name = f"{civil_title}{active_assignment.first_name} {active_assignment.last_name}"
+        raise TeacherAssignmentConflictError(
+            f"Cette matière est déjà affectée à {teacher_name}."
+        )
 
     db.execute(
         text(

@@ -23,6 +23,7 @@ import {
   uploadAccountPhoto,
 } from '../services/account_service.js'
 import { generateSecurePassword } from '../services/password_generator.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 
 const ROLE_LABELS = {
   ADMIN: 'Administrateur',
@@ -367,7 +368,7 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
   }
 
   const profile = account.profile || {}
-  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Non renseigné'
+  const fullName = formatProfileName(profile.first_name, profile.last_name, profile.gender)
   const inactive = isInactive(account)
   const qualificationLabel = account.role === 'TEACHER' ? 'Spécialité / Qualification' : 'Fonction'
   const qualificationValue =

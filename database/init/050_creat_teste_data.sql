@@ -284,7 +284,7 @@ WHERE school_years.name = '2026-2027'
         AND reporting_periods.start_date = period_data.start_date
   );
 
--- 9. Tous les niveaux (de la maternelle au lycee), mais seuls les niveaux lycee restent actifs.
+-- 9. Tous les niveaux disponibles ; le jeu de test active le secondaire.
 INSERT INTO class_levels (code, name, education_stage, display_order, is_active)
 VALUES
     ('PETITE_SECTION', 'Petite Section', 'PRESCHOOL', 1, false),
@@ -321,8 +321,8 @@ UPDATE class_levels SET display_order = 13 WHERE code = 'SECONDE';
 UPDATE class_levels SET display_order = 14 WHERE code = 'PREMIERE';
 UPDATE class_levels SET display_order = 15 WHERE code = 'TERMINALE';
 
-UPDATE class_levels SET is_active = false WHERE education_stage <> 'HIGH_SCHOOL';
-UPDATE class_levels SET is_active = true WHERE education_stage = 'HIGH_SCHOOL';
+UPDATE class_levels
+SET is_active = education_stage IN ('MIDDLE_SCHOOL', 'HIGH_SCHOOL');
 
 -- 10. Matieres de test.
 INSERT INTO subjects (
@@ -339,7 +339,7 @@ VALUES
     ('Informatique', 'Matière fictive de développement', true)
 ON CONFLICT DO NOTHING;
 
--- 11. Classes annuelles de test.
+-- 11. Toutes les classes annuelles du secondaire, de la 6eme a la Terminale.
 INSERT INTO classes (
     school_year_id,
     class_level_id,
@@ -357,7 +357,11 @@ FROM (
     VALUES
         ('SIXIEME', 'e000001'),
         ('CINQUIEME', 'e000002'),
-        ('QUATRIEME', 'e000003')
+        ('QUATRIEME', 'e000003'),
+        ('TROISIEME', 'e000004'),
+        ('SECONDE', 'e000005'),
+        ('PREMIERE', 'e000006'),
+        ('TERMINALE', 'e000007')
 ) AS class_data(level_code, teacher_registration_number)
 JOIN school_years ON school_years.name = '2026-2027'
 JOIN class_levels ON class_levels.code::text = class_data.level_code
@@ -398,7 +402,7 @@ WHERE school_years.name = '2026-2027'
   AND subjects.is_active = true
 ON CONFLICT (class_id, subject_id) DO NOTHING;
 
--- 13. Repartition des eleves dans 3 classes.
+-- 13. Repartition des eleves dans toutes les classes du secondaire.
 WITH ordered_students AS (
     SELECT
         students.id,
@@ -408,6 +412,12 @@ WITH ordered_students AS (
     FROM students
     JOIN accounts ON accounts.id = students.account_id
     WHERE accounts.role = 'STUDENT'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM student_enrollments AS existing_enrollment
+          WHERE existing_enrollment.student_id = students.id
+            AND existing_enrollment.end_date IS NULL
+      )
 ),
 ordered_classes AS (
     SELECT
@@ -419,6 +429,10 @@ ordered_classes AS (
     JOIN school_years ON school_years.id = classes.school_year_id
     JOIN class_levels ON class_levels.id = classes.class_level_id
     WHERE school_years.name = '2026-2027'
+),
+class_count AS (
+    SELECT count(*) AS total
+    FROM ordered_classes
 )
 INSERT INTO student_enrollments (
     student_id,
@@ -430,8 +444,9 @@ SELECT
     ordered_classes.id,
     DATE '2026-09-01'
 FROM ordered_students
+JOIN class_count ON class_count.total > 0
 JOIN ordered_classes
-    ON ordered_classes.row_number = ((ordered_students.row_number - 1) % 3) + 1
+    ON ordered_classes.row_number = ((ordered_students.row_number - 1) % class_count.total) + 1
 ON CONFLICT (student_id, class_id) DO NOTHING;
 
 COMMIT;

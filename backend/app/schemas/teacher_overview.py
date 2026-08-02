@@ -8,6 +8,7 @@ class TeacherOverview(BaseModel):
     registration_number: str
     first_name: str
     last_name: str
+    gender: str | None
     email: str | None
     phone: str | None
     hire_date: date
