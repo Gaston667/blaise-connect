@@ -1,5 +1,5 @@
 
-import { BookOpen, CalendarRange, ContactRound, GraduationCap, House, Users, Presentation, X }
+import { BookOpen, CalendarRange, ContactRound, GraduationCap, House, NotebookPen, Users, Presentation, X }
 from 'lucide-react'
 import logo from '../assets/logo-blaise-connect.png.png'
 import LogoutButton from '../pages/logout_button.jsx'
@@ -162,6 +162,15 @@ export default function Sidebar({
         >
           <BookOpen aria-hidden="true" size={20} />
           Matières
+        </button>
+        <button
+          className={currentPage === 'notes' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+          type="button"
+          data-page="notes"
+          onClick={handleNavigation}
+        >
+          <NotebookPen aria-hidden="true" size={20} />
+          Notes
         </button>
       </nav>
 
