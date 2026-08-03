@@ -22,7 +22,9 @@ def list_administrators_overview(db: Session, q: str | None = None) -> list[dict
             ad.job_title,
             ad.photo_path,
             ad.archived_at,
-            a.is_active
+            a.is_active,
+            a.created_at AS account_created_at,
+            a.last_login_at
         FROM administrators ad
         JOIN accounts a ON a.id = ad.account_id
         WHERE 1 = 1
@@ -45,7 +47,7 @@ def get_administrator_overview(db: Session, administrator_id: str) -> dict | Non
             SELECT
                 ad.id, a.registration_number, ad.first_name, ad.last_name, ad.gender,
                 ad.email, ad.phone, ad.address, ad.hire_date, ad.job_title, ad.photo_path,
-                ad.archived_at, a.is_active
+                ad.archived_at, a.is_active, a.created_at AS account_created_at, a.last_login_at
             FROM administrators ad
             JOIN accounts a ON a.id = ad.account_id
             WHERE ad.id = :administrator_id
@@ -74,6 +76,8 @@ def _row_to_overview(row) -> dict:
         "job_title": row.job_title,
         "photo_path": row.photo_path,
         "status": "ACTIVE" if row.archived_at is None and row.is_active else "INACTIVE",
+        "account_created_at": row.account_created_at,
+        "last_login_at": row.last_login_at,
     }
 
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Briefcase, CalendarDays, Mail, MapPin, Phone, UserRound } from 'lucide-react'
+import { ArrowLeft, BadgeInfo, Briefcase, CalendarDays, Clock, Mail, MapPin, Phone, ShieldCheck, UserRound } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 
 import { getAdministratorOverview, updateAdministrator } from '../services/administrators_overview_service.js'
@@ -26,6 +26,11 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('fr-FR').format(new Date(`${value}T00:00:00`))
 }
 
+function formatDateTime(value) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
+}
+
 function buildForm(details) {
   return {
     first_name: details.first_name ?? '',
@@ -42,6 +47,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
   const [details, setDetails] = useState(administrator?.first_name ? administrator : null)
   const [loading, setLoading] = useState(!administrator?.first_name)
   const [errorMessage, setErrorMessage] = useState('')
+  const [activeTab, setActiveTab] = useState('personal')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
@@ -123,7 +129,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
             <span aria-current="page">Détail</span>
           </nav>
         </div>
-        {!editing && (
+        {activeTab === 'personal' && !editing && (
           <button type="button" className="addp-edit-button" onClick={startEditing}>
             Modifier
           </button>
@@ -152,64 +158,107 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
         </dl>
       </section>
 
-      {editing ? (
-        <section className="addp-information">
-          <h2>Modifier les informations</h2>
-          <form className="addp-form" onSubmit={handleSave}>
-            <div className="addp-form-grid">
-              <label>Prénom *<input name="first_name" value={form.first_name} onChange={updateField} maxLength="100" required /></label>
-              <label>Nom *<input name="last_name" value={form.last_name} onChange={updateField} maxLength="100" required /></label>
-              <label>
-                Sexe
-                <select name="gender" value={form.gender} onChange={updateField}>
-                  <option value="">Non renseigné</option>
-                  <option value="MALE">Masculin</option>
-                  <option value="FEMALE">Féminin</option>
-                </select>
-              </label>
-              <label>Fonction / Rôle *<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" required /></label>
-              <label>Email<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" /></label>
-              <label>Téléphone<input name="phone" value={form.phone} onChange={updateField} maxLength="30" /></label>
-              <label className="addp-form-wide">Adresse<input name="address" value={form.address} onChange={updateField} /></label>
-            </div>
+      <nav className="addp-tabs" aria-label="Onglets du dossier administrateur">
+        <button
+          type="button"
+          className={activeTab === 'personal' ? 'addp-tab addp-tab--active' : 'addp-tab'}
+          onClick={() => setActiveTab('personal')}
+        >
+          Informations personnelles
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'account' ? 'addp-tab addp-tab--active' : 'addp-tab'}
+          onClick={() => { setActiveTab('account'); setEditing(false) }}
+        >
+          Compte
+        </button>
+      </nav>
 
-            {saveError && <p className="addp-form-error" role="alert">{saveError}</p>}
+      {activeTab === 'personal' && (
+        editing ? (
+          <section className="addp-information">
+            <h2>Modifier les informations</h2>
+            <form className="addp-form" onSubmit={handleSave}>
+              <div className="addp-form-grid">
+                <label>Prénom *<input name="first_name" value={form.first_name} onChange={updateField} maxLength="100" required /></label>
+                <label>Nom *<input name="last_name" value={form.last_name} onChange={updateField} maxLength="100" required /></label>
+                <label>
+                  Sexe
+                  <select name="gender" value={form.gender} onChange={updateField}>
+                    <option value="">Non renseigné</option>
+                    <option value="MALE">Masculin</option>
+                    <option value="FEMALE">Féminin</option>
+                  </select>
+                </label>
+                <label>Fonction / Rôle *<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" required /></label>
+                <label>Email<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" /></label>
+                <label>Téléphone<input name="phone" value={form.phone} onChange={updateField} maxLength="30" /></label>
+                <label className="addp-form-wide">Adresse<input name="address" value={form.address} onChange={updateField} /></label>
+              </div>
 
-            <div className="addp-form-actions">
-              <button type="button" className="addp-btn-outline" onClick={cancelEditing}>Annuler</button>
-              <button type="submit" className="addp-btn-primary" disabled={saving}>
-                {saving ? 'Enregistrement…' : 'Enregistrer'}
-              </button>
+              {saveError && <p className="addp-form-error" role="alert">{saveError}</p>}
+
+              <div className="addp-form-actions">
+                <button type="button" className="addp-btn-outline" onClick={cancelEditing}>Annuler</button>
+                <button type="submit" className="addp-btn-primary" disabled={saving}>
+                  {saving ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
+          </section>
+        ) : (
+          <section className="addp-information">
+            <h2>Informations de l’administrateur</h2>
+            <div className="addp-information-grid">
+              <article>
+                <UserRound aria-hidden="true" size={20} />
+                <div><span>Nom complet</span><strong>{formatProfileName(details.first_name, details.last_name, details.gender)}</strong></div>
+              </article>
+              <article>
+                <Briefcase aria-hidden="true" size={20} />
+                <div><span>Fonction</span><strong>{details.job_title}</strong></div>
+              </article>
+              <article>
+                <Mail aria-hidden="true" size={20} />
+                <div><span>Email</span><strong>{details.email ?? 'Non renseigné'}</strong></div>
+              </article>
+              <article>
+                <Phone aria-hidden="true" size={20} />
+                <div><span>Téléphone</span><strong>{details.phone ?? 'Non renseigné'}</strong></div>
+              </article>
+              <article>
+                <MapPin aria-hidden="true" size={20} />
+                <div><span>Adresse</span><strong>{details.address ?? 'Non renseignée'}</strong></div>
+              </article>
+              <article>
+                <CalendarDays aria-hidden="true" size={20} />
+                <div><span>Date d’embauche</span><strong>{formatDate(details.hire_date)}</strong></div>
+              </article>
             </div>
-          </form>
-        </section>
-      ) : (
+          </section>
+        )
+      )}
+
+      {activeTab === 'account' && (
         <section className="addp-information">
-          <h2>Informations de l’administrateur</h2>
+          <h2>Informations du compte</h2>
           <div className="addp-information-grid">
             <article>
-              <UserRound aria-hidden="true" size={20} />
-              <div><span>Nom complet</span><strong>{formatProfileName(details.first_name, details.last_name, details.gender)}</strong></div>
+              <BadgeInfo aria-hidden="true" size={20} />
+              <div><span>Matricule</span><strong>{details.registration_number}</strong></div>
             </article>
             <article>
-              <Briefcase aria-hidden="true" size={20} />
-              <div><span>Fonction</span><strong>{details.job_title}</strong></div>
-            </article>
-            <article>
-              <Mail aria-hidden="true" size={20} />
-              <div><span>Email</span><strong>{details.email ?? 'Non renseigné'}</strong></div>
-            </article>
-            <article>
-              <Phone aria-hidden="true" size={20} />
-              <div><span>Téléphone</span><strong>{details.phone ?? 'Non renseigné'}</strong></div>
-            </article>
-            <article>
-              <MapPin aria-hidden="true" size={20} />
-              <div><span>Adresse</span><strong>{details.address ?? 'Non renseignée'}</strong></div>
+              <ShieldCheck aria-hidden="true" size={20} />
+              <div><span>Statut</span><strong>{details.status === 'ACTIVE' ? 'Actif' : 'Inactif'}</strong></div>
             </article>
             <article>
               <CalendarDays aria-hidden="true" size={20} />
-              <div><span>Date d’embauche</span><strong>{formatDate(details.hire_date)}</strong></div>
+              <div><span>Compte créé le</span><strong>{formatDateTime(details.account_created_at)}</strong></div>
+            </article>
+            <article>
+              <Clock aria-hidden="true" size={20} />
+              <div><span>Dernière connexion</span><strong>{formatDateTime(details.last_login_at)}</strong></div>
             </article>
           </div>
         </section>
