@@ -29,6 +29,7 @@ import {
   updateSchoolClass,
 } from '../services/school_classes_overview_service.js'
 import { listStudents } from '../services/students_service.js'
+import { createTeacherAssignment } from '../services/teachers_overview_service.js'
 import './../styles/school_class_details_page.css'
 
 const STATUS_LABEL = { ACTIVE: 'Actif', ARCHIVEE: 'Archivée' }
@@ -96,6 +97,11 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   // Retrait matière
   const [confirmRemoveSubjectId, setConfirmRemoveSubjectId] = useState(null)
   const [removingSubject, setRemovingSubject] = useState(false)
+  // Affectation d'un enseignant à une matière non affectée
+  const [assignPickerSubjectId, setAssignPickerSubjectId] = useState(null)
+  const [assignTeacherSearch, setAssignTeacherSearch] = useState('')
+  const [assigningTeacher, setAssigningTeacher] = useState(false)
+  const [assignError, setAssignError] = useState('')
   const debouncedStudentSearch = useDebouncedValue(studentSearch)
   const debouncedStudentStatus = useDebouncedValue(studentStatus)
   const debouncedSubjectSearch = useDebouncedValue(subjectSearch)
@@ -290,6 +296,46 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
       setRemovingSubject(false)
     }
   }
+
+  function openAssignPicker(subjectId) {
+    setAssignTeacherSearch('')
+    setAssignError('')
+    setAssignPickerSubjectId(subjectId)
+  }
+
+  function closeAssignPicker() {
+    if (assigningTeacher) return
+    setAssignPickerSubjectId(null)
+  }
+
+  function computeAssignmentStartDate() {
+    const today = new Date().toISOString().slice(0, 10)
+    if (details.school_year_start && today < details.school_year_start) return details.school_year_start
+    if (details.school_year_end && today > details.school_year_end) return details.school_year_end
+    return today
+  }
+
+  async function handleAssignTeacher(teacher) {
+    setAssigningTeacher(true)
+    setAssignError('')
+    try {
+      await createTeacherAssignment(teacher.id, {
+        class_subject_id: assignPickerSubjectId,
+        start_date: computeAssignmentStartDate(),
+      })
+      setAssignPickerSubjectId(null)
+      loadClassSubjects()
+    } catch (e) {
+      setAssignError(e.message)
+    } finally {
+      setAssigningTeacher(false)
+    }
+  }
+
+  const filteredAssignTeachers = teachers.filter((teacher) => {
+    const searchable = `${teacher.first_name} ${teacher.last_name} ${teacher.registration_number}`.toLowerCase()
+    return searchable.includes(assignTeacherSearch.trim().toLowerCase())
+  })
 
   function openTeacherDetails() {
     onNavigate?.('teacher-details', {
@@ -815,7 +861,19 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                           )}
                         </td>
                         <td className="scd-col-teacher">
-                          {subject.teacher_name ?? <span className="scd-no-teacher">Non affecté</span>}
+                          {subject.teacher_name ?? (
+                            <span className="scd-no-teacher">
+                              Non affecté
+                              <button
+                                type="button"
+                                className="scd-btn-icon"
+                                title="Affecter un enseignant"
+                                onClick={() => openAssignPicker(subject.id)}
+                              >
+                                + Affecter
+                              </button>
+                            </span>
+                          )}
                         </td>
                         <td>
                           <span className={subject.is_active
@@ -999,6 +1057,62 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {assignPickerSubjectId && (
+        <div className="scd-confirm-overlay" onClick={closeAssignPicker}>
+          <section
+            className="scd-teacher-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="assign-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="scd-teacher-picker__header">
+              <div>
+                <h3 id="assign-picker-title">Affecter un enseignant</h3>
+                <p>Recherchez un enseignant par nom, prénom ou matricule.</p>
+              </div>
+              <button type="button" className="scd-btn-outline" onClick={closeAssignPicker}>Fermer</button>
+            </div>
+
+            <label className="scd-teacher-search">
+              <Search aria-hidden="true" size={18} />
+              <input
+                autoFocus
+                type="search"
+                placeholder="Nom ou matricule…"
+                value={assignTeacherSearch}
+                onChange={(event) => setAssignTeacherSearch(event.target.value)}
+              />
+            </label>
+
+            {assignError && <p className="scd-error">{assignError}</p>}
+
+            <div className="scd-teacher-results">
+              {filteredAssignTeachers.map((teacher) => (
+                <button
+                  key={teacher.id}
+                  type="button"
+                  className="scd-teacher-result"
+                  disabled={assigningTeacher}
+                  onClick={() => handleAssignTeacher(teacher)}
+                >
+                  <span className="scd-avatar">
+                    {initials(teacher.first_name, teacher.last_name)}
+                  </span>
+                  <span>
+                    <strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong>
+                    <small>Matricule : {teacher.registration_number}</small>
+                  </span>
+                </button>
+              ))}
+              {filteredAssignTeachers.length === 0 && (
+                <p className="scd-teacher-results__empty">Aucun enseignant trouvé.</p>
+              )}
+            </div>
+          </section>
         </div>
       )}
 

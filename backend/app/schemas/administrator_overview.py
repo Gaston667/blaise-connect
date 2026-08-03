@@ -1,5 +1,5 @@
 """Contrat de lecture enrichi d'un administrateur pour l'écran de gestion."""
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel
 
 
@@ -16,3 +16,5 @@ class AdministratorOverview(BaseModel):
     job_title: str
     photo_path: str | None = None
     status: str
+    account_created_at: datetime
+    last_login_at: datetime | None
