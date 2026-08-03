@@ -34,6 +34,12 @@ const REGISTRATION_PREFIXES = {
   GUARDIAN: 'p',
 }
 
+const DEFAULT_PHOTO_ADJUSTMENTS = {
+  zoom: 1.15,
+  offsetX: 0,
+  offsetY: 0,
+}
+
 /** Calcule un aperçu du matricule selon la même formule UTC que le backend. */
 function generateRegistrationPreview(role) {
   const prefix = REGISTRATION_PREFIXES[role]
@@ -67,6 +73,7 @@ export default function AccountCreatePage({ onNavigate }) {
   const [creationSummary, setCreationSummary] = useState(null)
   const [photo, setPhoto] = useState(null)
   const [photoPreview, setPhotoPreview] = useState('')
+  const [photoAdjustments, setPhotoAdjustments] = useState(DEFAULT_PHOTO_ADJUSTMENTS)
   const [confirmationOpen, setConfirmationOpen] = useState(false)
 
   function updateField(event) {
@@ -108,6 +115,7 @@ export default function AccountCreatePage({ onNavigate }) {
     setForm(INITIAL_FORM)
     setPhoto(null)
     setPhotoPreview('')
+    setPhotoAdjustments(DEFAULT_PHOTO_ADJUSTMENTS)
     setCreationSummary(null)
     setShowPassword(false)
     setErrorMessage('')
@@ -130,7 +138,57 @@ export default function AccountCreatePage({ onNavigate }) {
     if (photoPreview) URL.revokeObjectURL(photoPreview)
     setPhoto(selectedPhoto)
     setPhotoPreview(URL.createObjectURL(selectedPhoto))
+    setPhotoAdjustments(DEFAULT_PHOTO_ADJUSTMENTS)
     setErrorMessage('')
+  }
+
+  function updatePhotoAdjustment(field, value) {
+    setPhotoAdjustments((current) => ({ ...current, [field]: value }))
+  }
+
+  async function buildAdjustedPhotoFile(sourcePhoto, adjustments) {
+    const imageUrl = URL.createObjectURL(sourcePhoto)
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const loadedImage = new Image()
+        loadedImage.onload = () => resolve(loadedImage)
+        loadedImage.onerror = () => reject(new Error('Impossible de charger la photo sélectionnée.'))
+        loadedImage.src = imageUrl
+      })
+
+      const cropSize = Math.min(image.width, image.height) / adjustments.zoom
+      const maxOffsetX = (image.width - cropSize) / 2
+      const maxOffsetY = (image.height - cropSize) / 2
+      const sourceX = Math.max(0, Math.min(image.width - cropSize, (image.width - cropSize) / 2 + (adjustments.offsetX / 100) * maxOffsetX))
+      const sourceY = Math.max(0, Math.min(image.height - cropSize, (image.height - cropSize) / 2 + (adjustments.offsetY / 100) * maxOffsetY))
+
+      const canvas = document.createElement('canvas')
+      canvas.width = 512
+      canvas.height = 512
+      const context = canvas.getContext('2d')
+      if (!context) throw new Error('Impossible de préparer la photo sélectionnée.')
+
+      context.drawImage(image, sourceX, sourceY, cropSize, cropSize, 0, 0, canvas.width, canvas.height)
+
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((result) => {
+          if (!result) {
+            reject(new Error('Impossible de préparer la photo sélectionnée.'))
+            return
+          }
+          resolve(result)
+        }, sourcePhoto.type || 'image/jpeg', 0.92)
+      })
+
+      const extension = sourcePhoto.type === 'image/png'
+        ? 'png'
+        : sourcePhoto.type === 'image/webp'
+          ? 'webp'
+          : 'jpg'
+      return new File([blob], `profile-photo.${extension}`, { type: blob.type || sourcePhoto.type })
+    } finally {
+      URL.revokeObjectURL(imageUrl)
+    }
   }
 
   function cleanOptionalValue(value) {
@@ -179,7 +237,8 @@ export default function AccountCreatePage({ onNavigate }) {
       let photoUploadFailed = false
       if (photo) {
         try {
-          createdAccount = await uploadAccountPhoto(createdAccount.id, photo)
+          const adjustedPhoto = await buildAdjustedPhotoFile(photo, photoAdjustments)
+          createdAccount = await uploadAccountPhoto(createdAccount.id, adjustedPhoto)
         } catch {
           photoUploadFailed = true
         }
@@ -362,7 +421,14 @@ export default function AccountCreatePage({ onNavigate }) {
               Photo *
               <span className="creation-compte-photo-picker">
                 {photoPreview ? (
-                  <img src={photoPreview} alt="Aperçu de la photo sélectionnée" />
+                  <img
+                    src={photoPreview}
+                    alt="Aperçu de la photo sélectionnée"
+                    style={{
+                      objectPosition: `${50 + photoAdjustments.offsetX * 0.35}% ${50 + photoAdjustments.offsetY * 0.35}%`,
+                      transform: `scale(${photoAdjustments.zoom})`,
+                    }}
+                  />
                 ) : (
                   <ImagePlus aria-hidden="true" size={28} />
                 )}
@@ -377,6 +443,43 @@ export default function AccountCreatePage({ onNavigate }) {
                   required
                 />
               </span>
+              {photoPreview && (
+                <div className="creation-compte-photo-adjustments">
+                  <label>
+                    Zoom
+                    <input
+                      type="range"
+                      min="1"
+                      max="2"
+                      step="0.01"
+                      value={photoAdjustments.zoom}
+                      onChange={(event) => updatePhotoAdjustment('zoom', Number(event.target.value))}
+                    />
+                  </label>
+                  <label>
+                    Position horizontale
+                    <input
+                      type="range"
+                      min="-100"
+                      max="100"
+                      step="1"
+                      value={photoAdjustments.offsetX}
+                      onChange={(event) => updatePhotoAdjustment('offsetX', Number(event.target.value))}
+                    />
+                  </label>
+                  <label>
+                    Position verticale
+                    <input
+                      type="range"
+                      min="-100"
+                      max="100"
+                      step="1"
+                      value={photoAdjustments.offsetY}
+                      onChange={(event) => updatePhotoAdjustment('offsetY', Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+              )}
             </label>
             <label>Prénom *<input name="first_name" value={form.first_name} onChange={updateField} maxLength="100" autoComplete="off" required /></label>
             <label>Nom *<input name="last_name" value={form.last_name} onChange={updateField} maxLength="100" autoComplete="off" required /></label>
