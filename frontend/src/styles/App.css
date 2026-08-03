@@ -2891,6 +2891,29 @@
   opacity: 0;
 }
 
+.creation-compte-photo-adjustments {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-alt);
+}
+
+.creation-compte-photo-adjustments label {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.creation-compte-photo-adjustments input[type="range"] {
+  width: 100%;
+}
+
 .creation-compte-summary-photo {
   width: 64px;
   height: 64px;
