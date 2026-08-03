@@ -520,6 +520,7 @@
   box-shadow: var(--shadow-lg);
   transform: translateX(-105%);
   transition: transform var(--transition-normal);
+  overflow-y: auto;
 }
 
 .layout-sidebar-open {
