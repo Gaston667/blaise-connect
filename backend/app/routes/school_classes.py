@@ -305,7 +305,10 @@ def delete_class_subject(
         db.rollback()
         raise HTTPException(
             status_code=409,
-            detail="Impossible de retirer cette matière : des évaluations y sont rattachées.",
+            detail=(
+                "Impossible de retirer cette matière : une affectation enseignant "
+                "ou une donnée pédagogique y est rattachée."
+            ),
         ) from error
 
 

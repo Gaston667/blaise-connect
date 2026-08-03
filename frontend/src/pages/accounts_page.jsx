@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getAccounts } from '../services/account_service'
+import { formatProfileName } from '../utils/profileDisplay.js'
 
 const PAGE_SIZE = 10
 const STATS_PER_SLIDE = 3
@@ -66,11 +67,12 @@ function getInitials(registrationNumber) {
 }
 
 function getFullName(account) {
-  const fullName = [account.profile?.last_name, account.profile?.first_name]
-    .filter(Boolean)
-    .join(' ')
-
-  return fullName || 'Non renseigné'
+  return formatProfileName(
+    account.profile?.first_name,
+    account.profile?.last_name,
+    account.profile?.gender,
+    { order: 'last-first', fallback: 'Non renseigne' },
+  )
 }
 
 const DEFAULT_PHOTO = defaultPhoto

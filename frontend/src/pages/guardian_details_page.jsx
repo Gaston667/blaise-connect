@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getGuardianDetail, updateGuardian } from '../services/guardians_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/guardian_details_page.css'
 
 const DEFAULT_PHOTO = defaultPhoto
@@ -179,19 +180,19 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
         <span>›</span>
         <button type="button" onClick={() => onNavigate?.('guardians')}>Responsables</button>
         <span>›</span>
-        <span>{details.first_name} {details.last_name}</span>
+        <span>{formatProfileName(details.first_name, details.last_name, details.gender)}</span>
       </nav>
 
       <div className="gdp-header">
         <span className="gdp-avatar">
           <img
             src={details.photo_path || DEFAULT_PHOTO}
-            alt={`Photo de ${details.first_name} ${details.last_name}`}
+            alt={`Photo de ${formatProfileName(details.first_name, details.last_name, details.gender, { fallback: 'ce responsable' })}`}
             onError={(event) => { event.currentTarget.src = DEFAULT_PHOTO }}
           />
         </span>
         <div>
-          <h1>{details.first_name} {details.last_name}</h1>
+          <h1>{formatProfileName(details.first_name, details.last_name, details.gender)}</h1>
           <div className="gdp-header-meta">
             <StatusBadge status={details.archived_at ? 'ARCHIVED' : 'ACTIVE'} />
           </div>
@@ -241,7 +242,7 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
                 </button>
               </div>
               <dl className="gdp-info-list">
-                <div><dt><UserRound aria-hidden="true" size={18} />Nom complet</dt><dd>{details.first_name} {details.last_name}</dd></div>
+                <div><dt><UserRound aria-hidden="true" size={18} />Nom complet</dt><dd>{formatProfileName(details.first_name, details.last_name, details.gender)}</dd></div>
                 <div><dt><ShieldCheck aria-hidden="true" size={18} />Genre</dt><dd>{genderLabel(details.gender)}</dd></div>
                 <div><dt><MapPin aria-hidden="true" size={18} />Adresse complète</dt><dd>{details.address ?? '—'}</dd></div>
                 <div><dt><Phone aria-hidden="true" size={18} />Téléphone</dt><dd>{details.phone ?? '—'}</dd></div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { searchGuardians, createGuardian, linkGuardianToStudent } from '../services/guardians_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 
 const RELATIONSHIP_OPTIONS = [
   { value: 'PERE', label: 'Père' },
@@ -108,7 +109,7 @@ export default function AddGuardianModal({ studentId, onClose, onLinked }) {
                     <button type="button" className="agm-result" onClick={() => setSelected(g)}>
                       <span className="agm-avatar">{initials(g.first_name, g.last_name)}</span>
                       <span className="agm-result-info">
-                        <strong>{g.first_name} {g.last_name}</strong>
+                        <strong>{formatProfileName(g.first_name, g.last_name, g.gender)}</strong>
                         <span>{g.phone}</span>
                       </span>
                       <span className="agm-select-label">Sélectionner</span>
@@ -136,7 +137,7 @@ export default function AddGuardianModal({ studentId, onClose, onLinked }) {
               <div className="agm-selected-summary">
                 <span className="agm-avatar">{initials(selected.first_name, selected.last_name)}</span>
                 <div>
-                  <strong>{selected.first_name} {selected.last_name}</strong>
+                  <strong>{formatProfileName(selected.first_name, selected.last_name, selected.gender)}</strong>
                   <span>{selected.phone}</span>
                 </div>
                 <button type="button" className="agm-change" onClick={() => setSelected(null)}>Changer</button>

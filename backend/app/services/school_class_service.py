@@ -115,6 +115,7 @@ def list_school_classes_overview(
             sy.name AS school_year_name,
             t.first_name AS teacher_first_name,
             t.last_name AS teacher_last_name,
+            t.gender AS teacher_gender,
             CASE WHEN sy.closed_at IS NOT NULL THEN 'ARCHIVEE' ELSE 'ACTIVE' END AS status,
             COALESCE(enr.student_count, 0) AS student_count
         FROM classes c
@@ -159,7 +160,7 @@ def list_school_classes_overview(
             "updated_at": row.updated_at,
             "level_name": row.level_name,
             "school_year_name": row.school_year_name,
-            "teacher_name": f"{row.teacher_first_name} {row.teacher_last_name}",
+            "teacher_name": f"{('M. ' if row.teacher_gender in ('MALE', 'M') else 'Mme ' if row.teacher_gender in ('FEMALE', 'F') else '')}{row.teacher_first_name} {row.teacher_last_name}",
             "status": row.status,
             "student_count": row.student_count,
         }
@@ -176,6 +177,7 @@ def get_school_class_detail(db: Session, school_class_id: str) -> dict | None:
                 cl.name AS level_name,
                 sy.name AS school_year_name, sy.start_date, sy.end_date,
                 t.first_name AS teacher_first_name, t.last_name AS teacher_last_name,
+                t.gender AS teacher_gender,
                 t.email AS teacher_email, t.phone AS teacher_phone,
                 CASE WHEN t.archived_at IS NULL THEN 'ACTIVE' ELSE 'ARCHIVED' END
                     AS teacher_status,
@@ -223,6 +225,7 @@ def get_school_class_detail(db: Session, school_class_id: str) -> dict | None:
         "school_year_end": row.end_date,
         "teacher_first_name": row.teacher_first_name,
         "teacher_last_name": row.teacher_last_name,
+        "teacher_gender": row.teacher_gender,
         "teacher_email": row.teacher_email,
         "teacher_phone": row.teacher_phone,
         "teacher_status": row.teacher_status,
@@ -259,11 +262,7 @@ def list_school_class_subjects(
         where_clauses.append("s.is_active = :is_active")
         parameters["is_active"] = is_active
 
-    # NOTE: l'affectation d'un enseignant par matière de classe n'existe pas
-    # encore en base (table teacher_assignments documentée mais non créée,
-    # cf. database/migration/006_teacher_assignments.sql en attente).
-    # teacher_name reste donc toujours NULL ici pour ne pas afficher une
-    # donnée inventée ; l'assignation est prototypée côté frontend seul.
+    # Les noms sont dérivés des affectations actives de la matière de classe.
     statement = sql_text(
         f"""
         SELECT
@@ -272,7 +271,21 @@ def list_school_class_subjects(
             s.name,
             cs.coefficient,
             s.is_active,
-            NULL::text AS teacher_name
+            (
+                SELECT string_agg(
+                    (CASE
+                        WHEN teacher.gender IN ('MALE', 'M') THEN 'M. '
+                        WHEN teacher.gender IN ('FEMALE', 'F') THEN 'Mme '
+                        ELSE ''
+                    END) || teacher.first_name || ' ' || teacher.last_name,
+                    ', '
+                    ORDER BY teacher.last_name, teacher.first_name
+                )
+                FROM teacher_assignments AS assignment
+                JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+                WHERE assignment.class_subject_id = cs.id
+                  AND assignment.end_date IS NULL
+            ) AS teacher_name
         FROM class_subjects cs
         JOIN subjects s ON s.id = cs.subject_id
         WHERE {" AND ".join(where_clauses)}

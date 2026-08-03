@@ -4,6 +4,7 @@ import { Search } from 'lucide-react'
 import { getSchoolClassesOverview, getSchoolClassSubjects } from '../services/school_classes_overview_service.js'
 import { listStudents } from '../services/students_service.js'
 import { MOCK_PERIODS, addMockGrade, listMockGrades } from '../services/notes_mock_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/notes_page.css'
 
 const EMPTY_FORM = {
@@ -41,6 +42,10 @@ export default function NotesPage({ onNavigate }) {
     refreshGrades()
   }, [])
 
+  useEffect(() => {
+    refreshGrades()
+  }, [query, classFilter, subjectFilter, periodFilter])
+
   function refreshGrades(overrides = {}) {
     setGrades(listMockGrades({
       classId: 'classId' in overrides ? overrides.classId : classFilter,
@@ -50,17 +55,11 @@ export default function NotesPage({ onNavigate }) {
     }))
   }
 
-  function handleSearch(event) {
-    event.preventDefault()
-    refreshGrades()
-  }
-
   function handleReset() {
     setQuery('')
     setClassFilter('')
     setSubjectFilter('')
     setPeriodFilter('')
-    refreshGrades({ classId: '', subjectId: '', periodId: '', q: '' })
   }
 
   const subjectOptionsForFilter = useMemo(() => {
@@ -137,7 +136,7 @@ export default function NotesPage({ onNavigate }) {
       subject_id: form.subject_id,
       subject_name: subject?.name ?? '—',
       student_id: form.student_id,
-      student_name: student ? `${student.first_name} ${student.last_name}` : '—',
+      student_name: student ? formatProfileName(student.first_name, student.last_name, student.gender, { fallback: '—' }) : '—',
       period_id: form.period_id,
       period_name: period?.name ?? '—',
       score,
@@ -170,7 +169,7 @@ export default function NotesPage({ onNavigate }) {
         Écran de démonstration : les notes saisies ici restent dans ce navigateur, elles ne sont pas encore enregistrées en base.
       </div>
 
-      <form onSubmit={handleSearch} className="ntp-filters">
+      <form onSubmit={(event) => event.preventDefault()} className="ntp-filters">
         <label className="ntp-search">
           <Search className="ntp-search__icon" aria-hidden="true" size={18} />
           <input
@@ -201,7 +200,6 @@ export default function NotesPage({ onNavigate }) {
           {MOCK_PERIODS.map((period) => <option key={period.id} value={period.id}>{period.name}</option>)}
         </select>
 
-        <button type="submit" className="ntp-btn-search">Rechercher</button>
         <button type="button" className="ntp-btn-reset" onClick={handleReset}>⟲ Réinitialiser</button>
       </form>
 
@@ -297,7 +295,7 @@ export default function NotesPage({ onNavigate }) {
                 <select name="student_id" value={form.student_id} onChange={updateField} disabled={!form.class_id} required>
                   <option value="">Sélectionner un élève</option>
                   {formStudents.map((student) => (
-                    <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>
+                    <option key={student.id} value={student.id}>{formatProfileName(student.first_name, student.last_name, student.gender, { fallback: '—' })}</option>
                   ))}
                 </select>
               </label>

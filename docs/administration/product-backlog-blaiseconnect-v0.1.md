@@ -41,12 +41,12 @@ Les estimations comprennent le développement, les tests et la documentation.
 | ID | Domaine | User Story résumée | Priorité proposée | Estimation | Statuts |
 |---|---|---|---|---|---|
 | US-001 | Authentification | Se connecter et se déconnecter | Indispensable pour le MVP | M | 🟩 Terminé |
-| US-002 | Comptes et droits | Gérer les comptes et leurs rôles | Indispensable pour le MVP | M | 🟥 À faire |
+| US-002 | Comptes et droits | Gérer les comptes et leurs rôles | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-003 | Années scolaires | Gérer les années et périodes scolaires | Indispensable pour le MVP | M | 🟩 Terminé |
-| US-004 | Classes | Gérer les classes du lycée | Indispensable pour le MVP | M | 🟥 À faire |
-| US-005 | Matières | Gérer les matières et coefficients | Indispensable pour le MVP | M | 🟥 À faire |
-| US-006 | Enseignants | Gérer les enseignants | Indispensable pour le MVP | M | 🟥 À faire |
-| US-007 | Affectations | Affecter enseignants, classes et matières | Indispensable pour le MVP | L | 🟥 À faire |
+| US-004 | Classes | Gérer les classes du lycée | Indispensable pour le MVP | M | 🟩 Terminé |
+| US-005 | Matières | Gérer les matières et coefficients | Indispensable pour le MVP | M | 🟩 Terminé |
+| US-006 | Enseignants | Gérer les enseignants | Indispensable pour le MVP | M | 🟨 En cours |
+| US-007 | Affectations | Affecter enseignants, classes et matières | Indispensable pour le MVP | L | 🟨 En cours |
 | US-008 | Élèves | Gérer les fiches des élèves | Indispensable pour le MVP | L | 🟥 À faire |
 | US-009 | Cycle de vie élève | Activer, désactiver, archiver et réactiver un élève | Important | M | 🟥 À faire |
 | US-010 | Responsables légaux | Gérer et associer les responsables légaux | Indispensable pour le MVP | L | 🟥 À faire |
@@ -64,7 +64,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 | US-022 | Bulletins | Conserver les versions successives d’un bulletin | Important | M | 🟥 À faire |
 | US-023 | Tableau de bord | Consulter le tableau de bord administrateur | Utile | M | 🟥 À faire |
 | US-024 | Tableau de bord | Consulter le tableau de bord enseignant | Utile | M | 🟥 À faire |
-| US-025 | Sécurité | Sécuriser les accès, sessions et échanges | Indispensable pour le MVP | L | 🟥 À faire |
+| US-025 | Sécurité | Sécuriser les accès, sessions et échanges | Indispensable pour le MVP | L | 🟨 En cours |
 | US-026 | Traçabilité | Consulter l’historique des actions importantes | Important | M | 🟥 À faire |
 | US-027 | Sauvegardes | Sauvegarder et restaurer les données et fichiers | Indispensable pour le MVP | L | 🟥 À faire |
 | US-028 | Déploiement | Installer et utiliser la version pilote | Indispensable pour le MVP | L | 🟥 À faire |
@@ -102,8 +102,8 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** créer, consulter, modifier, désactiver et rechercher les comptes.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
-- **Règles de gestion :** seuls les administrateurs gèrent les comptes ; rôles V1 : administrateur et enseignant ; un compte désactivé ne peut plus se connecter.
+- **Statut :** Terminé.
+- **Règles de gestion :** seuls les administrateurs gèrent les comptes ; rôles disponibles : administrateur, enseignant, élève et responsable ; un compte désactivé ne peut plus se connecter.
 - **Critères d’acceptation :** l’administrateur peut créer un compte avec un rôle ; modifier ses informations ; le désactiver ; rechercher un compte ; les droits appliqués correspondent au rôle.
 - **Dépendances :** US-001.
 - **Tâches techniques :** autorisations par rôle ; API CRUD ; formulaire et liste ; validation des données ; tests d’accès.
@@ -129,15 +129,15 @@ Les estimations comprennent le développement, les tests et la documentation.
 
 **User Story :** En tant qu’administrateur, je veux gérer les classes afin d’organiser les élèves et les enseignements pour une année scolaire.
 
-- **Besoin :** ajouter, consulter, modifier, rechercher et archiver les classes.
+- **Besoin :** ajouter, consulter, modifier, rechercher et, sous conditions, supprimer une classe.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
-- **Règles de gestion :** une classe possède un nom, un niveau et une année scolaire ; elle peut avoir un professeur principal, des matières et des élèves.
+- **Statut :** Terminé.
+- **Règles de gestion :** une classe appartient à une année scolaire, possède un niveau, un groupe et un professeur principal ; son archivage dépend de l’année et n’est pas géré séparément.
 - **Critères d’acceptation :** l’administrateur peut créer et modifier une classe ; rechercher une classe ; consulter sa composition ; une classe est rattachée à une année.
 - **Dépendances :** US-003.
 - **Tâches techniques :** modèle classe ; API CRUD ; liste, recherche et formulaire ; tests.
-- **Cas d’erreur :** classe en doublon pour la même année, année inexistante, archivage d’une classe encore active.
+- **Cas d’erreur :** classe en doublon pour la même année, année inexistante, suppression d’une classe non vide ou appartenant à une année clôturée.
 - **Estimation :** M.
 
 ### US-005 — Gérer les matières et coefficients
@@ -147,8 +147,8 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** ajouter, consulter, modifier et associer des matières aux classes.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À étudier.
-- **Règles de gestion :** une matière possède un nom et un coefficient ; les coefficients exacts doivent être confirmés ; une matière peut concerner plusieurs classes.
+- **Statut :** Terminé.
+- **Règles de gestion :** une matière possède un nom ; le coefficient appartient à son association avec une classe et doit être strictement positif.
 - **Critères d’acceptation :** une matière peut être créée et modifiée ; son coefficient est valide ; elle peut être associée à une ou plusieurs classes.
 - **Dépendances :** US-004 et décision QD-7.
 - **Tâches techniques :** modèles matière et associations ; API ; formulaires ; contrôles numériques ; tests.
@@ -162,12 +162,12 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** ajouter, consulter, modifier, rechercher et désactiver un enseignant.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
-- **Règles de gestion :** chaque enseignant possède un numéro d’identification, un nom, des coordonnées, une photo éventuelle et un statut de compte.
-- **Critères d’acceptation :** l’administrateur peut créer, modifier, rechercher et désactiver une fiche ; le numéro d’identification est unique ; la fiche affiche les affectations.
+- **Statut :** En cours.
+- **Règles de gestion :** chaque enseignant possède un compte de rôle `TEACHER`. Son matricule unique et immuable est stocké dans `accounts`, tandis que son identité, ses coordonnées et sa photo éventuelle sont stockées dans `teachers`.
+- **Critères d’acceptation :** l’administrateur peut créer, consulter, modifier, rechercher, désactiver et archiver un enseignant ; la fiche affiche ses classes, ses matières et ses évaluations.
 - **Dépendances :** US-002.
 - **Tâches techniques :** modèle enseignant ; API CRUD ; téléversement de photo ; écrans ; tests.
-- **Cas d’erreur :** numéro ou adresse électronique en doublon, format de photo invalide, données obligatoires manquantes.
+- **Cas d’erreur :** matricule ou adresse électronique en doublon, rôle de compte incompatible, format de photo invalide, données obligatoires manquantes.
 - **Estimation :** M.
 
 ### US-007 — Affecter les enseignants
@@ -177,9 +177,9 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** associer enseignants, classes, matières et professeur principal.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
-- **Règles de gestion :** un enseignant n’accède qu’aux classes et matières qui lui sont affectées ; une classe peut avoir un professeur principal.
-- **Critères d’acceptation :** une affectation peut être créée, consultée et retirée ; l’enseignant voit seulement les données correspondant à ses affectations ; le professeur principal est identifiable.
+- **Statut :** En cours.
+- **Règles de gestion :** une affectation relie un enseignant à une matière déjà associée à une classe ; le professeur principal reste identifié séparément dans la classe.
+- **Critères d’acceptation :** une affectation peut être créée, consultée et terminée sans supprimer son historique ; l’enseignant voit seulement les données correspondant à ses affectations ; le professeur principal est identifiable.
 - **Dépendances :** US-004, US-005, US-006.
 - **Tâches techniques :** modèle d’affectation ; API ; interface d’affectation ; filtre d’autorisation ; tests de droits.
 - **Cas d’erreur :** affectation en doublon, matière non proposée dans la classe, enseignant ou classe inactif.
@@ -193,11 +193,11 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
 - **Statut :** À étudier.
-- **Règles de gestion :** numéro d’identification unique ; informations limitées au besoin scolaire ; liste définitive des champs obligatoires à confirmer.
-- **Critères d’acceptation :** une fiche peut être créée et modifiée ; elle est retrouvée par numéro, nom ou prénom ; la photo peut être ajoutée ; les champs obligatoires sont contrôlés.
+- **Règles de gestion :** le matricule unique et immuable appartient au compte `STUDENT` ; la fiche `students` contient uniquement les informations personnelles et scolaires utiles.
+- **Critères d’acceptation :** une fiche peut être créée et modifiée ; elle est retrouvée par matricule, nom ou prénom ; la photo peut être ajoutée ; les champs obligatoires sont contrôlés.
 - **Dépendances :** décision QD-10.
 - **Tâches techniques :** modèle élève ; API CRUD ; recherche ; formulaire ; gestion de photo ; tests.
-- **Cas d’erreur :** numéro en doublon, date de naissance invalide, fichier photo non accepté, champ obligatoire absent.
+- **Cas d’erreur :** matricule en doublon, rôle du compte incompatible, date de naissance invalide, fichier photo non accepté, champ obligatoire absent.
 - **Estimation :** L.
 
 ### US-009 — Gérer le cycle de vie d’un élève

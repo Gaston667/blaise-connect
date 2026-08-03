@@ -170,7 +170,11 @@ export default function Sidebar({
           </button>
         ) : null}
         <button
-          className={currentPage === 'subjects' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+          className={
+            currentPage === 'subjects' || currentPage === 'subject-details'
+              ? 'layout-navigation-item layout-navigation-item-active'
+              : 'layout-navigation-item'
+          }
           type="button"
           data-page="subjects"
           onClick={handleNavigation}

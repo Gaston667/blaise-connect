@@ -19,11 +19,14 @@ def list_subjects_overview(
         SELECT
             s.id, s.name, s.description, s.is_active, s.created_at, s.updated_at,
             AVG(cs.coefficient) AS coefficient,
-            COUNT(DISTINCT c.main_teacher_id) AS teacher_count,
+            COUNT(DISTINCT ta.teacher_id) AS teacher_count,
             COUNT(DISTINCT c.id) AS class_count
         FROM subjects s
         LEFT JOIN class_subjects cs ON cs.subject_id = s.id
         LEFT JOIN classes c ON c.id = cs.class_id
+        LEFT JOIN teacher_assignments ta
+            ON ta.class_subject_id = cs.id
+           AND ta.end_date IS NULL
         WHERE 1 = 1
     """
     params: dict = {}
@@ -38,7 +41,7 @@ def list_subjects_overview(
         sql += " AND c.id = :class_id"
         params["class_id"] = class_id
     if teacher_id:
-        sql += " AND c.main_teacher_id = :teacher_id"
+        sql += " AND ta.teacher_id = :teacher_id"
         params["teacher_id"] = teacher_id
 
     sql += " GROUP BY s.id, s.name, s.description, s.is_active, s.created_at, s.updated_at"
@@ -61,9 +64,101 @@ def list_subjects_overview(
     ]
 
 
+def get_subject_detail(db: Session, subject_id: str) -> dict | None:
+    """Charge une matière et ses associations de classes.
+
+    Les performances restent nulles jusqu'à l'implémentation validée des
+    évaluations, notes et règles de calcul du Sprint 4.
+    """
+
+    subject = db.execute(
+        text(
+            """
+            SELECT id, name, description, is_active, created_at, updated_at
+            FROM subjects
+            WHERE id = :subject_id
+            """
+        ),
+        {"subject_id": subject_id},
+    ).first()
+    if subject is None:
+        return None
+
+    class_rows = db.execute(
+        text(
+            """
+            SELECT
+                c.id AS class_id,
+                cl.name || ' ' || c.group_label AS class_name,
+                cl.name AS level_name,
+                sy.name AS school_year_name,
+                cs.coefficient,
+                active_teacher.id AS teacher_id,
+                CASE
+                    WHEN active_teacher.id IS NULL THEN NULL
+                    ELSE active_teacher.first_name || ' ' || active_teacher.last_name
+                END AS teacher_name
+            FROM class_subjects AS cs
+            JOIN classes AS c ON c.id = cs.class_id
+            JOIN class_levels AS cl ON cl.id = c.class_level_id
+            JOIN school_years AS sy ON sy.id = c.school_year_id
+            LEFT JOIN LATERAL (
+                SELECT ta.teacher_id
+                FROM teacher_assignments AS ta
+                WHERE ta.class_subject_id = cs.id
+                  AND ta.end_date IS NULL
+                ORDER BY ta.start_date DESC, ta.created_at DESC
+                LIMIT 1
+            ) AS active_assignment ON true
+            LEFT JOIN teachers AS active_teacher
+                ON active_teacher.id = active_assignment.teacher_id
+            WHERE cs.subject_id = :subject_id
+            ORDER BY sy.start_date DESC, cl.display_order, c.group_label
+            """
+        ),
+        {"subject_id": subject_id},
+    ).all()
+
+    classes = [
+        {
+            "class_id": row.class_id,
+            "class_name": row.class_name,
+            "level_name": row.level_name,
+            "school_year_name": row.school_year_name,
+            "coefficient": float(row.coefficient),
+            "teacher_id": row.teacher_id,
+            "teacher_name": row.teacher_name,
+            "best_average": None,
+            "best_student_id": None,
+            "best_student_name": None,
+        }
+        for row in class_rows
+    ]
+    teacher_ids = {row.teacher_id for row in class_rows if row.teacher_id is not None}
+
+    return {
+        "id": subject.id,
+        "name": subject.name,
+        "description": subject.description,
+        "is_active": subject.is_active,
+        "created_at": subject.created_at,
+        "updated_at": subject.updated_at,
+        "class_count": len(classes),
+        "teacher_count": len(teacher_ids),
+        "best_establishment_average": None,
+        "best_establishment_student_id": None,
+        "best_establishment_student_name": None,
+        "classes": classes,
+    }
+
+
 def create_subject(db: Session, data: SubjectCreate) -> Subject:
     """Crée une matière."""
-    subject = Subject(name=data.name, description=data.description)
+    subject = Subject(
+        name=data.name,
+        description=data.description,
+        is_active=data.is_active,
+    )
     db.add(subject)
     db.commit()
     db.refresh(subject)

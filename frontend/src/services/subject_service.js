@@ -24,6 +24,13 @@ export async function createSubject(payload) {
   })
 }
 
+export async function getSubjectDetail(subjectId) {
+  return apiRequestJson(`/api/subjects/${subjectId}/detail`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement de la matière',
+  })
+}
+
 export async function updateSubject(id, payload) {
   return apiRequestJson(`/api/subjects/${id}`, {
     method: 'PATCH',

@@ -1,12 +1,14 @@
+import { formatProfileName } from '../utils/profileDisplay.js'
 import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import { getTeachersOverview } from '../services/teachers_overview_service.js'
 import { getSchoolClassesOverview } from '../services/school_classes_overview_service.js'
-import { createSubject, getSubjectsOverview, updateSubject } from '../services/subject_service.js'
+import { createSubject, getSubjectsOverview } from '../services/subject_service.js'
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import '../styles/subjects_page.css'
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50]
+const PAGE_SIZE = 10
 
 const AVATAR_PALETTE = [
   { bg: '#E8ECFB', fg: '#3355DD' },
@@ -44,19 +46,30 @@ export default function SubjectsPage({ onNavigate }) {
   const [teachers, setTeachers] = useState([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(0)
-  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0])
   const [showModal, setShowModal] = useState(false)
-  const [modalMode, setModalMode] = useState('create')
-  const [editingId, setEditingId] = useState(null)
   const [subjectForm, setSubjectForm] = useState(EMPTY_SUBJECT_FORM)
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confirmationMessage, setConfirmationMessage] = useState('')
+  const debouncedQuery = useDebouncedValue(query)
+  const debouncedStatusFilter = useDebouncedValue(statusFilter)
+  const debouncedClassFilter = useDebouncedValue(classFilter)
+  const debouncedTeacherFilter = useDebouncedValue(teacherFilter)
 
   useEffect(() => {
     fetchSubjects()
     fetchFilterOptions()
   }, [])
+
+  useEffect(() => {
+    fetchSubjects({
+      q: debouncedQuery,
+      classId: debouncedClassFilter,
+      teacherId: debouncedTeacherFilter,
+      isActive: debouncedStatusFilter,
+    })
+    setPage(0)
+  }, [debouncedQuery, debouncedStatusFilter, debouncedClassFilter, debouncedTeacherFilter])
 
   async function fetchSubjects(filters = {}) {
     setLoading(true)
@@ -89,31 +102,15 @@ export default function SubjectsPage({ onNavigate }) {
     }
   }
 
-  function handleSearch(event) {
-    event.preventDefault()
-    fetchSubjects()
-  }
-
   function handleReset() {
     setQuery('')
     setStatusFilter('')
     setClassFilter('')
     setTeacherFilter('')
-    fetchSubjects({ q: '', isActive: '', classId: '', teacherId: '' })
   }
 
   function openCreateModal() {
-    setModalMode('create')
-    setEditingId(null)
     setSubjectForm(EMPTY_SUBJECT_FORM)
-    setFormError('')
-    setShowModal(true)
-  }
-
-  function openEditModal(subject) {
-    setModalMode('edit')
-    setEditingId(subject.id)
-    setSubjectForm({ name: subject.name, description: subject.description ?? '', is_active: subject.is_active })
     setFormError('')
     setShowModal(true)
   }
@@ -124,7 +121,9 @@ export default function SubjectsPage({ onNavigate }) {
 
   function updateFormField(event) {
     const { name, value, type, checked } = event.target
-    setSubjectForm((current) => ({ ...current, [name]: type === 'checkbox' ? checked : value }))
+    let fieldValue = type === 'checkbox' ? checked : value
+    if (name === 'is_active') fieldValue = value === 'true'
+    setSubjectForm((current) => ({ ...current, [name]: fieldValue }))
   }
 
   async function handleSubmit(event) {
@@ -132,14 +131,13 @@ export default function SubjectsPage({ onNavigate }) {
     setSubmitting(true)
     setFormError('')
     try {
-      const payload = { name: subjectForm.name, description: subjectForm.description || null }
-      if (modalMode === 'create') {
-        await createSubject(payload)
-        setConfirmationMessage('La matière a été créée avec succès.')
-      } else {
-        await updateSubject(editingId, { ...payload, is_active: subjectForm.is_active })
-        setConfirmationMessage('La matière a été mise à jour avec succès.')
+      const payload = {
+        name: subjectForm.name,
+        description: subjectForm.description || null,
+        is_active: subjectForm.is_active,
       }
+      await createSubject(payload)
+      setConfirmationMessage('La matière a été créée avec succès.')
       setShowModal(false)
       await fetchSubjects()
     } catch (error) {
@@ -149,29 +147,9 @@ export default function SubjectsPage({ onNavigate }) {
     }
   }
 
-  function exportToCsv() {
-    const header = ['Matière', 'Description', 'Coefficient', 'Enseignants affectés']
-    const rows = subjects.map((subject) => [
-      subject.name,
-      subject.description ?? '',
-      formatCoefficient(subject.coefficient),
-      subject.teacher_count,
-    ])
-    const csv = [header, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(','))
-      .join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'matieres.csv'
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const pageCount = Math.max(1, Math.ceil(subjects.length / pageSize))
+  const pageCount = Math.max(1, Math.ceil(subjects.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
-  const pageItems = subjects.slice(safePage * pageSize, safePage * pageSize + pageSize)
+  const pageItems = subjects.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
 
   return (
     <main className="sjp-main">
@@ -196,7 +174,7 @@ export default function SubjectsPage({ onNavigate }) {
         </div>
       )}
 
-      <form onSubmit={handleSearch} className="sjp-filters">
+      <form className="sjp-filters" onSubmit={(event) => event.preventDefault()}>
         <label className="sjp-search">
           <Search className="sjp-search__icon" aria-hidden="true" size={18} />
           <input
@@ -227,12 +205,11 @@ export default function SubjectsPage({ onNavigate }) {
           <option value="">Tous les enseignants</option>
           {teachers.map((teacher) => (
             <option key={teacher.id} value={teacher.id}>
-              {teacher.first_name} {teacher.last_name}
+              {formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}
             </option>
           ))}
         </select>
 
-        <button type="submit" className="sjp-btn-search">Rechercher</button>
         <button type="button" className="sjp-btn-reset" onClick={handleReset}>⟲ Réinitialiser</button>
       </form>
 
@@ -241,9 +218,8 @@ export default function SubjectsPage({ onNavigate }) {
           <span>
             {loading
               ? 'Chargement…'
-              : `Affichage de ${subjects.length === 0 ? 0 : safePage * pageSize + 1} à ${Math.min(subjects.length, (safePage + 1) * pageSize)} sur ${subjects.length} matières`}
+              : `Affichage de ${subjects.length === 0 ? 0 : safePage * PAGE_SIZE + 1} à ${Math.min(subjects.length, (safePage + 1) * PAGE_SIZE)} sur ${subjects.length} matières`}
           </span>
-          <button type="button" className="sjp-btn-reset" onClick={exportToCsv}>⭳ Exporter</button>
         </div>
 
         <div className="sjp-table-wrapper">
@@ -252,7 +228,7 @@ export default function SubjectsPage({ onNavigate }) {
               <tr>
                 <th>Matière</th>
                 <th>Description</th>
-                <th>Coefficient</th>
+                <th>Coefficient moyen</th>
                 <th>Enseignants affectés</th>
               </tr>
             </thead>
@@ -265,7 +241,11 @@ export default function SubjectsPage({ onNavigate }) {
                 pageItems.map((subject) => {
                   const badge = subjectBadge(subject.name)
                   return (
-                    <tr key={subject.id} className="sjp-row" onClick={() => openEditModal(subject)}>
+                    <tr
+                      key={subject.id}
+                      className="sjp-row"
+                      onClick={() => onNavigate('subject-details', subject)}
+                    >
                       <td>
                         <div className="sjp-name-cell">
                           <span className="sjp-avatar" style={{ background: badge.bg, color: badge.fg }}>
@@ -285,25 +265,24 @@ export default function SubjectsPage({ onNavigate }) {
           </table>
         </div>
 
-        <footer className="sjp-pagination">
-          <div className="sjp-pagination__buttons">
-            <button type="button" disabled={safePage === 0} onClick={() => setPage((current) => current - 1)}>‹</button>
-            {Array.from({ length: pageCount }).slice(0, 5).map((_, index) => (
-              <button
-                type="button"
-                key={index}
-                className={index === safePage ? 'sjp-page sjp-page--active' : 'sjp-page'}
-                onClick={() => setPage(index)}
-              >
-                {index + 1}
-              </button>
-            ))}
-            <button type="button" disabled={safePage >= pageCount - 1} onClick={() => setPage((current) => current + 1)}>›</button>
-          </div>
-          <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(0) }}>
-            {PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size} par page</option>)}
-          </select>
-        </footer>
+        {pageCount > 1 && (
+          <footer className="sjp-pagination">
+            <div className="sjp-pagination__buttons">
+              <button type="button" disabled={safePage === 0} onClick={() => setPage((current) => current - 1)}>‹</button>
+              {Array.from({ length: pageCount }).slice(0, 5).map((_, index) => (
+                <button
+                  type="button"
+                  key={index}
+                  className={index === safePage ? 'sjp-page sjp-page--active' : 'sjp-page'}
+                  onClick={() => setPage(index)}
+                >
+                  {index + 1}
+                </button>
+              ))}
+              <button type="button" disabled={safePage >= pageCount - 1} onClick={() => setPage((current) => current + 1)}>›</button>
+            </div>
+          </footer>
+        )}
       </section>
 
       {showModal && (
@@ -317,7 +296,7 @@ export default function SubjectsPage({ onNavigate }) {
           >
             <div className="sjp-modal__header">
               <div>
-                <h2 id="sjp-modal-title">{modalMode === 'create' ? 'Ajouter une matière' : 'Modifier la matière'}</h2>
+                <h2 id="sjp-modal-title">Ajouter une matière</h2>
                 <p>Renseignez les informations de la matière.</p>
               </div>
               <button type="button" onClick={closeModal} aria-label="Fermer">×</button>
@@ -334,19 +313,29 @@ export default function SubjectsPage({ onNavigate }) {
                 <textarea name="description" value={subjectForm.description} onChange={updateFormField} rows="3" />
               </label>
 
-              {modalMode === 'edit' && (
-                <label className="sjp-modal__checkbox">
-                  <input type="checkbox" name="is_active" checked={subjectForm.is_active} onChange={updateFormField} />
-                  Matière active
-                </label>
-              )}
+              <label>
+                Statut *
+                <select
+                  name="is_active"
+                  value={subjectForm.is_active ? 'true' : 'false'}
+                  onChange={updateFormField}
+                  required
+                >
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </label>
+
+              <p className="sjp-modal__hint">
+                Le coefficient sera défini lors de l’association de la matière à une classe.
+              </p>
 
               {formError && <p className="sjp-modal__error" role="alert">{formError}</p>}
 
               <div className="sjp-modal__actions">
                 <button type="button" className="sjp-btn-reset" onClick={closeModal}>Annuler</button>
                 <button type="submit" className="sjp-btn-primary" disabled={submitting}>
-                  {submitting ? 'Enregistrement…' : modalMode === 'create' ? 'Créer la matière' : 'Enregistrer'}
+                  {submitting ? 'Enregistrement…' : 'Créer la matière'}
                 </button>
               </div>
             </form>
