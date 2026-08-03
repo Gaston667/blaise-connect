@@ -1,9 +1,12 @@
-export async function getAdministratorsOverview(q) {
+import { apiRequestJson } from '../utils/apiErrorHandler.js'
+
+export function getAdministratorsOverview(q) {
   const params = new URLSearchParams()
   if (q) params.append('q', q)
-  const res = await fetch(`/api/administrators/overview?${params.toString()}`, { credentials: 'include' })
-  if (!res.ok) throw new Error('Échec du chargement des administrateurs')
-  return await res.json()
+  return apiRequestJson(`/api/administrators/overview?${params.toString()}`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des administrateurs',
+  })
 }
 
 /**
@@ -15,4 +18,14 @@ export async function getAdministratorOverview(administratorId) {
   const administrator = administrators.find((item) => item.id === administratorId)
   if (!administrator) throw new Error('Administrateur introuvable.')
   return administrator
+}
+
+/** Modifie les coordonnées et le rôle d'un administrateur. */
+export function updateAdministrator(administratorId, payload) {
+  return apiRequestJson(`/api/administrators/${administratorId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    fallbackMessage: 'Échec de la mise à jour de l’administrateur',
+  })
 }
