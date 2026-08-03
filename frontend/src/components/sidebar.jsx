@@ -17,6 +17,7 @@ export default function Sidebar({
   onLogoutSuccess,
 }) {
   const canManageAccounts = account.role === 'ADMIN'
+  const isStaff = account.role === 'ADMIN' || account.role === 'TEACHER'
 
   /**
    * Affiche la page choisie puis ferme le menu mobile.
@@ -69,19 +70,21 @@ export default function Sidebar({
           Accueil
         </button>
 
-        <button
-          className={
-            currentPage === 'students' || currentPage === 'student-details'
-              ? 'layout-navigation-item layout-navigation-item-active'
-              : 'layout-navigation-item'
-          }
-          type="button"
-          data-page="students"
-          onClick={handleNavigation}
-        >
-          <GraduationCap aria-hidden="true" size={20} />
-          Élèves
-        </button>
+        {isStaff ? (
+          <button
+            className={
+              currentPage === 'students' || currentPage === 'student-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="students"
+            onClick={handleNavigation}
+          >
+            <GraduationCap aria-hidden="true" size={20} />
+            Élèves
+          </button>
+        ) : null}
 
         {canManageAccounts ? (
           <button
@@ -132,28 +135,32 @@ export default function Sidebar({
             Années scolaires
           </button>
         ) : null}
-        <button
-          className={
-            currentPage === 'school-classes'
-              ? 'layout-navigation-item layout-navigation-item-active'
-              : 'layout-navigation-item'
-          }
-          type="button"
-          data-page="school-classes"
-          onClick={handleNavigation}
-        >
-          <Users aria-hidden="true" size={20} />
-          Classes
-        </button>
-        <button
-          className={currentPage === 'teachers' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
-          type="button"
-          data-page="teachers"
-          onClick={handleNavigation}
-        >
-          <Presentation aria-hidden="true" size={20} />
-          Enseignants
-        </button>
+        {isStaff ? (
+          <button
+            className={
+              currentPage === 'school-classes'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="school-classes"
+            onClick={handleNavigation}
+          >
+            <Users aria-hidden="true" size={20} />
+            Classes
+          </button>
+        ) : null}
+        {isStaff ? (
+          <button
+            className={currentPage === 'teachers' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+            type="button"
+            data-page="teachers"
+            onClick={handleNavigation}
+          >
+            <Presentation aria-hidden="true" size={20} />
+            Enseignants
+          </button>
+        ) : null}
         {canManageAccounts ? (
           <button
             className={
@@ -169,28 +176,32 @@ export default function Sidebar({
             Administrateurs
           </button>
         ) : null}
-        <button
-          className={
-            currentPage === 'subjects' || currentPage === 'subject-details'
-              ? 'layout-navigation-item layout-navigation-item-active'
-              : 'layout-navigation-item'
-          }
-          type="button"
-          data-page="subjects"
-          onClick={handleNavigation}
-        >
-          <BookOpen aria-hidden="true" size={20} />
-          Matières
-        </button>
-        <button
-          className={currentPage === 'notes' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
-          type="button"
-          data-page="notes"
-          onClick={handleNavigation}
-        >
-          <NotebookPen aria-hidden="true" size={20} />
-          Notes
-        </button>
+        {isStaff ? (
+          <button
+            className={
+              currentPage === 'subjects' || currentPage === 'subject-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="subjects"
+            onClick={handleNavigation}
+          >
+            <BookOpen aria-hidden="true" size={20} />
+            Matières
+          </button>
+        ) : null}
+        {isStaff ? (
+          <button
+            className={currentPage === 'notes' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+            type="button"
+            data-page="notes"
+            onClick={handleNavigation}
+          >
+            <NotebookPen aria-hidden="true" size={20} />
+            Notes
+          </button>
+        ) : null}
       </nav>
 
       <LogoutButton onLogoutSuccess={onLogoutSuccess} />

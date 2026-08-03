@@ -138,6 +138,8 @@ export default function App() {
       'accounts',
       'account-details',
       'account-new',
+      'students',
+      'student-details',
       'school-years',
       'school-year-details',
       'guardians',
@@ -174,11 +176,11 @@ export default function App() {
   const canManageSchool = currentAccount.role === 'ADMIN'
   let pageContent = <HomePage account={currentAccount} />
 
-  if (currentPage === 'students') {
+  if (currentPage === 'students' && canManageSchool) {
     pageContent = <StudentsPage onNavigate={handleNavigate} />
   } else if (currentPage === 'guardians' && canManageSchool) {
     pageContent = <GuardiansPage onNavigate={handleNavigate} />
-  } else if (currentPage === 'student-details') {
+  } else if (currentPage === 'student-details' && canManageSchool) {
     pageContent = (
       <StudentDetailsPage
         student={selectedEntity || { id: pathId }}
