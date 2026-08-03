@@ -35,13 +35,11 @@ services:
       # Applique les migrations dans l'ordre lors de la première initialisation.
       - ./database/migration/001_db_access.sql:/docker-entrypoint-initdb.d/001_db_access.sql:ro
       - ./database/migration/002_accounts_and_profiles.sql:/docker-entrypoint-initdb.d/002_accounts_and_profiles.sql:ro
-      - ./database/migration/003_student_guardians.sql:/docker-entrypoint-initdb.d/003_student_guardians.sql:ro
+      - ./database/migration/003_relationships_and_documents.sql:/docker-entrypoint-initdb.d/003_relationships_and_documents.sql:ro
       - ./database/migration/004_school_structure.sql:/docker-entrypoint-initdb.d/004_school_structure.sql:ro
-      - ./database/migration/005_open_year_deletion.sql:/docker-entrypoint-initdb.d/005_open_year_deletion.sql:ro
-      - ./database/migration/006_teacher_assignments.sql:/docker-entrypoint-initdb.d/006_teacher_assignments.sql:ro
-      - ./database/migration/007_class_subjects_delete_grant.sql:/docker-entrypoint-initdb.d/007_class_subjects_delete_grant.sql:ro
-      - ./database/migration/008_single_active_teacher_assignment.sql:/docker-entrypoint-initdb.d/008_single_active_teacher_assignment.sql:ro
-      # Ajoute les données fictives fusionnées (007 + 008 + 009) après le schéma.
+      - ./database/migration/005_academic_activity.sql:/docker-entrypoint-initdb.d/005_academic_activity.sql:ro
+      - ./database/migration/006_report_cards_and_year_deletion.sql:/docker-entrypoint-initdb.d/006_report_cards_and_year_deletion.sql:ro
+      # Ajoute les données fictives après la création complète du schéma.
       - ./database/init/050_creat_teste_data.sql:/docker-entrypoint-initdb.d/050_creat_teste_data.sql:ro
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
     healthcheck:

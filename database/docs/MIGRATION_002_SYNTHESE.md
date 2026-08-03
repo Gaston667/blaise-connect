@@ -154,7 +154,7 @@ Vérifie que le compte associé à un profil possède le rôle attendu.
 
 1. **Matricules générés par FastAPI**, pas PostgreSQL
 2. **Profils complets** : les quatre profils possèdent `gender`, `photo_path` et `archived_at`, tous facultatifs
-3. **Format applicatif V1 envisagé du matricule** : `a`, `e`, `u` ou `p`, suivi de six chiffres ; la migration 001 reste plus permissive et le format définitif doit encore être validé
+3. **Format V1 validé du matricule** : `a`, `e`, `u` ou `p`, suivi de six chiffres ; la migration 002 le protège avec `^[aeup][0-9]{6}$`
 4. **Pas d'historique de connexions** : `last_login_at` est un snapshot, pas un audit complet
 5. **Pas de gestion du consentement RGPD** : à prévoir ultérieurement si nécessaire
 6. **Archivage ≠ suppression** : données conservées, lien compte/profil maintenu
@@ -163,7 +163,7 @@ Vérifie que le compte associé à un profil possède le rôle attendu.
 
 ## Points à valider avant déploiement
 
-- [ ] Format exact du matricule : confirmer `^[aeup][0-9]{6}$` avant une migration corrective
+- [x] Format exact du matricule : `^[aeup][0-9]{6}$`
 - [ ] Valeurs possibles de `gender`
 - [ ] Politique de rôles : formation multi-rôles possible ? (réponse : non, deux comptes requis)
 - [ ] Durée du verrouillage après N échecs (implémenté en application, déjà défini ?)

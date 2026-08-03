@@ -1,0 +1,81 @@
+@startuml
+title BlaiseConnect - Appels, absences, retards et justificatifs
+left to right direction
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+
+entity teacher_assignments #C8E6C9 {
+  * id : uuid <<PK>>
+  * class_subject_id : uuid <<FK>>
+}
+
+entity attendance_events #FFF9C4 {
+  * id : uuid <<PK>>
+  * teacher_assignment_id : uuid <<FK>>
+  * attendance_date : date
+  * course_start_time : time
+  * course_end_time : time
+}
+
+entity student_enrollments #FFF9C4 {
+  * id : uuid <<PK>>
+  * student_id : uuid <<FK>>
+  * class_id : uuid <<FK>>
+}
+
+entity attendance_records #FFF9C4 {
+  * id : uuid <<PK>>
+  * attendance_event_id : uuid <<FK>>
+  * student_enrollment_id : uuid <<FK>>
+  * incident_type : ABSENT | LATE
+  late_minutes : smallint
+  * justification_status : varchar(20)
+  * recorded_by_account_id : uuid <<FK>>
+  * updated_by_account_id : uuid <<FK>>
+  deleted_at : timestamptz
+}
+
+entity attendance_record_history #FFE0B2 {
+  * id : uuid <<PK>>
+  * attendance_record_id : uuid <<FK>>
+  * old_incident_type : varchar(10)
+  * new_incident_type : varchar(10)
+  * changed_by_account_id : uuid <<FK>>
+  * changed_at : timestamptz
+}
+
+entity attendance_change_requests #FFE0B2 {
+  * id : uuid <<PK>>
+  * attendance_record_id : uuid <<FK>>
+  * requested_by_account_id : uuid <<FK>>
+  * requested_action : UPDATE | DELETE
+  * status : varchar(20)
+  reviewed_by_account_id : uuid <<FK>>
+}
+
+entity attendance_record_documents #D1C4E9 {
+  * attendance_record_id : uuid <<PK, FK>>
+  * document_id : uuid <<PK, FK>>
+}
+
+entity documents #D1C4E9 {
+  * id : uuid <<PK>>
+  * document_type_id : uuid <<FK>>
+  * storage_path : varchar(500)
+}
+
+teacher_assignments ||--o{ attendance_events
+attendance_events ||--o{ attendance_records
+student_enrollments ||--o{ attendance_records
+attendance_records ||--o{ attendance_record_history
+attendance_records ||--o{ attendance_change_requests
+attendance_records ||--o{ attendance_record_documents
+documents ||--o{ attendance_record_documents
+
+note bottom of attendance_events
+La présence est implicite :
+- événement absent = appel non effectué ;
+- événement présent sans incident = élève présent.
+end note
+@enduml

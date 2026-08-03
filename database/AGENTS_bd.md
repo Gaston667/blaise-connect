@@ -97,6 +97,11 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - `assessments.coefficient` pondère une évaluation parmi les évaluations de la même matière.
 - Une note appartient à une évaluation et à l'inscription scolaire de l'élève.
 - Une note absente possède `result_type = 'ABSENT'` et aucune valeur numérique.
+- Une absence à une évaluation conserve toujours `score = NULL` afin de ne pas
+  confondre une absence avec un véritable zéro obtenu par un élève présent.
+- Une absence justifiée est exclue du calcul. Une absence `UNJUSTIFIED` ou
+  `REJECTED` reçoit une valeur effective de zéro uniquement pendant le calcul.
+- Une absence `PENDING` empêche la validation définitive du bulletin concerné.
 - Les calculs officiels sont effectués côté backend et protégés par les contraintes de la base.
 
 ### 3.6 Absences et retards
@@ -105,9 +110,24 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - `attendance_events` contient uniquement le contexte d'un appel : affectation, date et horaires du cours.
 - `attendance_records` contient les élèves absents ou en retard pendant cet appel.
 - Le contexte évite de répéter le professeur, la matière et les horaires pour chaque élève concerné.
-- Aucun chemin de document justificatif n'est stocké dans ce modèle.
+- Les justificatifs sont stockés hors de PostgreSQL et référencés par le
+  catalogue `document_types` et la table `documents`.
+- `grade_documents` relie les justificatifs aux absences d'évaluation et
+  `attendance_record_documents` les relie aux absences ou retards de cours.
 
-### 3.7 Bulletins historiques
+### 3.7 Documents
+
+- Les fichiers restent dans le stockage applicatif ; PostgreSQL conserve leur
+  chemin logique, nom original, type MIME, taille et empreinte SHA-256.
+- Les types de documents sont des lignes de `document_types`, jamais des
+  colonnes supplémentaires ajoutées à chaque nouveau besoin.
+- Les relations vers les objets métier utilisent des tables de liaison avec de
+  vraies clés étrangères ; ne pas utiliser une relation polymorphe
+  `entity_type` + `entity_id`.
+- Un justificatif peut être relié à une note absente ou à un incident
+  d'assiduité sans dupliquer le fichier.
+
+### 3.8 Bulletins historiques
 
 - Un bulletin appartient à une inscription et à une période.
 - `report_card_subjects` conserve les moyennes et coefficients réellement appliqués.
@@ -385,8 +405,11 @@ La paire classe/matière est unique et `coefficient > 0`.
 | `result_type` | `varchar(10)` | `SCORED` ou `ABSENT`. |
 | `score` | `numeric(6,2)` | Valeur obtenue, uniquement pour `SCORED`. |
 | `comment` | `text` | Commentaire facultatif. |
+| `justification_status` | `varchar(20)` | Pour `ABSENT` : `UNJUSTIFIED`, `PENDING`, `JUSTIFIED` ou `REJECTED`. |
+| `reviewed_by_account_id` | `uuid` | Compte ayant traité le justificatif. |
+| `reviewed_at` | `timestamptz` | Moment du traitement du justificatif. |
 
-Une seule note par élève et évaluation. Pour `SCORED`, `score` est obligatoire, positif ou nul et inférieur ou égal au barème. Pour `ABSENT`, `score` doit être `NULL`. L'inscription doit appartenir à la classe de l'évaluation et être active à sa date.
+Une seule note par élève et évaluation. Pour `SCORED`, `score` est obligatoire, positif ou nul et inférieur ou égal au barème. Pour `ABSENT`, `score` doit être `NULL` et le statut de justification est obligatoire. `JUSTIFIED` est exclu du calcul, `UNJUSTIFIED` et `REJECTED` valent zéro pendant le calcul, et `PENDING` bloque la validation du bulletin. L'inscription doit appartenir à la classe de l'évaluation et être active à sa date.
 
 ### 5.18 `attendance_events`
 
@@ -414,6 +437,10 @@ Une seule note par élève et évaluation. Pour `SCORED`, `score` est obligatoir
 | `recorded_by_account_id` | `uuid` | Compte ayant enregistré l'incident. |
 | `reviewed_by_account_id` | `uuid` | Compte ayant vérifié le justificatif. |
 | `reviewed_at` | `timestamptz` | Moment de la vérification. |
+| `updated_by_account_id` | `uuid` | Dernier compte ayant corrigé l'incident. |
+| `last_change_reason` | `text` | Motif de la dernière correction. |
+| `deleted_at` | `timestamptz` | Suppression logique de l'incident. |
+| `deleted_by_account_id` | `uuid` | Compte ayant effectué la suppression logique. |
 
 Une seule ligne par élève et contexte. Pour `LATE`, les minutes sont strictement positives et ne dépassent pas la durée du cours. Pour `ABSENT`, elles sont nulles. L'élève doit appartenir à la classe du contexte. Les informations de révision sont renseignées ensemble.
 
@@ -430,7 +457,7 @@ Une seule ligne par élève et contexte. Pour `LATE`, les minutes sont stricteme
 | `generated_at` | `timestamptz` | Moment de génération. |
 | `validated_by_account_id` | `uuid` | Compte ayant validé le bulletin. |
 | `validated_at` | `timestamptz` | Moment de validation. |
-| `pdf_path` | `varchar(500)` | Chemin du PDF produit, facultatif avant génération finale. |
+| `pdf_document_id` | `uuid` | Document PDF final référencé dans `documents`, facultatif avant génération. |
 
 Un seul bulletin par inscription et période. L'inscription et la période doivent appartenir à la même année. Les informations de validation sont renseignées ensemble et `validated_at >= generated_at`.
 
@@ -454,6 +481,30 @@ La matière doit appartenir à la classe de l'inscription du bulletin. `applied_
 | `grade_id` | `uuid` | Note utilisée, partie de la clé primaire. |
 
 La note doit appartenir au même élève, à une matière de sa classe et à une évaluation dont la date est incluse dans la période du bulletin.
+
+### 5.23 Documents et liaisons documentaires
+
+- `document_types` contient `id`, `code` unique, `label`, `description` et
+  `is_active`. Ajouter un type consiste à ajouter une ligne au catalogue.
+- `documents` contient `document_type_id`, `storage_path` unique,
+  `original_filename`, `mime_type`, `size_bytes`, `sha256`,
+  `uploaded_by_account_id` et `archived_at`. Le contenu binaire n'est jamais
+  stocké dans PostgreSQL.
+- `grade_documents` possède la clé composée (`grade_id`, `document_id`).
+- `attendance_record_documents` possède la clé composée
+  (`attendance_record_id`, `document_id`).
+- `report_cards.pdf_document_id` référence un document de type `REPORT_CARD`.
+
+### 5.24 Demandes de correction et historique d'assiduité
+
+- `grade_change_requests` conserve les anciennes et nouvelles valeurs proposées
+  ainsi que le demandeur, le valideur et la décision. Une seule demande
+  `PENDING` est autorisée par note.
+- `attendance_change_requests` permet à un enseignant de signaler une correction
+  ou une suppression logique sans modifier directement l'incident. Une seule
+  demande `PENDING` est autorisée par incident.
+- `attendance_record_history` conserve les anciennes et nouvelles valeurs de
+  chaque correction effectivement appliquée, son auteur, son motif et sa date.
 
 ## 6. Contraintes et protections obligatoires
 
@@ -572,7 +623,8 @@ Après l'écriture :
 - Pour une exception attendue, choisir un code et un message précis; éviter `WHEN OTHERS` sans relance ni traitement justifié.
 - Une procédure de clôture d'année doit être idempotente ou refuser clairement une deuxième clôture.
 - Une fonction de calcul de moyenne doit définir : données retenues, absences, coefficients, barème, arrondi et cas sans note.
-- Ne figer aucune règle d'arrondi ou de traitement d'une absence sans validation métier.
+- Ne figer aucune règle d'arrondi sans validation métier. Le traitement des
+  absences à une évaluation suit la règle validée de la section 3.5.
 
 ## 10. Tests de base de données obligatoires
 
@@ -634,9 +686,7 @@ L'agent ne doit pas :
 Ces sujets ne doivent pas être décidés silencieusement par l'agent :
 
 - valeurs définitives de `gender` ;
-- format exact des matricules ;
 - formule d'arrondi des moyennes ;
-- traitement scolaire d'une évaluation manquée ;
 - personnes autorisées à justifier une absence et à valider un bulletin ;
 - politique d'invalidation ou de nouvelle version d'un bulletin validé ;
 - activation future des comptes élèves et responsables.

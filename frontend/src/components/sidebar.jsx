@@ -66,38 +66,8 @@ export default function Sidebar({
           onClick={handleNavigation}
         >
           <House aria-hidden="true" size={20} />
-          Accueil
+          Tableau de bord
         </button>
-
-        <button
-          className={
-            currentPage === 'students' || currentPage === 'student-details'
-              ? 'layout-navigation-item layout-navigation-item-active'
-              : 'layout-navigation-item'
-          }
-          type="button"
-          data-page="students"
-          onClick={handleNavigation}
-        >
-          <GraduationCap aria-hidden="true" size={20} />
-          Élèves
-        </button>
-
-        {canManageAccounts ? (
-          <button
-            className={
-              currentPage === 'guardians' || currentPage === 'guardian-details'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="guardians"
-            onClick={handleNavigation}
-          >
-            <Users aria-hidden="true" size={20} />
-            Responsables légaux
-          </button>
-        ) : null}
 
        {canManageAccounts ? (
           <button
@@ -114,6 +84,62 @@ export default function Sidebar({
           >
             <ContactRound aria-hidden="true" size={20} />
             Gestion des comptes
+          </button>
+        ) : null}
+
+        <button
+          className={
+            currentPage === 'students' || currentPage === 'student-details'
+              ? 'layout-navigation-item layout-navigation-item-active'
+              : 'layout-navigation-item'
+          }
+          type="button"
+          data-page="students"
+          onClick={handleNavigation}
+        >
+          <GraduationCap aria-hidden="true" size={20} />
+          Élèves
+        </button>
+
+        <button
+          className={currentPage === 'teachers' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+          type="button"
+          data-page="teachers"
+          onClick={handleNavigation}
+        >
+          <Presentation aria-hidden="true" size={20} />
+          Enseignants
+        </button>
+
+        {canManageAccounts ? (
+          <button
+            className={
+              currentPage === 'administrators' || currentPage === 'administrator-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="administrators"
+            onClick={handleNavigation}
+          >
+            <ShieldCheck aria-hidden="true" size={20} />
+            Administrateurs
+          </button>
+        ) : null}
+
+        {canManageAccounts ? (
+          <button
+            className={
+              currentPage === 'guardians' || currentPage === 'guardian-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="guardians"
+            onClick={handleNavigation}
+          >
+            <Users aria-hidden="true" size={20} />
+            Responsables légaux
           </button>
         ) : null}
 
@@ -145,30 +171,6 @@ export default function Sidebar({
           <Users aria-hidden="true" size={20} />
           Classes
         </button>
-        <button
-          className={currentPage === 'teachers' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
-          type="button"
-          data-page="teachers"
-          onClick={handleNavigation}
-        >
-          <Presentation aria-hidden="true" size={20} />
-          Enseignants
-        </button>
-        {canManageAccounts ? (
-          <button
-            className={
-              currentPage === 'administrators' || currentPage === 'administrator-details'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="administrators"
-            onClick={handleNavigation}
-          >
-            <ShieldCheck aria-hidden="true" size={20} />
-            Administrateurs
-          </button>
-        ) : null}
         <button
           className={
             currentPage === 'subjects' || currentPage === 'subject-details'

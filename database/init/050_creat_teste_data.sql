@@ -449,4 +449,574 @@ JOIN ordered_classes
     ON ordered_classes.row_number = ((ordered_students.row_number - 1) % class_count.total) + 1
 ON CONFLICT (student_id, class_id) DO NOTHING;
 
+-- 14. Affectation d'un enseignant à chaque matière de chaque classe.
+INSERT INTO teacher_assignments (
+    teacher_id,
+    class_subject_id,
+    start_date
+)
+SELECT
+    teacher.id,
+    class_subject.id,
+    school_year.start_date
+FROM class_subjects AS class_subject
+JOIN classes AS school_class ON school_class.id = class_subject.class_id
+JOIN school_years AS school_year ON school_year.id = school_class.school_year_id
+JOIN subjects AS subject ON subject.id = class_subject.subject_id
+JOIN (
+    VALUES
+        ('Mathématiques', 'e000001'),
+        ('Français', 'e000002'),
+        ('Anglais', 'e000003'),
+        ('Histoire-Géographie', 'e000004'),
+        ('Sciences', 'e000005'),
+        ('Informatique', 'e000006')
+) AS assignment_data(subject_name, teacher_registration_number)
+    ON assignment_data.subject_name = subject.name
+JOIN accounts AS teacher_account
+    ON teacher_account.registration_number = assignment_data.teacher_registration_number
+JOIN teachers AS teacher ON teacher.account_id = teacher_account.id
+WHERE school_year.name = '2026-2027'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM teacher_assignments AS existing_assignment
+      WHERE existing_assignment.class_subject_id = class_subject.id
+        AND existing_assignment.end_date IS NULL
+  );
+
+-- 15. Deux évaluations fictives par matière de classe.
+INSERT INTO assessments (
+    teacher_assignment_id,
+    title,
+    description,
+    assessment_date,
+    maximum_score,
+    coefficient
+)
+SELECT
+    assignment.id,
+    assessment_data.title,
+    'Évaluation fictive utilisée pour vérifier les notes et les bulletins.',
+    assessment_data.assessment_date,
+    assessment_data.maximum_score,
+    assessment_data.coefficient
+FROM teacher_assignments AS assignment
+JOIN class_subjects AS class_subject
+    ON class_subject.id = assignment.class_subject_id
+JOIN classes AS school_class ON school_class.id = class_subject.class_id
+JOIN school_years AS school_year ON school_year.id = school_class.school_year_id
+CROSS JOIN (
+    VALUES
+        ('Évaluation diagnostique', DATE '2026-10-05', 20.00::numeric, 1.00::numeric),
+        ('Contrôle de la période 1', DATE '2026-11-10', 10.00::numeric, 2.00::numeric)
+) AS assessment_data(title, assessment_date, maximum_score, coefficient)
+WHERE school_year.name = '2026-2027'
+ON CONFLICT (teacher_assignment_id, title, assessment_date) DO NOTHING;
+
+-- 16. Notes des élèves. Une absence justifiée est exclue du calcul ; une
+-- absence non justifiée reste ABSENT en base mais vaut zéro dans le calcul.
+INSERT INTO grades (
+    assessment_id,
+    student_enrollment_id,
+    result_type,
+    score,
+    comment,
+    justification_status,
+    reviewed_by_account_id,
+    reviewed_at
+)
+SELECT
+    assessment.id,
+    enrollment.id,
+    CASE
+        WHEN assessment.title = 'Évaluation diagnostique'
+         AND subject.name = 'Mathématiques'
+         AND student_number IN (1, 2)
+        THEN 'ABSENT'
+        ELSE 'SCORED'
+    END,
+    CASE
+        WHEN assessment.title = 'Évaluation diagnostique'
+         AND subject.name = 'Mathématiques'
+         AND student_number IN (1, 2)
+        THEN NULL
+        ELSE round(
+            mod(
+                student_number * 3 + char_length(subject.name) + extract(day FROM assessment.assessment_date)::integer,
+                assessment.maximum_score::integer + 1
+            )::numeric,
+            2
+        )
+    END,
+    'Résultat fictif de développement',
+    CASE
+        WHEN assessment.title = 'Évaluation diagnostique'
+         AND subject.name = 'Mathématiques'
+         AND student_number = 1
+        THEN 'JUSTIFIED'
+        WHEN assessment.title = 'Évaluation diagnostique'
+         AND subject.name = 'Mathématiques'
+         AND student_number = 2
+        THEN 'UNJUSTIFIED'
+        ELSE NULL
+    END,
+    CASE
+        WHEN assessment.title = 'Évaluation diagnostique'
+         AND subject.name = 'Mathématiques'
+         AND student_number = 1
+        THEN administrator_account.id
+        ELSE NULL
+    END,
+    CASE
+        WHEN assessment.title = 'Évaluation diagnostique'
+         AND subject.name = 'Mathématiques'
+         AND student_number = 1
+        THEN TIMESTAMPTZ '2026-10-07 10:00:00+00'
+        ELSE NULL
+    END
+FROM assessments AS assessment
+JOIN teacher_assignments AS assignment
+    ON assignment.id = assessment.teacher_assignment_id
+JOIN class_subjects AS class_subject
+    ON class_subject.id = assignment.class_subject_id
+JOIN subjects AS subject ON subject.id = class_subject.subject_id
+JOIN student_enrollments AS enrollment
+    ON enrollment.class_id = class_subject.class_id
+JOIN students AS student ON student.id = enrollment.student_id
+JOIN accounts AS student_account ON student_account.id = student.account_id
+JOIN LATERAL (
+    SELECT substring(student_account.registration_number FROM 2)::integer
+) AS profile(student_number) ON true
+CROSS JOIN (
+    SELECT id
+    FROM accounts
+    WHERE registration_number = 'a000001'
+) AS administrator_account
+ON CONFLICT (assessment_id, student_enrollment_id) DO NOTHING;
+
+-- 17. Demande fictive de correction d'une note numérique.
+INSERT INTO grade_change_requests (
+    grade_id,
+    requested_by_account_id,
+    previous_result_type,
+    previous_score,
+    previous_justification_status,
+    proposed_result_type,
+    proposed_score,
+    proposed_justification_status,
+    request_reason
+)
+SELECT
+    grade.id,
+    teacher.account_id,
+    grade.result_type,
+    grade.score,
+    grade.justification_status,
+    'SCORED',
+    CASE
+        WHEN grade.score < assessment.maximum_score THEN grade.score + 1
+        ELSE grade.score - 1
+    END,
+    NULL,
+    'Erreur de saisie fictive à vérifier.'
+FROM grades AS grade
+JOIN assessments AS assessment ON assessment.id = grade.assessment_id
+JOIN teacher_assignments AS assignment
+    ON assignment.id = assessment.teacher_assignment_id
+JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+WHERE grade.result_type = 'SCORED'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM grade_change_requests AS existing_request
+      WHERE existing_request.grade_id = grade.id
+        AND existing_request.status = 'PENDING'
+  )
+ORDER BY grade.created_at, grade.id
+LIMIT 1;
+
+-- 18. Appel de présence pour le cours de mathématiques de chaque classe.
+INSERT INTO attendance_events (
+    teacher_assignment_id,
+    attendance_date,
+    course_start_time,
+    course_end_time
+)
+SELECT
+    assignment.id,
+    DATE '2026-10-20',
+    TIME '08:00',
+    TIME '09:00'
+FROM teacher_assignments AS assignment
+JOIN class_subjects AS class_subject
+    ON class_subject.id = assignment.class_subject_id
+JOIN subjects AS subject ON subject.id = class_subject.subject_id
+JOIN classes AS school_class ON school_class.id = class_subject.class_id
+JOIN school_years AS school_year ON school_year.id = school_class.school_year_id
+WHERE school_year.name = '2026-2027'
+  AND subject.name = 'Mathématiques'
+ON CONFLICT (
+    teacher_assignment_id,
+    attendance_date,
+    course_start_time,
+    course_end_time
+) DO NOTHING;
+
+-- Seuls les élèves absents ou en retard produisent une ligne d'incident.
+WITH ranked_enrollments AS (
+    SELECT
+        enrollment.id,
+        enrollment.class_id,
+        row_number() OVER (
+            PARTITION BY enrollment.class_id
+            ORDER BY student_account.registration_number
+        ) AS class_position
+    FROM student_enrollments AS enrollment
+    JOIN students AS student ON student.id = enrollment.student_id
+    JOIN accounts AS student_account ON student_account.id = student.account_id
+)
+INSERT INTO attendance_records (
+    attendance_event_id,
+    student_enrollment_id,
+    incident_type,
+    late_minutes,
+    reason,
+    justification_status,
+    recorded_by_account_id,
+    reviewed_by_account_id,
+    reviewed_at,
+    updated_by_account_id
+)
+SELECT
+    event.id,
+    ranked_enrollment.id,
+    CASE WHEN ranked_enrollment.class_position = 1 THEN 'ABSENT' ELSE 'LATE' END,
+    CASE WHEN ranked_enrollment.class_position = 2 THEN 12 ELSE NULL END,
+    NULL,
+    CASE WHEN ranked_enrollment.class_position = 1 THEN 'JUSTIFIED' ELSE 'PENDING' END,
+    teacher.account_id,
+    CASE WHEN ranked_enrollment.class_position = 1 THEN administrator_account.id ELSE NULL END,
+    CASE
+        WHEN ranked_enrollment.class_position = 1
+        THEN TIMESTAMPTZ '2026-10-21 09:00:00+00'
+        ELSE NULL
+    END,
+    CASE
+        WHEN ranked_enrollment.class_position = 1 THEN administrator_account.id
+        ELSE teacher.account_id
+    END
+FROM attendance_events AS event
+JOIN teacher_assignments AS assignment
+    ON assignment.id = event.teacher_assignment_id
+JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+JOIN class_subjects AS class_subject
+    ON class_subject.id = assignment.class_subject_id
+JOIN ranked_enrollments AS ranked_enrollment
+    ON ranked_enrollment.class_id = class_subject.class_id
+   AND ranked_enrollment.class_position <= 2
+CROSS JOIN (
+    SELECT id
+    FROM accounts
+    WHERE registration_number = 'a000001'
+) AS administrator_account
+ON CONFLICT DO NOTHING;
+
+-- Une modification crée automatiquement une ligne d'historique.
+UPDATE attendance_records AS attendance_record
+SET
+    reason = 'Retard lié au transport scolaire.',
+    last_change_reason = 'Ajout du motif communiqué.',
+    updated_by_account_id = attendance_record.recorded_by_account_id
+WHERE attendance_record.incident_type = 'LATE'
+  AND attendance_record.reason IS NULL;
+
+-- 19. Signalement fictif d'une correction d'assiduité.
+INSERT INTO attendance_change_requests (
+    attendance_record_id,
+    requested_by_account_id,
+    requested_action,
+    proposed_incident_type,
+    proposed_late_minutes,
+    proposed_reason,
+    request_reason
+)
+SELECT
+    attendance_record.id,
+    attendance_record.recorded_by_account_id,
+    'UPDATE',
+    'LATE',
+    5,
+    attendance_record.reason,
+    'Durée du retard fictivement corrigée.'
+FROM attendance_records AS attendance_record
+WHERE attendance_record.incident_type = 'LATE'
+  AND attendance_record.deleted_at IS NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM attendance_change_requests AS existing_request
+      WHERE existing_request.attendance_record_id = attendance_record.id
+        AND existing_request.status = 'PENDING'
+  )
+ORDER BY attendance_record.created_at, attendance_record.id
+LIMIT 1;
+
+-- 20. Métadonnées de justificatifs fictifs ; les fichiers restent hors de PostgreSQL.
+INSERT INTO documents (
+    document_type_id,
+    title,
+    storage_path,
+    original_filename,
+    mime_type,
+    size_bytes,
+    sha256,
+    uploaded_by_account_id
+)
+SELECT
+    document_type.id,
+    'Justificatif de l''évaluation diagnostique',
+    'accounts/' || student_account.registration_number
+        || '/justificatifs/evaluation-' || grade.id || '.pdf',
+    'justificatif-evaluation.pdf',
+    'application/pdf',
+    2048,
+    repeat(md5(grade.id::text), 2),
+    administrator_account.id
+FROM grades AS grade
+JOIN student_enrollments AS enrollment
+    ON enrollment.id = grade.student_enrollment_id
+JOIN students AS student ON student.id = enrollment.student_id
+JOIN accounts AS student_account ON student_account.id = student.account_id
+JOIN document_types AS document_type
+    ON document_type.code = 'ASSESSMENT_JUSTIFICATION'
+CROSS JOIN (
+    SELECT id
+    FROM accounts
+    WHERE registration_number = 'a000001'
+) AS administrator_account
+WHERE grade.result_type = 'ABSENT'
+  AND grade.justification_status = 'JUSTIFIED'
+ON CONFLICT (storage_path) DO NOTHING;
+
+INSERT INTO grade_documents (grade_id, document_id)
+SELECT grade.id, document.id
+FROM grades AS grade
+JOIN student_enrollments AS enrollment
+    ON enrollment.id = grade.student_enrollment_id
+JOIN students AS student ON student.id = enrollment.student_id
+JOIN accounts AS student_account ON student_account.id = student.account_id
+JOIN documents AS document
+    ON document.storage_path = 'accounts/' || student_account.registration_number
+        || '/justificatifs/evaluation-' || grade.id || '.pdf'
+ON CONFLICT (grade_id, document_id) DO NOTHING;
+
+INSERT INTO documents (
+    document_type_id,
+    title,
+    storage_path,
+    original_filename,
+    mime_type,
+    size_bytes,
+    sha256,
+    uploaded_by_account_id
+)
+SELECT
+    document_type.id,
+    'Justificatif d''absence au cours',
+    'accounts/' || student_account.registration_number
+        || '/justificatifs/absence-' || attendance_record.id || '.pdf',
+    'justificatif-absence.pdf',
+    'application/pdf',
+    3072,
+    repeat(md5(attendance_record.id::text), 2),
+    administrator_account.id
+FROM attendance_records AS attendance_record
+JOIN student_enrollments AS enrollment
+    ON enrollment.id = attendance_record.student_enrollment_id
+JOIN students AS student ON student.id = enrollment.student_id
+JOIN accounts AS student_account ON student_account.id = student.account_id
+JOIN document_types AS document_type
+    ON document_type.code = 'ATTENDANCE_JUSTIFICATION'
+CROSS JOIN (
+    SELECT id
+    FROM accounts
+    WHERE registration_number = 'a000001'
+) AS administrator_account
+WHERE attendance_record.incident_type = 'ABSENT'
+  AND attendance_record.justification_status = 'JUSTIFIED'
+ON CONFLICT (storage_path) DO NOTHING;
+
+INSERT INTO attendance_record_documents (attendance_record_id, document_id)
+SELECT attendance_record.id, document.id
+FROM attendance_records AS attendance_record
+JOIN student_enrollments AS enrollment
+    ON enrollment.id = attendance_record.student_enrollment_id
+JOIN students AS student ON student.id = enrollment.student_id
+JOIN accounts AS student_account ON student_account.id = student.account_id
+JOIN documents AS document
+    ON document.storage_path = 'accounts/' || student_account.registration_number
+        || '/justificatifs/absence-' || attendance_record.id || '.pdf'
+ON CONFLICT (attendance_record_id, document_id) DO NOTHING;
+
+-- 21. Bulletins provisoires de la première période.
+WITH subject_averages AS (
+    SELECT
+        grade.student_enrollment_id,
+        class_subject.id AS class_subject_id,
+        class_subject.coefficient AS subject_coefficient,
+        round(
+            sum(
+                CASE
+                    WHEN grade.result_type = 'SCORED'
+                    THEN (grade.score / assessment.maximum_score) * 20 * assessment.coefficient
+                    WHEN grade.justification_status IN ('UNJUSTIFIED', 'REJECTED')
+                    THEN 0
+                    ELSE NULL
+                END
+            )
+            / NULLIF(
+                sum(
+                    CASE
+                        WHEN grade.result_type = 'SCORED'
+                          OR grade.justification_status IN ('UNJUSTIFIED', 'REJECTED')
+                        THEN assessment.coefficient
+                        ELSE 0
+                    END
+                ),
+                0
+            ),
+            2
+        ) AS subject_average
+    FROM grades AS grade
+    JOIN assessments AS assessment ON assessment.id = grade.assessment_id
+    JOIN teacher_assignments AS assignment
+        ON assignment.id = assessment.teacher_assignment_id
+    JOIN class_subjects AS class_subject
+        ON class_subject.id = assignment.class_subject_id
+    JOIN reporting_periods AS period
+        ON assessment.assessment_date BETWEEN period.start_date AND period.end_date
+    JOIN school_years AS school_year ON school_year.id = period.school_year_id
+    WHERE school_year.name = '2026-2027'
+      AND period.name = 'Période 1'
+    GROUP BY
+        grade.student_enrollment_id,
+        class_subject.id,
+        class_subject.coefficient
+),
+general_averages AS (
+    SELECT
+        subject_average.student_enrollment_id,
+        round(
+            sum(subject_average.subject_average * subject_average.subject_coefficient)
+            / NULLIF(sum(subject_average.subject_coefficient), 0),
+            2
+        ) AS general_average
+    FROM subject_averages AS subject_average
+    WHERE subject_average.subject_average IS NOT NULL
+    GROUP BY subject_average.student_enrollment_id
+)
+INSERT INTO report_cards (
+    student_enrollment_id,
+    reporting_period_id,
+    general_average,
+    overall_comment,
+    generated_by_account_id,
+    generated_at
+)
+SELECT
+    general_average.student_enrollment_id,
+    period.id,
+    general_average.general_average,
+    'Bulletin provisoire fictif de développement.',
+    administrator_account.id,
+    TIMESTAMPTZ '2026-12-19 08:00:00+00'
+FROM general_averages AS general_average
+CROSS JOIN (
+    SELECT reporting_period.id
+    FROM reporting_periods AS reporting_period
+    JOIN school_years AS school_year
+        ON school_year.id = reporting_period.school_year_id
+    WHERE school_year.name = '2026-2027'
+      AND reporting_period.name = 'Période 1'
+) AS period
+CROSS JOIN (
+    SELECT id
+    FROM accounts
+    WHERE registration_number = 'a000001'
+) AS administrator_account
+ON CONFLICT (student_enrollment_id, reporting_period_id) DO NOTHING;
+
+WITH subject_averages AS (
+    SELECT
+        grade.student_enrollment_id,
+        class_subject.id AS class_subject_id,
+        class_subject.coefficient AS subject_coefficient,
+        round(
+            sum(
+                CASE
+                    WHEN grade.result_type = 'SCORED'
+                    THEN (grade.score / assessment.maximum_score) * 20 * assessment.coefficient
+                    WHEN grade.justification_status IN ('UNJUSTIFIED', 'REJECTED')
+                    THEN 0
+                    ELSE NULL
+                END
+            )
+            / NULLIF(
+                sum(
+                    CASE
+                        WHEN grade.result_type = 'SCORED'
+                          OR grade.justification_status IN ('UNJUSTIFIED', 'REJECTED')
+                        THEN assessment.coefficient
+                        ELSE 0
+                    END
+                ),
+                0
+            ),
+            2
+        ) AS subject_average
+    FROM grades AS grade
+    JOIN assessments AS assessment ON assessment.id = grade.assessment_id
+    JOIN teacher_assignments AS assignment
+        ON assignment.id = assessment.teacher_assignment_id
+    JOIN class_subjects AS class_subject
+        ON class_subject.id = assignment.class_subject_id
+    JOIN reporting_periods AS period
+        ON assessment.assessment_date BETWEEN period.start_date AND period.end_date
+    JOIN school_years AS school_year ON school_year.id = period.school_year_id
+    WHERE school_year.name = '2026-2027'
+      AND period.name = 'Période 1'
+    GROUP BY
+        grade.student_enrollment_id,
+        class_subject.id,
+        class_subject.coefficient
+)
+INSERT INTO report_card_subjects (
+    report_card_id,
+    class_subject_id,
+    subject_average,
+    applied_coefficient,
+    teacher_comment
+)
+SELECT
+    report_card.id,
+    subject_average.class_subject_id,
+    subject_average.subject_average,
+    subject_average.subject_coefficient,
+    'Appréciation fictive de développement.'
+FROM subject_averages AS subject_average
+JOIN report_cards AS report_card
+    ON report_card.student_enrollment_id = subject_average.student_enrollment_id
+JOIN reporting_periods AS period ON period.id = report_card.reporting_period_id
+WHERE period.name = 'Période 1'
+  AND subject_average.subject_average IS NOT NULL
+ON CONFLICT (report_card_id, class_subject_id) DO NOTHING;
+
+INSERT INTO report_card_grades (report_card_id, grade_id)
+SELECT report_card.id, grade.id
+FROM report_cards AS report_card
+JOIN reporting_periods AS period ON period.id = report_card.reporting_period_id
+JOIN grades AS grade
+    ON grade.student_enrollment_id = report_card.student_enrollment_id
+JOIN assessments AS assessment ON assessment.id = grade.assessment_id
+WHERE assessment.assessment_date BETWEEN period.start_date AND period.end_date
+ON CONFLICT (report_card_id, grade_id) DO NOTHING;
+
 COMMIT;

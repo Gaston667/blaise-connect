@@ -1,36 +1,35 @@
 # Rapport de réorganisation des migrations
 
-Date : 26 juillet 2026.
+Date : 3 août 2026.
 
 ## Résultat
 
-La séquence a été consolidée en quatre migrations destinées à initialiser une base vide :
+La séquence d'initialisation d'une base vide contient désormais six migrations :
 
-1. `001_grant_application_privileges.sql` : révoque les droits publics inutiles et accorde uniquement la connexion à la base et l'usage du schéma à `blaise_app`.
-2. `002_create_accounts_and_profiles.sql` : crée les comptes, sessions, élèves, enseignants, administrateurs et responsables, avec genre, photo et archivage logique.
-3. `003_grant_account_profile_privileges.sql` : accorde les droits utiles `SELECT`, `INSERT` et `UPDATE`. Aucun droit `DELETE` n'est accordé.
-4. `004_create_school_structure.sql` : crée les années, périodes, niveaux, classes, matières et coefficients ainsi que leurs contraintes et droits applicatifs.
+1. `001_db_access.sql` : accès minimal de `blaise_app` à la base et au schéma.
+2. `002_accounts_and_profiles.sql` : comptes, sessions, profils et historique du statut des élèves.
+3. `003_relationships_and_documents.sql` : responsables d'élèves, catalogue documentaire et métadonnées des fichiers.
+4. `004_school_structure.sql` : années, périodes, niveaux, classes, inscriptions, matières et coefficients.
+5. `005_academic_activity.sql` : affectations, évaluations, notes, demandes de correction, appels, absences, retards, justificatifs et historique.
+6. `006_report_cards_and_year_deletion.sql` : bulletins historiques et suppression auditée d'une année non clôturée.
 
-## Docker Compose
+Les anciennes migrations correctives `007` et `008` ont été fusionnées : le retrait d'une matière de classe se trouve dans `004` et l'unicité temporelle de son enseignant dans `005`.
 
-Le service PostgreSQL monte uniquement ces quatre fichiers, dans cet ordre, après la création du rôle `blaise_app`.
+## Nouvelles protections
 
-## Sécurité et intégrité
+- une note ne dépasse pas le barème de son évaluation ;
+- un élève noté ou absent appartient obligatoirement à la classe concernée ;
+- une absence à une évaluation conserve `score = NULL` ;
+- une absence justifiée est exclue de la moyenne, une absence non justifiée ou rejetée vaut zéro pendant le calcul ;
+- un bulletin ne peut pas être validé avec une justification en attente ;
+- un bulletin validé, ses lignes, ses notes et sa période sont immuables ;
+- les corrections d'assiduité sont historisées et les suppressions sont logiques ;
+- les documents sont référencés par de vraies clés étrangères, sans relation polymorphe.
 
-- L'application ne reçoit aucun droit de création dans le schéma.
-- Les suppressions physiques restent interdites à `blaise_app`.
-- Les profils archivés avec un compte exigent un compte inactif et archivé.
-- Les classes ne possèdent pas d'archivage indépendant.
-- Les rôles des comptes liés aux profils sont contrôlés par des triggers différables.
-- Une année peut être courante sans période. Les périodes sont ensuite ajoutées progressivement à partir d'une date de fin choisie par l'administrateur.
-- Les codes des niveaux et des cycles sont des énumérations ; PostgreSQL refuse un code inconnu ou un niveau associé au mauvais cycle.
+## Docker Compose et données fictives
 
-## Vérification effectuée
-
-Seuls la présence des quatre fichiers, leur ordre, leurs références documentaires et la configuration Compose ont été contrôlés statiquement.
-
-Les migrations n'ont pas été exécutées, conformément à la demande. Elles doivent être testées sur une base temporaire ou vide avant toute réinitialisation du volume principal.
+`compose.yaml` monte uniquement les six migrations dans l'ordre, puis `050_creat_teste_data.sql`. Le seed prépare des affectations, évaluations, notes, absences justifiées et non justifiées, appels, justificatifs, demandes de correction et bulletins provisoires.
 
 ## Attention
 
-Cette consolidation redéfinit le sens des numéros 001 à 004. Elle convient à une nouvelle base vide, mais ne doit pas être rejouée directement sur la base existante ayant reçu l'ancienne séquence.
+Cette consolidation est destinée à une nouvelle base vide. Elle ne doit pas être rejouée sur une base ayant déjà reçu l'ancienne numérotation. Les migrations et les tests n'ont pas été exécutés pendant cette modification.

@@ -714,14 +714,16 @@ GRANT UPDATE (name, description, is_active) ON subjects TO blaise_app;
 
 GRANT INSERT (class_id, subject_id, coefficient) ON class_subjects TO blaise_app;
 GRANT UPDATE (class_id, subject_id, coefficient) ON class_subjects TO blaise_app;
+-- Retirer une matière d'une classe supprime uniquement l'association. Les
+-- futures évaluations la protégeront ensuite avec ON DELETE RESTRICT.
+GRANT DELETE ON TABLE class_subjects TO blaise_app;
 
 REVOKE DELETE ON TABLE
     school_years,
     reporting_periods,
     class_levels,
     student_enrollments,
-    subjects,
-    class_subjects
+    subjects
 FROM blaise_app;
 
 COMMIT;
