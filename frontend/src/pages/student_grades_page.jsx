@@ -1,8 +1,39 @@
 import { useEffect, useState } from 'react'
-import { BarChart3, BookOpen, CalendarClock, FileText } from 'lucide-react'
+import {
+  Award,
+  BarChart3,
+  BookOpen,
+  Calculator,
+  CalendarClock,
+  ChevronDown,
+  FileText,
+  FlaskConical,
+  Globe2,
+  Languages,
+  Laptop2,
+  Palette,
+  TrendingUp,
+} from 'lucide-react'
 
 import { getMyGrades, getMyGradesSummary, getMyProfile } from '../services/student_grades_service.js'
 import '../styles/student_grades_page.css'
+
+const PALETTE = ['violet', 'green', 'blue', 'orange']
+
+const SUBJECT_ICON_RULES = [
+  [/math/i, Calculator],
+  [/(fran[cç]ais|litt[ée]rature|lettres)/i, BookOpen],
+  [/(sciences|physique|chimie|svt|biolog)/i, FlaskConical],
+  [/(histoire|g[ée]o)/i, Globe2],
+  [/(anglais|espagnol|allemand|langue)/i, Languages],
+  [/(informatique|numérique|nsi)/i, Laptop2],
+  [/(art|dessin|musique)/i, Palette],
+]
+
+function getSubjectIcon(subjectName) {
+  const match = SUBJECT_ICON_RULES.find(([pattern]) => pattern.test(subjectName ?? ''))
+  return match ? match[1] : BookOpen
+}
 
 function formatAverage(value) {
   return value === null || value === undefined ? '—' : `${value.toFixed(2)} /20`
@@ -13,10 +44,27 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('fr-FR').format(new Date(`${value}T00:00:00`))
 }
 
+function formatDay(value) {
+  if (!value) return { day: '—', month: '' }
+  const date = new Date(`${value}T00:00:00`)
+  return {
+    day: date.getDate(),
+    month: date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '').toUpperCase(),
+  }
+}
+
 function formatScore(grade) {
   if (grade.result_type === 'ABSENT') return 'Absent'
   if (grade.score === null || grade.score === undefined) return '—'
   return `${Number(grade.score).toFixed(2)} / ${Number(grade.maximum_score).toFixed(2)}`
+}
+
+function scoreTone(grade) {
+  if (grade.result_type === 'ABSENT') return 'sgp-score--absent'
+  const ratio = Number(grade.score) / Number(grade.maximum_score)
+  if (ratio >= 0.7) return 'sgp-score--good'
+  if (ratio >= 0.5) return 'sgp-score--average'
+  return 'sgp-score--low'
 }
 
 export default function StudentGradesPage() {
@@ -25,6 +73,8 @@ export default function StudentGradesPage() {
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [showAllGrades, setShowAllGrades] = useState(false)
+  const [selectedSubjectId, setSelectedSubjectId] = useState(null)
 
   useEffect(function loadDashboardEffect() {
     async function load() {
@@ -49,7 +99,18 @@ export default function StudentGradesPage() {
   if (loading) return <main className="sgp-main"><p>Chargement de vos notes…</p></main>
   if (errorMessage) return <main className="sgp-main"><p className="sgp-error">{errorMessage}</p></main>
 
-  const recentGrades = grades.slice(0, 5)
+  const subjectColorBySubjectId = new Map(
+    summary.subject_averages.map((subject, index) => [subject.subject_id, PALETTE[index % PALETTE.length]])
+  )
+  const gradesForSelectedSubject = selectedSubjectId
+    ? grades.filter((grade) => grade.subject_id === selectedSubjectId)
+    : []
+  const recentGrades = showAllGrades ? grades : grades.slice(0, 5)
+  const hiddenGradeCount = grades.length - recentGrades.length
+
+  function toggleSubjectFilter(subjectId) {
+    setSelectedSubjectId((current) => (current === subjectId ? null : subjectId))
+  }
 
   return (
     <main className="sgp-main">
@@ -65,13 +126,76 @@ export default function StudentGradesPage() {
           <section className="sgp-section">
             <h2><BarChart3 aria-hidden="true" size={18} /> Synthèse des performances</h2>
             <div className="sgp-stats-grid">
-              <article className="sgp-stat sgp-stat--blue">
-                <span>Moyenne générale</span>
-                <strong>{formatAverage(summary.overall_average)}</strong>
-                {summary.rank && summary.class_size && (
-                  <small>Rang : {summary.rank} / {summary.class_size}</small>
-                )}
+              <article className="sgp-stat sgp-stat--violet">
+                <span className="sgp-stat__icon"><TrendingUp aria-hidden="true" size={18} /></span>
+                <div>
+                  <span>Moyenne générale</span>
+                  <strong>{formatAverage(summary.overall_average)}</strong>
+                  {summary.rank && summary.class_size && (
+                    <small><Award aria-hidden="true" size={13} /> Rang : {summary.rank} / {summary.class_size}</small>
+                  )}
+                </div>
               </article>
+
+              {summary.period_averages.map((period, index) => (
+                <article key={period.period_id} className={`sgp-stat sgp-stat--${PALETTE[(index + 1) % PALETTE.length]}`}>
+                  <span className="sgp-stat__icon"><TrendingUp aria-hidden="true" size={18} /></span>
+                  <div>
+                    <span>Moyenne — {period.period_name}</span>
+                    <strong>{formatAverage(period.average)}</strong>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="sgp-section">
+            <h2><BookOpen aria-hidden="true" size={18} /> Mes matières</h2>
+            <p className="sgp-section-hint">Touchez une matière pour voir ses notes juste en dessous.</p>
+            <div className="sgp-subject-accordion">
+              {summary.subject_averages.length === 0 ? (
+                <p className="sgp-empty">Aucune moyenne disponible pour le moment.</p>
+              ) : (
+                summary.subject_averages.map((subject, index) => {
+                  const SubjectIcon = getSubjectIcon(subject.subject_name)
+                  const isSelected = subject.subject_id === selectedSubjectId
+                  const color = PALETTE[index % PALETTE.length]
+                  const subjectGrades = isSelected ? gradesForSelectedSubject : []
+                  return (
+                    <div key={subject.subject_id} className={`sgp-subject-item sgp-subject-item--${color}${isSelected ? ' sgp-subject-item--open' : ''}`}>
+                      <button
+                        type="button"
+                        className="sgp-subject-item__head"
+                        onClick={() => toggleSubjectFilter(subject.subject_id)}
+                        aria-expanded={isSelected}
+                      >
+                        <span className="sgp-subject-item__icon"><SubjectIcon aria-hidden="true" size={16} /></span>
+                        <span className="sgp-subject-item__name">{subject.subject_name}</span>
+                        <strong>{formatAverage(subject.average)}</strong>
+                        <ChevronDown aria-hidden="true" size={16} className="sgp-subject-item__chevron" />
+                      </button>
+
+                      {isSelected && (
+                        <div className="sgp-subject-item__body">
+                          {subjectGrades.length === 0 ? (
+                            <p className="sgp-empty">Aucune note dans cette matière.</p>
+                          ) : (
+                            subjectGrades.map((grade) => (
+                              <div key={grade.id} className="sgp-subject-item__grade">
+                                <div>
+                                  <strong>{grade.assessment_title}</strong>
+                                  <span>{formatDate(grade.assessment_date)}</span>
+                                </div>
+                                <span className={`sgp-score ${scoreTone(grade)}`}>{formatScore(grade)}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
             </div>
           </section>
 
@@ -91,39 +215,41 @@ export default function StudentGradesPage() {
                   {recentGrades.length === 0 ? (
                     <tr><td colSpan={4} className="sgp-empty">Aucune note pour le moment.</td></tr>
                   ) : (
-                    recentGrades.map((grade) => (
+                    recentGrades.map((grade) => {
+                      const SubjectIcon = getSubjectIcon(grade.subject_name)
+                      const color = subjectColorBySubjectId.get(grade.subject_id) ?? 'violet'
+                      return (
                       <tr key={grade.id}>
-                        <td>{grade.subject_name}</td>
+                        <td>
+                          <span className="sgp-row-subject">
+                            <span className={`sgp-row-subject__icon sgp-row-subject__icon--${color}`}>
+                              <SubjectIcon aria-hidden="true" size={15} />
+                            </span>
+                            {grade.subject_name}
+                          </span>
+                        </td>
                         <td>{grade.assessment_title}</td>
                         <td>{formatDate(grade.assessment_date)}</td>
-                        <td className={grade.result_type === 'ABSENT' ? 'sgp-score sgp-score--absent' : 'sgp-score'}>
+                        <td className={`sgp-score ${scoreTone(grade)}`}>
                           {formatScore(grade)}
                         </td>
                       </tr>
-                    ))
+                      )
+                    })
                   )}
                 </tbody>
               </table>
             </div>
-            {grades.length > recentGrades.length && (
-              <p className="sgp-more">{grades.length - recentGrades.length} autre(s) note(s) non affichée(s) ici.</p>
+            {grades.length > 5 && (
+              <p className="sgp-more">
+                {showAllGrades
+                  ? `${grades.length} note(s) affichée(s) au total.`
+                  : `${hiddenGradeCount} autre(s) note(s) non affichée(s) ici.`}
+                <button type="button" className="sgp-more__btn" onClick={() => setShowAllGrades((current) => !current)}>
+                  {showAllGrades ? 'Voir moins' : 'Voir toutes mes notes'}
+                </button>
+              </p>
             )}
-          </section>
-
-          <section className="sgp-section">
-            <h2><BookOpen aria-hidden="true" size={18} /> Moyennes par matière</h2>
-            <div className="sgp-subject-grid">
-              {summary.subject_averages.length === 0 ? (
-                <p className="sgp-empty">Aucune moyenne disponible pour le moment.</p>
-              ) : (
-                summary.subject_averages.map((subject) => (
-                  <article key={subject.subject_id} className="sgp-subject-card">
-                    <span>{subject.subject_name}</span>
-                    <strong>{formatAverage(subject.average)}</strong>
-                  </article>
-                ))
-              )}
-            </div>
           </section>
         </div>
 
@@ -134,13 +260,21 @@ export default function StudentGradesPage() {
               {summary.upcoming_assessments.length === 0 ? (
                 <li className="sgp-empty">Aucune évaluation à venir.</li>
               ) : (
-                summary.upcoming_assessments.map((assessment) => (
-                  <li key={assessment.id}>
-                    <strong>{assessment.subject_name}</strong>
-                    <span>{assessment.title}</span>
-                    <time>{formatDate(assessment.assessment_date)}</time>
-                  </li>
-                ))
+                summary.upcoming_assessments.map((assessment, index) => {
+                  const { day, month } = formatDay(assessment.assessment_date)
+                  return (
+                    <li key={assessment.id}>
+                      <span className={`sgp-upcoming-date sgp-upcoming-date--${PALETTE[index % PALETTE.length]}`}>
+                        <strong>{day}</strong>
+                        <small>{month}</small>
+                      </span>
+                      <span className="sgp-upcoming-info">
+                        <strong>{assessment.subject_name}</strong>
+                        <span>{assessment.title}</span>
+                      </span>
+                    </li>
+                  )
+                })
               )}
             </ul>
           </section>

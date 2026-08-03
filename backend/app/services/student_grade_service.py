@@ -95,6 +95,21 @@ def get_my_grade_summary(db: Session, student_id: UUID) -> dict:
     """
     subject_rows = db.execute(text(subject_sql), {"student_id": student_id}).mappings().all()
 
+    period_sql = f"""
+        SELECT
+            period.id AS period_id,
+            period.name AS period_name,
+            period.start_date,
+            SUM({_EFFECTIVE_SCORE_SQL} * assessment.coefficient)
+                / NULLIF(SUM(CASE WHEN {_EFFECTIVE_SCORE_SQL} IS NOT NULL THEN assessment.coefficient END), 0)
+                AS average
+        {_GRADE_BASE_JOIN}
+        WHERE student.id = :student_id AND period.id IS NOT NULL
+        GROUP BY period.id, period.name, period.start_date
+        ORDER BY period.start_date
+    """
+    period_rows = db.execute(text(period_sql), {"student_id": student_id}).mappings().all()
+
     overall_sql = f"""
         SELECT
             SUM({_EFFECTIVE_SCORE_SQL} * assessment.coefficient)
@@ -142,6 +157,14 @@ def get_my_grade_summary(db: Session, student_id: UUID) -> dict:
                 "average": float(row.average) if row.average is not None else None,
             }
             for row in subject_rows
+        ],
+        "period_averages": [
+            {
+                "period_id": row.period_id,
+                "period_name": row.period_name,
+                "average": float(row.average) if row.average is not None else None,
+            }
+            for row in period_rows
         ],
         "upcoming_assessments": [dict(row) for row in upcoming_rows],
     }

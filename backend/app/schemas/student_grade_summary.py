@@ -12,6 +12,12 @@ class StudentSubjectAverage(BaseModel):
     average: float | None
 
 
+class StudentPeriodAverage(BaseModel):
+    period_id: UUID
+    period_name: str
+    average: float | None
+
+
 class StudentUpcomingAssessment(BaseModel):
     id: UUID
     title: str
@@ -24,4 +30,5 @@ class StudentGradeSummary(BaseModel):
     rank: int | None
     class_size: int | None
     subject_averages: list[StudentSubjectAverage]
+    period_averages: list[StudentPeriodAverage]
     upcoming_assessments: list[StudentUpcomingAssessment]
