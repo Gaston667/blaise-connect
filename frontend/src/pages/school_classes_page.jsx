@@ -25,9 +25,20 @@ function levelBadge(name) {
 }
 
 function levelInitials(name, groupLabel) {
-  const parts = (name ?? '').replace(/[^a-zA-Z0-9]/g, ' ').trim().split(/\s+/)
-  const short = parts.map((p) => p[0]).join('').slice(0, 2).toUpperCase()
-  return `${short}${groupLabel ?? ''}`
+  const levelName = String(name ?? '').trim()
+  const group = String(groupLabel ?? '').trim()
+  const digitMatch = levelName.match(/\d/)
+
+  if (digitMatch) {
+    return digitMatch[0]
+  }
+
+  if (group) {
+    return group[0].toUpperCase()
+  }
+
+  const letterMatch = levelName.match(/[A-Za-z]/)
+  return letterMatch ? letterMatch[0].toUpperCase() : '?'
 }
 
 function teacherInitials(teacher) {

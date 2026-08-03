@@ -67,7 +67,7 @@ export default function Sidebar({
           onClick={handleNavigation}
         >
           <House aria-hidden="true" size={20} />
-          Accueil
+          Tableau de bord
         </button>
 
         {isStaff ? (
@@ -89,22 +89,6 @@ export default function Sidebar({
         {canManageAccounts ? (
           <button
             className={
-              currentPage === 'guardians' || currentPage === 'guardian-details'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="guardians"
-            onClick={handleNavigation}
-          >
-            <Users aria-hidden="true" size={20} />
-            Responsables légaux
-          </button>
-        ) : null}
-
-       {canManageAccounts ? (
-          <button
-            className={
               currentPage === 'accounts' ||
               currentPage === 'account-details' ||
               currentPage === 'account-new'
@@ -117,6 +101,38 @@ export default function Sidebar({
           >
             <ContactRound aria-hidden="true" size={20} />
             Gestion des comptes
+          </button>
+        ) : null}
+
+        {canManageAccounts ? (
+          <button
+            className={
+              currentPage === 'administrators' || currentPage === 'administrator-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="administrators"
+            onClick={handleNavigation}
+          >
+            <ShieldCheck aria-hidden="true" size={20} />
+            Administrateurs
+          </button>
+        ) : null}
+
+        {canManageAccounts ? (
+          <button
+            className={
+              currentPage === 'guardians' || currentPage === 'guardian-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="guardians"
+            onClick={handleNavigation}
+          >
+            <Users aria-hidden="true" size={20} />
+            Responsables légaux
           </button>
         ) : null}
 

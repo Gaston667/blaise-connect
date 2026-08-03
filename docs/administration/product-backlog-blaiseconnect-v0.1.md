@@ -268,7 +268,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Utilisateur concerné :** enseignant.
 - **Priorité :** Indispensable pour le MVP.
 - **Statut :** À étudier.
-- **Règles de gestion :** l’enseignant utilise uniquement ses classes et matières ; titre, date, barème, coefficient et période sont enregistrés.
+- **Règles de gestion :** l’enseignant utilise uniquement ses classes et matières ; titre, date, barème et coefficient sont enregistrés ; la période est déduite de la date de l’évaluation.
 - **Critères d’acceptation :** une évaluation valide peut être créée ; elle apparaît pour la classe concernée ; un enseignant ne peut pas créer une évaluation hors affectation ; les valeurs numériques et dates sont contrôlées.
 - **Dépendances :** US-003, US-005, US-007 et décisions QD-5 à QD-7.
 - **Tâches techniques :** modèle évaluation ; API ; formulaire ; contrôles de droits ; tests.
@@ -358,7 +358,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Utilisateur concerné :** administrateur ; enseignant pour le signalement d’erreur.
 - **Priorité :** Important.
 - **Statut :** À étudier.
-- **Règles de gestion :** statuts En attente, Justifiée et Non justifiée ; seul l’administrateur accepte un justificatif ou corrige définitivement ; les modifications sont historisées.
+- **Règles de gestion :** statuts En attente, Justifiée, Non justifiée et Rejetée ; seul l’administrateur accepte ou rejette un justificatif ou corrige définitivement ; les modifications sont historisées et les justificatifs référencés dans le catalogue documentaire.
 - **Critères d’acceptation :** l’administrateur peut modifier le statut avec une trace ; joindre un justificatif valide ; corriger ou supprimer logiquement une absence ; un enseignant peut signaler une erreur sans la corriger directement.
 - **Dépendances :** US-018, US-026 et décision QD-9.
 - **Tâches techniques :** workflow ; stockage sécurisé des justificatifs ; interface de traitement ; historique ; tests.
@@ -646,7 +646,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 | QD-3 | Combien y a-t-il d’élèves, d’enseignants et de classes au lycée ? | Performance et déploiement | À étudier |
 | QD-4 | Quelles classes participeront au lancement pilote ? | US-028 | À étudier |
 | QD-5 | L’année est-elle divisée en trimestres ou en semestres ? | US-003, US-013, US-015, US-021 | Validée par D-004/D-005 : périodes configurables par l’administrateur |
-| QD-6 | Quel barème est utilisé pour les notes ? | US-013, US-014, US-015 | À étudier |
+| QD-6 | Quel barème est utilisé pour les notes ? | US-013, US-014, US-015 | Validée : barème strictement positif et configurable pour chaque évaluation |
 | QD-7 | Quels coefficients et règles d’arrondi sont appliqués ? | US-005, US-013, US-015 | Partiellement validée par D-016 : coefficients configurables ; règles d’arrondi à confirmer |
 | QD-8 | Existe-t-il un modèle officiel de bulletin ? | US-021, US-022 | À étudier |
 | QD-9 | Quels justificatifs d’absence sont acceptés ? | US-019, US-020 | À étudier |

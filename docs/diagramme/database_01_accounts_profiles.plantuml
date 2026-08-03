@@ -1,0 +1,100 @@
+@startuml
+title BlaiseConnect - Comptes, profils, familles et documents
+left to right direction
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+
+entity accounts #FFCDD2 {
+  * id : uuid <<PK>>
+  --
+  * registration_number : varchar(50) <<UQ>>
+  * password_hash : text
+  * role : varchar(20)
+  * is_active : boolean
+  locked_until : timestamptz
+  archived_at : timestamptz
+}
+
+entity students #BBDEFB {
+  * id : uuid <<PK>>
+  * account_id : uuid <<FK, UQ>>
+  * first_name : varchar(100)
+  * last_name : varchar(100)
+  * status : student_status_enum
+}
+
+entity teachers #C8E6C9 {
+  * id : uuid <<PK>>
+  * account_id : uuid <<FK, UQ>>
+  * first_name : varchar(100)
+  * last_name : varchar(100)
+}
+
+entity administrators #FFE0B2 {
+  * id : uuid <<PK>>
+  * account_id : uuid <<FK, UQ>>
+  * first_name : varchar(100)
+  * last_name : varchar(100)
+}
+
+entity guardians #E1BEE7 {
+  * id : uuid <<PK>>
+  account_id : uuid <<FK, UQ>>
+  * first_name : varchar(100)
+  * last_name : varchar(100)
+  * phone : varchar(30)
+}
+
+entity student_guardians #FFF9C4 {
+  * student_id : uuid <<PK, FK>>
+  * guardian_id : uuid <<PK, FK>>
+  * relationship_type : varchar(10)
+  relationship_details : varchar(100)
+  * is_legal_guardian : boolean
+  * is_primary_contact : boolean
+}
+
+entity auth_sessions #FFCDD2 {
+  * id : uuid <<PK>>
+  * account_id : uuid <<FK>>
+  * session_token_hash : text <<UQ>>
+  * last_activity_at : timestamptz
+  revoked_at : timestamptz
+}
+
+entity document_types #D1C4E9 {
+  * id : uuid <<PK>>
+  * code : varchar(50) <<UQ>>
+  * label : varchar(100)
+  * is_active : boolean
+}
+
+entity documents #D1C4E9 {
+  * id : uuid <<PK>>
+  * document_type_id : uuid <<FK>>
+  * storage_path : varchar(500) <<UQ>>
+  * original_filename : varchar(255)
+  * mime_type : varchar(100)
+  * size_bytes : bigint
+  * sha256 : char(64)
+  * uploaded_by_account_id : uuid <<FK>>
+  archived_at : timestamptz
+}
+
+accounts ||--o| students
+accounts ||--o| teachers
+accounts ||--o| administrators
+accounts |o--o| guardians
+accounts ||--o{ auth_sessions
+students ||--o{ student_guardians
+guardians ||--o{ student_guardians
+document_types ||--o{ documents
+accounts ||--o{ documents : uploads
+
+note bottom of documents
+Le fichier reste dans storage/.
+PostgreSQL conserve sa référence,
+son type et son empreinte SHA-256.
+end note
+@enduml

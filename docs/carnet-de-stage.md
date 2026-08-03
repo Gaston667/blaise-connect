@@ -83,3 +83,5 @@ Amélioration de la fiche compte : actions d’état compactes et réinitialisat
 02/08/2026 — Fiche enseignant complétée et affectations matière-classe historisées sans suppression.
 02/08/2026 — Affectation guidée par classe et blocage des matières possédant déjà un enseignant.
 02/08/2026 — Ajout de la fiche matière avec classes, enseignants et emplacements des futures meilleures moyennes.
+03/08/2026 — Schéma des évaluations, notes, appels, documents et bulletins consolidé en six migrations avec données fictives et diagrammes dédiés.
+03/08/2026 — L’écran des notes est relié à FastAPI et aux évaluations, inscriptions et notes PostgreSQL ; le service simulé a été retiré.
