@@ -18,6 +18,7 @@ export default function Sidebar({
 }) {
   const canManageAccounts = account.role === 'ADMIN'
   const isStaff = account.role === 'ADMIN' || account.role === 'TEACHER'
+  const isStudent = account.role === 'STUDENT'
 
   /**
    * Affiche la page choisie puis ferme le menu mobile.
@@ -101,22 +102,6 @@ export default function Sidebar({
           >
             <ContactRound aria-hidden="true" size={20} />
             Gestion des comptes
-          </button>
-        ) : null}
-
-        {canManageAccounts ? (
-          <button
-            className={
-              currentPage === 'administrators' || currentPage === 'administrator-details'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="administrators"
-            onClick={handleNavigation}
-          >
-            <ShieldCheck aria-hidden="true" size={20} />
-            Administrateurs
           </button>
         ) : null}
 
@@ -216,6 +201,17 @@ export default function Sidebar({
           >
             <NotebookPen aria-hidden="true" size={20} />
             Notes
+          </button>
+        ) : null}
+        {isStudent ? (
+          <button
+            className={currentPage === 'student-grades' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+            type="button"
+            data-page="student-grades"
+            onClick={handleNavigation}
+          >
+            <NotebookPen aria-hidden="true" size={20} />
+            Mes notes
           </button>
         ) : null}
       </nav>

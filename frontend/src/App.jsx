@@ -22,6 +22,7 @@ import AdministratorsPage from './pages/administrators_page.jsx'
 import AdministratorDetailsPage from './pages/administrator_details_page.jsx'
 import TeachersPage from './pages/teachers_page.jsx'
 import TeacherDetailsPage from './pages/teacher_details_page.jsx'
+import StudentGradesPage from './pages/student_grades_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
 
 const PAGE_PATHS = {
@@ -36,6 +37,7 @@ const PAGE_PATHS = {
   subjects: '/subjects',
   notes: '/notes',
   administrators: '/administrators',
+  'student-grades': '/my-grades',
 }
 
 /**
@@ -60,6 +62,7 @@ function getCurrentPage(pathname) {
   if (pathname === '/subjects') return 'subjects'
   if (pathname === '/notes') return 'notes'
   if (pathname === '/administrators') return 'administrators'
+  if (pathname === '/my-grades') return 'student-grades'
   return 'home'
 }
 
@@ -259,6 +262,9 @@ export default function App() {
         onNavigate={handleNavigate}
       />
     )
+  }
+  else if (currentPage === 'student-grades' && currentAccount.role === 'STUDENT') {
+    pageContent = <StudentGradesPage />
   }
   return (
     <MainLayout
