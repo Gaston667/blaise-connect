@@ -69,7 +69,7 @@
 | US | Deadline | Nom de l’US | Description de l’US | Statut | Fichiers concernés |
 |---|---|---|---|---|---|
 | US-013 | 11/08/2026 | Création des évaluations | En tant qu’enseignant, je veux créer une évaluation pour l’une de mes classes et matières afin de préparer la saisie des résultats. | À étudier | `database/migration/005_academic_activity.sql`, `docs/diagramme/database_03_assessments_grades.plantuml` ; backend et frontend à créer |
-| US-014 | 13/08/2026 | Saisie des notes | En tant qu’enseignant, je veux saisir les notes de mes élèves pour une évaluation afin d’enregistrer leurs résultats. | À étudier | `database/migration/005_academic_activity.sql`, `database/init/050_creat_teste_data.sql`, `docs/diagramme/database_03_assessments_grades.plantuml` ; backend et frontend à créer |
+| US-014 | 13/08/2026 | Saisie des notes | En tant qu’enseignant, je veux saisir les notes de mes élèves pour une évaluation afin d’enregistrer leurs résultats. | En cours | `database/migration/005_academic_activity.sql`, `database/init/050_creat_teste_data.sql`, `backend/app/routes/grades.py`, `backend/app/services/grade_service.py`, `backend/app/schemas/grade_*.py`, `frontend/src/pages/notes_page.jsx`, `frontend/src/services/notes_service.js`, `docs/diagramme/database_03_assessments_grades.plantuml` ; consultation et saisie individuelle reliées, saisie collective et tests restant à faire |
 | US-015 | 14/08/2026 | Calcul des moyennes | En tant qu’utilisateur autorisé, je veux que les moyennes soient calculées automatiquement afin d’obtenir des résultats fiables par matière et par période. | À étudier | Schéma source dans `database/migration/005_academic_activity.sql` ; service de calcul et règle d’arrondi à créer |
 
 ---
