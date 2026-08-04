@@ -30,6 +30,7 @@ import {
 } from '../services/school_classes_overview_service.js'
 import { enrollStudent, listStudents } from '../services/students_service.js'
 import { createTeacherAssignment } from '../services/teachers_overview_service.js'
+import { generateWeeklyTimetable, DEFAULT_DAYS } from '../utils/timetable_generator.js'
 import './../styles/school_class_details_page.css'
 
 const STATUS_LABEL = { ACTIVE: 'Actif', ARCHIVEE: 'Archivée' }
@@ -101,6 +102,12 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   const [editingSubjectId, setEditingSubjectId] = useState(null)
   const [editCoefficientValue, setEditCoefficientValue] = useState('')
   const [savingCoefficient, setSavingCoefficient] = useState(false)
+  // Heures/semaine par matière (maquette locale, pas encore de colonne backend
+  // — en attente de validation du schéma avant de créer la migration).
+  const [weeklyHoursBySubjectId, setWeeklyHoursBySubjectId] = useState({})
+  const [editingHoursSubjectId, setEditingHoursSubjectId] = useState(null)
+  const [editHoursValue, setEditHoursValue] = useState('')
+  const [generatedTimetable, setGeneratedTimetable] = useState(null)
   // Retrait matière
   const [confirmRemoveSubjectId, setConfirmRemoveSubjectId] = useState(null)
   const [removingSubject, setRemovingSubject] = useState(false)
@@ -260,6 +267,41 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     } finally {
       setAddingSubject(false)
     }
+  }
+
+  function startEditWeeklyHours(subject) {
+    setEditingHoursSubjectId(subject.id)
+    setEditHoursValue(String(weeklyHoursBySubjectId[subject.id] ?? ''))
+  }
+
+  function cancelEditWeeklyHours() {
+    setEditingHoursSubjectId(null)
+    setEditHoursValue('')
+  }
+
+  function handleSaveWeeklyHours(classSubjectId) {
+    const hours = parseFloat(editHoursValue)
+    if (!hours || hours <= 0) { setError('Le nombre d\'heures doit être un nombre positif.'); return }
+    setWeeklyHoursBySubjectId((current) => ({ ...current, [classSubjectId]: hours }))
+    setEditingHoursSubjectId(null)
+    setError('')
+  }
+
+  function handleGenerateTimetable() {
+    const subjectHours = subjects
+      .filter((subject) => weeklyHoursBySubjectId[subject.id] > 0)
+      .map((subject) => ({
+        subjectId: subject.id,
+        subjectName: subject.name,
+        hours: weeklyHoursBySubjectId[subject.id],
+      }))
+
+    if (subjectHours.length === 0) {
+      setError('Renseignez au moins une matière avec des heures/semaine avant de générer un aperçu.')
+      return
+    }
+    setError('')
+    setGeneratedTimetable(generateWeeklyTimetable(subjectHours))
   }
 
   function startEditCoefficient(subject) {
@@ -852,12 +894,16 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                 </button>
               </form>
 
+              <p className="scd-subjects-hint">
+                Heures/semaine : maquette locale pour préparer l'emploi du temps automatique, pas encore enregistrée en base.
+              </p>
               <div className="scd-subjects-table-wrapper">
                 <table className="scd-subjects-table">
                   <thead>
                     <tr>
                       <th>Matière</th>
                       <th>Coefficient</th>
+                      <th>Heures/semaine</th>
                       <th className="scd-col-teacher">Enseignant affecté</th>
                       <th>Statut</th>
                       <th>Actions</th>
@@ -916,6 +962,49 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                             </span>
                           )}
                         </td>
+                        <td>
+                          {editingHoursSubjectId === subject.id ? (
+                            <span className="scd-coef-edit">
+                              <input
+                                type="number"
+                                min="0.5"
+                                step="0.5"
+                                className="scd-coef-input"
+                                value={editHoursValue}
+                                onChange={(e) => setEditHoursValue(e.target.value)}
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                className="scd-btn-primary scd-btn-sm"
+                                onClick={() => handleSaveWeeklyHours(subject.id)}
+                              >
+                                ✓
+                              </button>
+                              <button
+                                type="button"
+                                className="scd-btn-outline scd-btn-sm"
+                                onClick={cancelEditWeeklyHours}
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ) : (
+                            <span className="scd-coef-display">
+                              {weeklyHoursBySubjectId[subject.id]
+                                ? `${weeklyHoursBySubjectId[subject.id]} h`
+                                : '—'}
+                              <button
+                                type="button"
+                                className="scd-btn-icon"
+                                title="Définir les heures/semaine"
+                                onClick={() => startEditWeeklyHours(subject)}
+                              >
+                                ✎
+                              </button>
+                            </span>
+                          )}
+                        </td>
                         <td className="scd-col-teacher">
                           {subject.teacher_name ?? (
                             <span className="scd-no-teacher">
@@ -957,6 +1046,54 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   <p className="scd-subjects-empty">Aucune matière ne correspond aux filtres.</p>
                 )}
                 {subjectsLoading && <p className="scd-subjects-empty">Chargement des matières…</p>}
+              </div>
+
+              <div className="scd-generate-block">
+                <button type="button" className="scd-btn-primary" onClick={handleGenerateTimetable}>
+                  <CalendarDays aria-hidden="true" size={16} /> Générer un aperçu d'emploi du temps
+                </button>
+
+                {generatedTimetable && (
+                  <div className="scd-generated-preview">
+                    {generatedTimetable.warnings.map((warning) => (
+                      <p key={warning} className="scd-generate-warning">{warning}</p>
+                    ))}
+
+                    <div className="scd-generated-grid-wrapper">
+                      <div className="scd-generated-grid">
+                        {DEFAULT_DAYS.map((day) => (
+                          <div key={day} className="scd-generated-grid__day-head">{day}</div>
+                        ))}
+                        {generatedTimetable.grid[DEFAULT_DAYS[0]].map((_, periodIndex) => (
+                          DEFAULT_DAYS.map((day) => {
+                            const classSubjectId = generatedTimetable.grid[day][periodIndex]
+                            const subject = subjects.find((s) => s.id === classSubjectId)
+                            return (
+                              <div
+                                key={`${day}-${periodIndex}`}
+                                className={classSubjectId ? 'scd-generated-cell' : 'scd-generated-cell scd-generated-cell--free'}
+                              >
+                                {subject ? subject.name : 'Libre'}
+                              </div>
+                            )
+                          })
+                        ))}
+                      </div>
+                    </div>
+
+                    {generatedTimetable.unplacedHoursBySubject.length > 0 && (
+                      <p className="scd-generate-warning">
+                        Heures non placées : {generatedTimetable.unplacedHoursBySubject
+                          .map((entry) => `${entry.subjectName} (${entry.hours}h)`)
+                          .join(', ')}
+                      </p>
+                    )}
+
+                    <p className="scd-subjects-hint">
+                      Aperçu généré localement, non enregistré — sert à valider les règles de placement avant de brancher un vrai algorithme côté backend.
+                    </p>
+                  </div>
+                )}
               </div>
             </section>
           )}
