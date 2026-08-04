@@ -18,6 +18,9 @@ ESTABLISHMENT_OPENING_TIME = time(8, 0)
 LUNCH_BREAK_START = time(12, 0)
 LUNCH_BREAK_END = time(13, 30)
 
+# Un cours particulier ne peut avoir lieu qu'après les cours réguliers.
+SPECIAL_COURSE_MIN_START_TIME = time(17, 30)
+
 # Récréation : horaire différent pour le primaire/la maternelle et le
 # collège/lycée.
 PRIMARY_BREAK_START = time(9, 30)
@@ -181,18 +184,140 @@ def delete_timetable_slot(db: Session, slot_id: str) -> bool:
     return result.rowcount > 0
 
 
-def get_student_timetable(db: Session, student_id: str) -> list[dict]:
-    """Retourne l'emploi du temps de la classe active de l'élève."""
-    enrollment = db.execute(
+def _get_open_enrollment(db: Session, student_id: str):
+    return db.execute(
         text(
             """
-            SELECT class_id FROM student_enrollments
+            SELECT id, class_id FROM student_enrollments
             WHERE student_id = :student_id AND end_date IS NULL
             LIMIT 1
             """
         ),
         {"student_id": student_id},
     ).first()
+
+
+def create_special_course(
+    db: Session,
+    student_id: UUID,
+    subject_id: UUID,
+    day_of_week: int,
+    start_time: time,
+    end_time: time,
+    note: str | None,
+) -> dict:
+    """Crée un cours particulier pour l'élève, uniquement après 17h30."""
+
+    if start_time < SPECIAL_COURSE_MIN_START_TIME or end_time > ESTABLISHMENT_CLOSING_TIME:
+        raise ValueError("Un cours particulier ne peut avoir lieu qu'entre 17h30 et 19h00.")
+
+    enrollment = _get_open_enrollment(db, student_id)
+    if enrollment is None:
+        raise ValueError("Cet élève n'a pas d'inscription active.")
+
+    try:
+        row = db.execute(
+            text(
+                """
+                INSERT INTO special_courses (student_enrollment_id, subject_id, day_of_week, start_time, end_time, note)
+                VALUES (:student_enrollment_id, :subject_id, :day_of_week, :start_time, :end_time, :note)
+                RETURNING id
+                """
+            ),
+            {
+                "student_enrollment_id": enrollment.id,
+                "subject_id": subject_id,
+                "day_of_week": day_of_week,
+                "start_time": start_time,
+                "end_time": end_time,
+                "note": note,
+            },
+        ).mappings().first()
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise ValueError("Cet élève a déjà un cours particulier sur ce créneau.") from exc
+
+    return {"id": row["id"]}
+
+
+def list_class_special_courses(db: Session, class_id: str) -> list[dict]:
+    """Retourne les cours particuliers des élèves actuellement inscrits dans la classe."""
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                special_course.id,
+                special_course.day_of_week,
+                special_course.start_time,
+                special_course.end_time,
+                special_course.note,
+                subject.name AS subject_name,
+                student.first_name AS student_first_name,
+                student.last_name AS student_last_name
+            FROM special_courses AS special_course
+            JOIN student_enrollments AS enrollment ON enrollment.id = special_course.student_enrollment_id
+            JOIN students AS student ON student.id = enrollment.student_id
+            JOIN subjects AS subject ON subject.id = special_course.subject_id
+            WHERE enrollment.class_id = :class_id AND enrollment.end_date IS NULL
+            ORDER BY special_course.day_of_week, special_course.start_time
+            """
+        ),
+        {"class_id": class_id},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def delete_special_course(db: Session, special_course_id: str) -> bool:
+    """Supprime un cours particulier. Retourne False s'il n'existait pas."""
+    result = db.execute(
+        text("DELETE FROM special_courses WHERE id = :id"),
+        {"id": special_course_id},
+    )
+    db.commit()
+    return result.rowcount > 0
+
+
+def get_student_timetable(db: Session, student_id: str) -> list[dict]:
+    """Retourne l'emploi du temps de la classe active de l'élève, cours particuliers inclus."""
+    enrollment = _get_open_enrollment(db, student_id)
     if enrollment is None:
         return []
-    return get_class_timetable(db, enrollment.class_id)
+
+    regular_slots = get_class_timetable(db, enrollment.class_id)
+    for slot in regular_slots:
+        slot["is_special"] = False
+
+    special_rows = db.execute(
+        text(
+            """
+            SELECT
+                special_course.id,
+                special_course.day_of_week,
+                special_course.start_time,
+                special_course.end_time,
+                special_course.note,
+                subject.name AS subject_name,
+                class_level.education_stage
+            FROM special_courses AS special_course
+            JOIN subjects AS subject ON subject.id = special_course.subject_id
+            JOIN student_enrollments AS enr ON enr.id = special_course.student_enrollment_id
+            JOIN classes AS school_class ON school_class.id = enr.class_id
+            JOIN class_levels AS class_level ON class_level.id = school_class.class_level_id
+            WHERE special_course.student_enrollment_id = :enrollment_id
+            ORDER BY special_course.day_of_week, special_course.start_time
+            """
+        ),
+        {"enrollment_id": enrollment.id},
+    ).mappings().all()
+
+    special_slots = []
+    for row in special_rows:
+        entry = dict(row)
+        entry["class_subject_id"] = None
+        entry["teacher_name"] = None
+        entry["room_name"] = None
+        entry["is_special"] = True
+        special_slots.append(entry)
+
+    return regular_slots + special_slots

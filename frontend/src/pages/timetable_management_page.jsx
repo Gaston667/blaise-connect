@@ -3,7 +3,14 @@ import { CalendarDays, Plus, Trash2 } from 'lucide-react'
 
 import { getSchoolClassesOverview, getSchoolClassSubjects } from '../services/school_classes_overview_service.js'
 import { listStudents } from '../services/students_service.js'
-import { getClassTimetable, createTimetableSlot, clearClassTimetable } from '../services/timetable_service.js'
+import {
+  getClassTimetable,
+  createTimetableSlot,
+  clearClassTimetable,
+  getClassSpecialCourses,
+  createSpecialCourse,
+  deleteSpecialCourse,
+} from '../services/timetable_service.js'
 import { generateWeeklyTimetable, DEFAULT_DAYS, getRegularPeriodsForStage, getDayScheduleForStage } from '../utils/timetable_generator.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/timetable_management_page.css'
@@ -34,13 +41,15 @@ export default function TimetableManagementPage() {
   const [saving, setSaving] = useState(false)
 
   const [students, setStudents] = useState([])
-  const [specialCoursesByClassId, setSpecialCoursesByClassId] = useState({})
+  const [specialCourses, setSpecialCourses] = useState([])
+  const [specialCoursesLoading, setSpecialCoursesLoading] = useState(false)
+  const [addingSpecialCourse, setAddingSpecialCourse] = useState(false)
   const [specialCourseForm, setSpecialCourseForm] = useState({
     studentId: '',
-    subjectName: '',
-    day: DEFAULT_DAYS[0],
-    startTime: '08:00',
-    endTime: '09:00',
+    subjectId: '',
+    day: 1,
+    startTime: '17:30',
+    endTime: '18:30',
     note: '',
   })
 
@@ -64,27 +73,32 @@ export default function TimetableManagementPage() {
       setStudents([])
       setGeneratedTimetable(null)
       setSavedSlots([])
+      setSpecialCourses([])
       return
     }
     setSubjectsLoading(true)
     setSavedSlotsLoading(true)
+    setSpecialCoursesLoading(true)
     setWeeklyHoursBySubjectId({})
     setGeneratedTimetable(null)
     async function load() {
       try {
-        const [subjectData, studentData, timetableData] = await Promise.all([
+        const [subjectData, studentData, timetableData, specialCourseData] = await Promise.all([
           getSchoolClassSubjects(selectedClassId),
           listStudents({ class_id: selectedClassId, limit: 100 }),
           getClassTimetable(selectedClassId),
+          getClassSpecialCourses(selectedClassId),
         ])
         setSubjects(subjectData)
         setStudents(Array.isArray(studentData) ? studentData : studentData.items ?? [])
         setSavedSlots(timetableData)
+        setSpecialCourses(specialCourseData)
       } catch (e) {
         setError(e.message)
       } finally {
         setSubjectsLoading(false)
         setSavedSlotsLoading(false)
+        setSpecialCoursesLoading(false)
       }
     }
     load()
@@ -147,11 +161,9 @@ export default function TimetableManagementPage() {
     }
   }
 
-  const specialCourses = specialCoursesByClassId[selectedClassId] ?? []
-
-  function handleAddSpecialCourse(event) {
+  async function handleAddSpecialCourse(event) {
     event.preventDefault()
-    if (!specialCourseForm.studentId || !specialCourseForm.subjectName.trim()) {
+    if (!specialCourseForm.studentId || !specialCourseForm.subjectId) {
       setError('Choisissez un élève et une matière pour le cours particulier.')
       return
     }
@@ -159,36 +171,39 @@ export default function TimetableManagementPage() {
       setError('L\'heure de fin doit être après l\'heure de début.')
       return
     }
-    if (specialCourseForm.startTime < '08:00' || specialCourseForm.endTime > '19:00') {
-      setError('Un cours particulier doit rester entre 8h00 et 19h00.')
+    if (specialCourseForm.startTime < '17:30' || specialCourseForm.endTime > '19:00') {
+      setError('Un cours particulier ne peut avoir lieu qu\'entre 17h30 et 19h00 (les cours réguliers occupent déjà 8h-17h30).')
       return
     }
-    const student = students.find((s) => s.id === specialCourseForm.studentId)
-    const newCourse = {
-      id: crypto.randomUUID(),
-      studentId: specialCourseForm.studentId,
-      studentName: student
-        ? formatProfileName(student.first_name, student.last_name, student.gender)
-        : '—',
-      subjectName: specialCourseForm.subjectName.trim(),
-      day: specialCourseForm.day,
-      startTime: specialCourseForm.startTime,
-      endTime: specialCourseForm.endTime,
-      note: specialCourseForm.note.trim(),
-    }
-    setSpecialCoursesByClassId((current) => ({
-      ...current,
-      [selectedClassId]: [...(current[selectedClassId] ?? []), newCourse],
-    }))
-    setSpecialCourseForm((current) => ({ ...current, subjectName: '', note: '' }))
+    setAddingSpecialCourse(true)
     setError('')
+    try {
+      await createSpecialCourse(selectedClassId, {
+        student_id: specialCourseForm.studentId,
+        subject_id: specialCourseForm.subjectId,
+        day_of_week: Number(specialCourseForm.day),
+        start_time: specialCourseForm.startTime,
+        end_time: specialCourseForm.endTime,
+        note: specialCourseForm.note.trim() || null,
+      })
+      const refreshed = await getClassSpecialCourses(selectedClassId)
+      setSpecialCourses(refreshed)
+      setSpecialCourseForm((current) => ({ ...current, subjectId: '', note: '' }))
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setAddingSpecialCourse(false)
+    }
   }
 
-  function handleRemoveSpecialCourse(courseId) {
-    setSpecialCoursesByClassId((current) => ({
-      ...current,
-      [selectedClassId]: (current[selectedClassId] ?? []).filter((course) => course.id !== courseId),
-    }))
+  async function handleRemoveSpecialCourse(specialCourseId) {
+    setError('')
+    try {
+      await deleteSpecialCourse(specialCourseId)
+      setSpecialCourses((current) => current.filter((course) => course.id !== specialCourseId))
+    } catch (e) {
+      setError(e.message)
+    }
   }
 
   const savedSlotsByDayAndTime = new Map(
@@ -372,8 +387,8 @@ export default function TimetableManagementPage() {
           <section className="tmp-section">
             <h2>Cours particuliers</h2>
             <p className="tmp-section-hint">
-              Ajoutez un cours en dehors du planning commun pour un élève précis de cette classe (8h-19h).
-              Non enregistré en base : la table actuelle ne porte pas de créneau propre à un seul élève.
+              Ajoutez un cours en dehors du planning commun pour un élève précis de cette classe, uniquement
+              entre 17h30 et 19h00 (les cours réguliers occupent déjà 8h-17h30).
             </p>
 
             <form className="tmp-special-form" onSubmit={handleAddSpecialCourse}>
@@ -393,12 +408,15 @@ export default function TimetableManagementPage() {
               </label>
               <label>
                 <span>Matière</span>
-                <input
-                  type="text"
-                  value={specialCourseForm.subjectName}
-                  onChange={(e) => setSpecialCourseForm((c) => ({ ...c, subjectName: e.target.value }))}
-                  placeholder="Ex. Soutien mathématiques"
-                />
+                <select
+                  value={specialCourseForm.subjectId}
+                  onChange={(e) => setSpecialCourseForm((c) => ({ ...c, subjectId: e.target.value }))}
+                >
+                  <option value="">Sélectionner…</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.subject_id} value={subject.subject_id}>{subject.name}</option>
+                  ))}
+                </select>
               </label>
               <label>
                 <span>Jour</span>
@@ -406,14 +424,14 @@ export default function TimetableManagementPage() {
                   value={specialCourseForm.day}
                   onChange={(e) => setSpecialCourseForm((c) => ({ ...c, day: e.target.value }))}
                 >
-                  {DEFAULT_DAYS.map((day) => <option key={day} value={day}>{day}</option>)}
+                  {DEFAULT_DAYS.map((day, index) => <option key={day} value={index + 1}>{day}</option>)}
                 </select>
               </label>
               <label>
                 <span>Début</span>
                 <input
                   type="time"
-                  min="08:00"
+                  min="17:30"
                   max="19:00"
                   value={specialCourseForm.startTime}
                   onChange={(e) => setSpecialCourseForm((c) => ({ ...c, startTime: e.target.value }))}
@@ -423,7 +441,7 @@ export default function TimetableManagementPage() {
                 <span>Fin</span>
                 <input
                   type="time"
-                  min="08:00"
+                  min="17:30"
                   max="19:00"
                   value={specialCourseForm.endTime}
                   onChange={(e) => setSpecialCourseForm((c) => ({ ...c, endTime: e.target.value }))}
@@ -438,20 +456,25 @@ export default function TimetableManagementPage() {
                   placeholder="Ex. Salle 3, rattrapage"
                 />
               </label>
-              <button type="submit" className="tmp-btn-primary tmp-special-submit">
-                <Plus aria-hidden="true" size={16} /> Ajouter
+              <button type="submit" className="tmp-btn-primary tmp-special-submit" disabled={addingSpecialCourse}>
+                <Plus aria-hidden="true" size={16} /> {addingSpecialCourse ? 'Ajout…' : 'Ajouter'}
               </button>
             </form>
 
             <ul className="tmp-special-list">
-              {specialCourses.length === 0 ? (
+              {specialCoursesLoading ? (
+                <li className="tmp-empty">Chargement…</li>
+              ) : specialCourses.length === 0 ? (
                 <li className="tmp-empty">Aucun cours particulier pour cette classe.</li>
               ) : (
                 specialCourses.map((course) => (
                   <li key={course.id} className="tmp-special-item">
                     <div>
-                      <strong>{course.subjectName}</strong>
-                      <span>{course.studentName} · {course.day} {course.startTime}–{course.endTime}</span>
+                      <strong>{course.subject_name}</strong>
+                      <span>
+                        {course.student_first_name} {course.student_last_name} · {DEFAULT_DAYS[course.day_of_week - 1]}{' '}
+                        {timeLabel(course.start_time)}–{timeLabel(course.end_time)}
+                      </span>
                       {course.note && <span className="tmp-special-note-text">{course.note}</span>}
                     </div>
                     <button

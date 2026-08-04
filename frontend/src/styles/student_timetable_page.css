@@ -84,3 +84,4 @@
 .stp-cell--blue .stp-cell__title { color: var(--sgp-blue-fg); }
 .stp-cell--orange { background: var(--sgp-orange-bg); }
 .stp-cell--orange .stp-cell__title { color: var(--sgp-orange-fg); }
+.stp-cell--special { border: 1px dashed currentColor; }

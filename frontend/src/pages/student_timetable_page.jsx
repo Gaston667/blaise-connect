@@ -63,9 +63,14 @@ export default function StudentTimetablePage() {
     }
   })
 
-  const slotsByDayAndTime = new Map(
-    slots.map((slot) => [`${slot.day_of_week}-${timeLabel(slot.start_time)}`, slot])
-  )
+  function findSlotForCell(dayIndex, period) {
+    return slots.find(
+      (slot) =>
+        slot.day_of_week === dayIndex + 1 &&
+        timeLabel(slot.start_time) < period.end &&
+        timeLabel(slot.end_time) > period.start
+    )
+  }
   const daySchedule = getDayScheduleForStage(slots[0]?.education_stage, { fullDay: true })
 
   return (
@@ -100,16 +105,19 @@ export default function StudentTimetablePage() {
                       <span>{entry.end}</span>
                     </div>
                     {DEFAULT_DAYS.map((day, dayIndex) => {
-                      const slot = slotsByDayAndTime.get(`${dayIndex + 1}-${entry.start}`)
+                      const slot = findSlotForCell(dayIndex, entry)
                       if (!slot) {
                         return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
                       }
                       const SubjectIcon = getSubjectIcon(slot.subject_name)
                       const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
                       return (
-                        <div key={`${day}-${entry.start}`} className={`stp-cell stp-cell--${color}`}>
+                        <div key={`${day}-${entry.start}`} className={`stp-cell stp-cell--${color}${slot.is_special ? ' stp-cell--special' : ''}`}>
                           <span className="stp-cell__title"><SubjectIcon aria-hidden="true" size={14} /> {slot.subject_name}</span>
-                          <span className="stp-cell__meta">{slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}</span>
+                          <span className="stp-cell__meta">
+                            {slot.is_special ? 'Cours particulier' : slot.teacher_name}
+                            {slot.room_name ? ` · ${slot.room_name}` : ''}
+                          </span>
                         </div>
                       )
                     })}

@@ -43,3 +43,29 @@ export function clearClassTimetable(classId) {
     fallbackMessage: "Échec de la suppression de l'emploi du temps",
   })
 }
+
+/** Cours particuliers des élèves de la classe. */
+export function getClassSpecialCourses(classId) {
+  return apiRequestJson(`/api/school-classes/${classId}/special-courses`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des cours particuliers',
+  })
+}
+
+/** Ajoute un cours particulier pour un élève (17h30-19h00 uniquement). */
+export function createSpecialCourse(classId, payload) {
+  return apiRequestJson(`/api/school-classes/${classId}/special-courses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    fallbackMessage: 'Échec de la création du cours particulier',
+  })
+}
+
+/** Supprime un cours particulier. */
+export function deleteSpecialCourse(specialCourseId) {
+  return apiRequestJson(`/api/special-courses/${specialCourseId}`, {
+    method: 'DELETE',
+    fallbackMessage: 'Échec de la suppression du cours particulier',
+  })
+}
