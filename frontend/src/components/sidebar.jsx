@@ -123,6 +123,18 @@ export default function Sidebar({
 
         {canManageAccounts ? (
           <button
+            className={currentPage === 'timetables' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+            type="button"
+            data-page="timetables"
+            onClick={handleNavigation}
+          >
+            <CalendarDays aria-hidden="true" size={20} />
+            Emploi du temps
+          </button>
+        ) : null}
+
+        {canManageAccounts ? (
+          <button
             className={
               currentPage === 'school-years'
                 ? 'layout-navigation-item layout-navigation-item-active'

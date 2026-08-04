@@ -24,6 +24,7 @@ import TeachersPage from './pages/teachers_page.jsx'
 import TeacherDetailsPage from './pages/teacher_details_page.jsx'
 import StudentGradesPage from './pages/student_grades_page.jsx'
 import StudentTimetablePage from './pages/student_timetable_page.jsx'
+import TimetableManagementPage from './pages/timetable_management_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
 
 const PAGE_PATHS = {
@@ -40,6 +41,7 @@ const PAGE_PATHS = {
   administrators: '/administrators',
   'student-grades': '/my-grades',
   'student-timetable': '/my-timetable',
+  timetables: '/timetables',
 }
 
 /**
@@ -66,6 +68,7 @@ function getCurrentPage(pathname) {
   if (pathname === '/administrators') return 'administrators'
   if (pathname === '/my-grades') return 'student-grades'
   if (pathname === '/my-timetable') return 'student-timetable'
+  if (pathname === '/timetables') return 'timetables'
   return 'home'
 }
 
@@ -271,6 +274,9 @@ export default function App() {
   }
   else if (currentPage === 'student-timetable' && currentAccount.role === 'STUDENT') {
     pageContent = <StudentTimetablePage />
+  }
+  else if (currentPage === 'timetables' && canManageSchool) {
+    pageContent = <TimetableManagementPage />
   }
   return (
     <MainLayout

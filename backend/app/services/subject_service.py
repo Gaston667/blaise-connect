@@ -157,7 +157,6 @@ def create_subject(db: Session, data: SubjectCreate) -> Subject:
     subject = Subject(
         name=data.name,
         description=data.description,
-        is_active=data.is_active,
     )
     db.add(subject)
     db.commit()

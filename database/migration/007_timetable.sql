@@ -10,6 +10,11 @@
 
 BEGIN;
 
+-- PostgreSQL ne fournit pas de type range natif pour "time" (seulement pour
+-- date/int/numeric/timestamp) : on en déclare un pour exprimer les
+-- chevauchements de créneaux avec l'opérateur && (EXCLUDE et triggers).
+CREATE TYPE timerange AS RANGE (subtype = time);
+
 -- =========================================================
 -- 1. SALLES
 -- =========================================================

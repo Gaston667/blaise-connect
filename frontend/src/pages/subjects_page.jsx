@@ -34,7 +34,7 @@ function formatCoefficient(coefficient) {
   return coefficient === null || coefficient === undefined ? '—' : coefficient.toFixed(2)
 }
 
-const EMPTY_SUBJECT_FORM = { name: '', description: '', is_active: true }
+const EMPTY_SUBJECT_FORM = { name: '', description: '' }
 
 export default function SubjectsPage({ onNavigate }) {
   const [query, setQuery] = useState('')
@@ -121,8 +121,7 @@ export default function SubjectsPage({ onNavigate }) {
 
   function updateFormField(event) {
     const { name, value, type, checked } = event.target
-    let fieldValue = type === 'checkbox' ? checked : value
-    if (name === 'is_active') fieldValue = value === 'true'
+    const fieldValue = type === 'checkbox' ? checked : value
     setSubjectForm((current) => ({ ...current, [name]: fieldValue }))
   }
 
@@ -134,7 +133,6 @@ export default function SubjectsPage({ onNavigate }) {
       const payload = {
         name: subjectForm.name,
         description: subjectForm.description || null,
-        is_active: subjectForm.is_active,
       }
       await createSubject(payload)
       setConfirmationMessage('La matière a été créée avec succès.')
@@ -313,20 +311,8 @@ export default function SubjectsPage({ onNavigate }) {
                 <textarea name="description" value={subjectForm.description} onChange={updateFormField} rows="3" />
               </label>
 
-              <label>
-                Statut *
-                <select
-                  name="is_active"
-                  value={subjectForm.is_active ? 'true' : 'false'}
-                  onChange={updateFormField}
-                  required
-                >
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
-              </label>
-
               <p className="sjp-modal__hint">
+                La matière est créée active ; le statut se modifie ensuite depuis sa fiche.
                 Le coefficient sera défini lors de l’association de la matière à une classe.
               </p>
 

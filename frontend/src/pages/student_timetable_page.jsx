@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   BookOpen,
   Calculator,
@@ -10,6 +10,8 @@ import {
   Palette,
 } from 'lucide-react'
 
+import { getMyTimetable } from '../services/student_timetable_service.js'
+import { DEFAULT_DAYS, getDayScheduleForStage } from '../utils/timetable_generator.js'
 import '../styles/student_timetable_page.css'
 
 const PALETTE = ['violet', 'green', 'blue', 'orange']
@@ -29,103 +31,94 @@ function getSubjectIcon(subjectName) {
   return match ? match[1] : BookOpen
 }
 
-// Données simulées le temps que le backend (nouvelle table timetable_slots) soit disponible.
-const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
-
-const PERIODS = [
-  { start: '08h', end: '09h' },
-  { start: '09h', end: '10h' },
-  { start: '10h15', end: '11h15' },
-  { start: '11h15', end: '12h15' },
-]
-
-// index = position de la période dans PERIODS ; null = créneau libre
-const GRID = {
-  Lundi: [
-    { subject_name: 'Mathématiques', teacher_name: 'M. Camara', room: 'Salle 12' },
-    { subject_name: 'Français', teacher_name: 'Mme Diallo', room: 'Salle 4' },
-    { subject_name: 'Anglais', teacher_name: 'Mme Barry', room: 'Salle 8' },
-    { subject_name: 'EPS', teacher_name: 'M. Barry', room: 'Gymnase' },
-  ],
-  Mardi: [
-    { subject_name: 'Français', teacher_name: 'Mme Diallo', room: 'Salle 4' },
-    { subject_name: 'Histoire-Géo', teacher_name: 'M. Koné', room: 'Salle 6' },
-    { subject_name: 'Mathématiques', teacher_name: 'M. Camara', room: 'Salle 12' },
-    null,
-  ],
-  Mercredi: [
-    { subject_name: 'Anglais', teacher_name: 'Mme Barry', room: 'Salle 8' },
-    { subject_name: 'Anglais', teacher_name: 'Mme Barry', room: 'Salle 8' },
-    null,
-    null,
-  ],
-  Jeudi: [
-    { subject_name: 'Mathématiques', teacher_name: 'M. Camara', room: 'Salle 12' },
-    { subject_name: 'SVT', teacher_name: 'M. Touré', room: 'Labo 2' },
-    { subject_name: 'Histoire-Géo', teacher_name: 'M. Koné', room: 'Salle 6' },
-    { subject_name: 'Français', teacher_name: 'Mme Diallo', room: 'Salle 4' },
-  ],
-  Vendredi: [
-    { subject_name: 'Physique-Chimie', teacher_name: 'M. Sylla', room: 'Labo 1' },
-    null,
-    { subject_name: 'Français', teacher_name: 'Mme Diallo', room: 'Salle 4' },
-    null,
-  ],
+function timeLabel(value) {
+  return value?.slice(0, 5) ?? value
 }
 
 export default function StudentTimetablePage() {
+  const [slots, setSlots] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(function loadTimetableEffect() {
+    async function load() {
+      try {
+        setSlots(await getMyTimetable())
+      } catch (e) {
+        setError(e.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  if (loading) return <main className="stp-main"><p>Chargement de votre emploi du temps…</p></main>
+  if (error) return <main className="stp-main"><p className="stp-error">{error}</p></main>
+
   const subjectColorByName = new Map()
-  Object.values(GRID).flat().forEach((slot) => {
-    if (slot && !subjectColorByName.has(slot.subject_name)) {
+  slots.forEach((slot) => {
+    if (!subjectColorByName.has(slot.subject_name)) {
       subjectColorByName.set(slot.subject_name, PALETTE[subjectColorByName.size % PALETTE.length])
     }
   })
+
+  const slotsByDayAndTime = new Map(
+    slots.map((slot) => [`${slot.day_of_week}-${timeLabel(slot.start_time)}`, slot])
+  )
+  const daySchedule = getDayScheduleForStage(slots[0]?.education_stage, { fullDay: true })
 
   return (
     <main className="stp-main">
       <header className="stp-header">
         <div>
           <h1><CalendarDays aria-hidden="true" size={22} /> Emploi du temps</h1>
-          <p>Semaine du 1 au 5 septembre</p>
+          <p>Établissement ouvert de 8h00 à 19h00.</p>
         </div>
       </header>
 
-      <p className="stp-mock-banner">
-        Données de démonstration — l'emploi du temps réel sera branché une fois le backend disponible.
-      </p>
-
       <section className="stp-section">
-        <div className="stp-grid-wrapper">
-          <div className="stp-grid" style={{ '--stp-period-count': PERIODS.length }}>
-            <div className="stp-grid__corner" />
-            {DAYS.map((day) => (
-              <div key={day} className="stp-grid__day-head">{day}</div>
-            ))}
+        {slots.length === 0 ? (
+          <p className="stp-empty">Aucun emploi du temps disponible pour le moment.</p>
+        ) : (
+          <div className="stp-grid-wrapper">
+            <div className="stp-grid" style={{ '--stp-period-count': daySchedule.length }}>
+              <div className="stp-grid__corner" />
+              {DEFAULT_DAYS.map((day) => (
+                <div key={day} className="stp-grid__day-head">{day}</div>
+              ))}
 
-            {PERIODS.map((period, periodIndex) => (
-              <Fragment key={`period-${period.start}`}>
-                <div className="stp-grid__time">
-                  <strong>{period.start}</strong>
-                  <span>{period.end}</span>
-                </div>
-                {DAYS.map((day) => {
-                  const slot = GRID[day]?.[periodIndex]
-                  if (!slot) {
-                    return <div key={`${day}-${periodIndex}`} className="stp-cell stp-cell--free">Libre</div>
-                  }
-                  const SubjectIcon = getSubjectIcon(slot.subject_name)
-                  const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
-                  return (
-                    <div key={`${day}-${periodIndex}`} className={`stp-cell stp-cell--${color}`}>
-                      <span className="stp-cell__title"><SubjectIcon aria-hidden="true" size={14} /> {slot.subject_name}</span>
-                      <span className="stp-cell__meta">{slot.teacher_name} · {slot.room}</span>
+              {daySchedule.map((entry) => (
+                entry.type === 'break' ? (
+                  <div key={`break-${entry.start}`} className="stp-break-row">
+                    {entry.label} ({entry.start}-{entry.end})
+                  </div>
+                ) : (
+                  <Fragment key={`period-${entry.start}`}>
+                    <div className="stp-grid__time">
+                      <strong>{entry.start}</strong>
+                      <span>{entry.end}</span>
                     </div>
-                  )
-                })}
-              </Fragment>
-            ))}
+                    {DEFAULT_DAYS.map((day, dayIndex) => {
+                      const slot = slotsByDayAndTime.get(`${dayIndex + 1}-${entry.start}`)
+                      if (!slot) {
+                        return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
+                      }
+                      const SubjectIcon = getSubjectIcon(slot.subject_name)
+                      const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
+                      return (
+                        <div key={`${day}-${entry.start}`} className={`stp-cell stp-cell--${color}`}>
+                          <span className="stp-cell__title"><SubjectIcon aria-hidden="true" size={14} /> {slot.subject_name}</span>
+                          <span className="stp-cell__meta">{slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}</span>
+                        </div>
+                      )
+                    })}
+                  </Fragment>
+                )
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </section>
     </main>
   )

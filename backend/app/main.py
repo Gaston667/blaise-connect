@@ -17,6 +17,8 @@ from app.routes.subjects import router as subjects_router
 from app.routes.administrators import router as administrators_router
 from app.routes.grades import router as grades_router
 from app.routes.student_grades import router as student_grades_router
+from app.routes.student_timetable import router as student_timetable_router
+from app.routes.timetables import router as timetables_router
 # Importation des routeurs
 from app.routes.auth import router as auth_router
 from app.routes.health import router as health_router
@@ -40,6 +42,7 @@ app.include_router(accounts_router)
 app.include_router(school_years_router)
 app.include_router(reporting_periods_router)
 app.include_router(student_grades_router)
+app.include_router(student_timetable_router)
 app.include_router(students_router)
 app.include_router(school_classes_router)
 app.include_router(guardians_router)
@@ -49,3 +52,4 @@ app.include_router(account_files_router)
 app.include_router(subjects_router)
 app.include_router(administrators_router)
 app.include_router(grades_router)
+app.include_router(timetables_router)

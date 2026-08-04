@@ -112,6 +112,7 @@ def list_school_classes_overview(
             c.updated_at,
             cl.name AS level_name,
             cl.display_order AS level_display_order,
+            cl.education_stage,
             sy.name AS school_year_name,
             t.first_name AS teacher_first_name,
             t.last_name AS teacher_last_name,
