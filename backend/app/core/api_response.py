@@ -83,6 +83,12 @@ async def wrap_success_responses(request: Request, call_next):
     """Enveloppe les réponses JSON de succès sans toucher aux erreurs."""
 
     response = await call_next(request)
+
+    # Swagger doit recevoir le document OpenAPI brut : l'envelopper dans
+    # {success, code, message, data} masquerait le champ racine `openapi`.
+    if request.url.path == "/openapi.json":
+        return response
+
     if response.status_code >= 400:
         return response
 

@@ -18,7 +18,8 @@ function formatAverage(value) {
 }
 
 
-export default function SubjectDetailsPage({ subject, onNavigate }) {
+export default function SubjectDetailsPage({ account, subject, onNavigate }) {
+  const canEdit = account?.role === 'ADMIN'
   const [details, setDetails] = useState(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -149,14 +150,14 @@ export default function SubjectDetailsPage({ subject, onNavigate }) {
               </span>
             </div>
           </div>
-          {!editing && (
+          {canEdit && !editing && (
             <button type="button" className="sdt-edit-button" onClick={startEditing}>
               <Pencil aria-hidden="true" size={16} /> Modifier
             </button>
           )}
         </div>
 
-        {editing ? (
+        {canEdit && editing ? (
           <form className="sdt-edit-form" onSubmit={saveSubject}>
             <label>
               Nom *
@@ -203,7 +204,7 @@ export default function SubjectDetailsPage({ subject, onNavigate }) {
           <div>
             <strong>{formatAverage(details.best_establishment_average)}</strong>
             <span>Meilleure moyenne de l’établissement</span>
-            <small>{details.best_establishment_student_name || 'Disponible après la mise en place des notes'}</small>
+            <small>{details.best_establishment_student_name || 'Aucune moyenne calculable'}</small>
           </div>
         </article>
       </section>
@@ -214,7 +215,7 @@ export default function SubjectDetailsPage({ subject, onNavigate }) {
             <h2>Résultats par classe</h2>
             <p>Configuration de la matière et meilleure moyenne obtenue dans chaque classe.</p>
           </div>
-          <span>Calculs disponibles au Sprint 4</span>
+          <span>Moyennes officielles sur 20</span>
         </header>
 
         <div className="sdt-table-wrapper">

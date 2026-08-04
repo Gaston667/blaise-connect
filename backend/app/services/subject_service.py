@@ -65,11 +65,7 @@ def list_subjects_overview(
 
 
 def get_subject_detail(db: Session, subject_id: str) -> dict | None:
-    """Charge une matière et ses associations de classes.
-
-    Les performances restent nulles jusqu'à l'implémentation validée des
-    évaluations, notes et règles de calcul du Sprint 4.
-    """
+    """Charge une matière, ses classes et leurs performances officielles."""
 
     subject = db.execute(
         text(
@@ -88,6 +84,7 @@ def get_subject_detail(db: Session, subject_id: str) -> dict | None:
         text(
             """
             SELECT
+                cs.id AS class_subject_id,
                 c.id AS class_id,
                 cl.name || ' ' || c.group_label AS class_name,
                 cl.name AS level_name,
@@ -119,8 +116,74 @@ def get_subject_detail(db: Session, subject_id: str) -> dict | None:
         {"subject_id": subject_id},
     ).all()
 
-    classes = [
-        {
+    performance_rows = db.execute(
+        text(
+            """
+            WITH effective_grades AS (
+                SELECT
+                    class_subject.id AS class_subject_id,
+                    student.id AS student_id,
+                    concat_ws(' ', student.first_name, student.last_name) AS student_name,
+                    assessment.coefficient,
+                    CASE
+                        WHEN grade.result_type = 'SCORED'
+                            THEN (grade.score / assessment.maximum_score) * 20
+                        WHEN grade.result_type = 'ABSENT'
+                         AND grade.justification_status IN ('UNJUSTIFIED', 'REJECTED')
+                            THEN 0
+                        ELSE NULL
+                    END AS effective_score
+                FROM grades AS grade
+                JOIN assessments AS assessment ON assessment.id = grade.assessment_id
+                JOIN teacher_assignments AS assignment
+                  ON assignment.id = assessment.teacher_assignment_id
+                JOIN class_subjects AS class_subject
+                  ON class_subject.id = assignment.class_subject_id
+                JOIN student_enrollments AS enrollment
+                  ON enrollment.id = grade.student_enrollment_id
+                 AND enrollment.class_id = class_subject.class_id
+                JOIN students AS student ON student.id = enrollment.student_id
+                WHERE class_subject.subject_id = :subject_id
+            ),
+            student_averages AS (
+                SELECT
+                    class_subject_id,
+                    student_id,
+                    student_name,
+                    SUM(effective_score * coefficient)
+                    / NULLIF(
+                        SUM(coefficient) FILTER (
+                            WHERE effective_score IS NOT NULL
+                        ),
+                        0
+                    ) AS average_on_20
+                FROM effective_grades
+                GROUP BY class_subject_id, student_id, student_name
+            ),
+            ranked AS (
+                SELECT
+                    student_averages.*,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY class_subject_id
+                        ORDER BY average_on_20 DESC NULLS LAST, student_name
+                    ) AS class_rank
+                FROM student_averages
+                WHERE average_on_20 IS NOT NULL
+            )
+            SELECT class_subject_id, student_id, student_name, average_on_20
+            FROM ranked
+            WHERE class_rank = 1
+            """
+        ),
+        {"subject_id": subject_id},
+    ).all()
+    performances = {row.class_subject_id: row for row in performance_rows}
+
+    classes: list[dict] = []
+    best_establishment = None
+    for row in class_rows:
+        performance = performances.get(row.class_subject_id)
+        class_item = {
             "class_id": row.class_id,
             "class_name": row.class_name,
             "level_name": row.level_name,
@@ -128,12 +191,21 @@ def get_subject_detail(db: Session, subject_id: str) -> dict | None:
             "coefficient": float(row.coefficient),
             "teacher_id": row.teacher_id,
             "teacher_name": row.teacher_name,
-            "best_average": None,
-            "best_student_id": None,
-            "best_student_name": None,
+            "best_average": (
+                float(performance.average_on_20)
+                if performance is not None
+                else None
+            ),
+            "best_student_id": performance.student_id if performance is not None else None,
+            "best_student_name": performance.student_name if performance is not None else None,
         }
-        for row in class_rows
-    ]
+        classes.append(class_item)
+        if class_item["best_average"] is not None and (
+            best_establishment is None
+            or class_item["best_average"] > best_establishment["best_average"]
+        ):
+            best_establishment = class_item
+
     teacher_ids = {row.teacher_id for row in class_rows if row.teacher_id is not None}
 
     return {
@@ -145,9 +217,15 @@ def get_subject_detail(db: Session, subject_id: str) -> dict | None:
         "updated_at": subject.updated_at,
         "class_count": len(classes),
         "teacher_count": len(teacher_ids),
-        "best_establishment_average": None,
-        "best_establishment_student_id": None,
-        "best_establishment_student_name": None,
+        "best_establishment_average": (
+            best_establishment["best_average"] if best_establishment else None
+        ),
+        "best_establishment_student_id": (
+            best_establishment["best_student_id"] if best_establishment else None
+        ),
+        "best_establishment_student_name": (
+            best_establishment["best_student_name"] if best_establishment else None
+        ),
         "classes": classes,
     }
 

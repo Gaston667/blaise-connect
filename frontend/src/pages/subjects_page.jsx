@@ -36,7 +36,8 @@ function formatCoefficient(coefficient) {
 
 const EMPTY_SUBJECT_FORM = { name: '', description: '', is_active: true }
 
-export default function SubjectsPage({ onNavigate }) {
+export default function SubjectsPage({ account, onNavigate }) {
+  const canEdit = account?.role === 'ADMIN'
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [classFilter, setClassFilter] = useState('')
@@ -162,9 +163,11 @@ export default function SubjectsPage({ onNavigate }) {
             <span>Matières</span>
           </nav>
         </div>
-        <button type="button" className="sjp-btn-primary" onClick={openCreateModal}>
-          <span className="sjp-btn-primary__plus">+</span> Ajouter une matière
-        </button>
+        {canEdit && (
+          <button type="button" className="sjp-btn-primary" onClick={openCreateModal}>
+            <span className="sjp-btn-primary__plus">+</span> Ajouter une matière
+          </button>
+        )}
       </div>
 
       {confirmationMessage && (
@@ -285,7 +288,7 @@ export default function SubjectsPage({ onNavigate }) {
         )}
       </section>
 
-      {showModal && (
+      {canEdit && showModal && (
         <div className="sjp-modal-backdrop" role="presentation" onMouseDown={closeModal}>
           <section
             className="sjp-modal"

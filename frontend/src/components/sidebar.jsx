@@ -17,6 +17,7 @@ export default function Sidebar({
   onLogoutSuccess,
 }) {
   const canManageAccounts = account.role === 'ADMIN'
+  const canManageNotes = account.role === 'ADMIN' || account.role === 'TEACHER'
 
   /**
    * Affiche la page choisie puis ferme le menu mobile.
@@ -101,15 +102,17 @@ export default function Sidebar({
           Élèves
         </button>
 
-        <button
-          className={currentPage === 'teachers' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
-          type="button"
-          data-page="teachers"
-          onClick={handleNavigation}
-        >
-          <Presentation aria-hidden="true" size={20} />
-          Enseignants
-        </button>
+        {canManageAccounts ? (
+          <button
+            className={currentPage === 'teachers' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+            type="button"
+            data-page="teachers"
+            onClick={handleNavigation}
+          >
+            <Presentation aria-hidden="true" size={20} />
+            Enseignants
+          </button>
+        ) : null}
 
         {canManageAccounts ? (
           <button
@@ -184,15 +187,17 @@ export default function Sidebar({
           <BookOpen aria-hidden="true" size={20} />
           Matières
         </button>
-        <button
-          className={currentPage === 'notes' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
-          type="button"
-          data-page="notes"
-          onClick={handleNavigation}
-        >
-          <NotebookPen aria-hidden="true" size={20} />
-          Notes
-        </button>
+        {canManageNotes ? (
+          <button
+            className={currentPage === 'notes' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+            type="button"
+            data-page="notes"
+            onClick={handleNavigation}
+          >
+            <NotebookPen aria-hidden="true" size={20} />
+            Notes
+          </button>
+        ) : null}
       </nav>
 
       <LogoutButton onLogoutSuccess={onLogoutSuccess} />

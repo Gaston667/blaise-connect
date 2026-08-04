@@ -30,4 +30,7 @@ class GradeOverview(BaseModel):
     assessment_date: date
     comment: str | None
     justification_status: str | None
+    reviewed_by_account_id: UUID | None
+    reviewed_at: datetime | None
     created_at: datetime
+    updated_at: datetime

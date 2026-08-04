@@ -52,7 +52,10 @@ def list_grades(
             assessment.assessment_date,
             grade.comment,
             grade.justification_status,
-            grade.created_at
+            grade.reviewed_by_account_id,
+            grade.reviewed_at,
+            grade.created_at,
+            grade.updated_at
         FROM grades AS grade
         JOIN assessments AS assessment
           ON assessment.id = grade.assessment_id
@@ -380,3 +383,48 @@ def create_grade(
     if not created_grades:
         raise RuntimeError("La note créée ne peut pas être relue.")
     return created_grades[0]
+
+
+def review_grade_absence(
+    db: Session,
+    admin: Account,
+    grade_id: UUID,
+    justification_status: str,
+) -> dict:
+    """Valide ou rejette définitivement un justificatif d'absence."""
+
+    grade = db.execute(
+        text(
+            """
+            SELECT id, result_type
+            FROM grades
+            WHERE id = :grade_id
+            FOR UPDATE
+            """
+        ),
+        {"grade_id": grade_id},
+    ).first()
+    if grade is None:
+        raise LookupError("Note introuvable.")
+    if grade.result_type != "ABSENT":
+        raise ValueError("Seule une absence peut recevoir une décision de justificatif.")
+
+    db.execute(
+        text(
+            """
+            UPDATE grades
+               SET justification_status = :justification_status,
+                   reviewed_by_account_id = :reviewed_by_account_id,
+                   reviewed_at = now()
+             WHERE id = :grade_id
+            """
+        ),
+        {
+            "justification_status": justification_status,
+            "reviewed_by_account_id": admin.id,
+            "grade_id": grade_id,
+        },
+    )
+    db.commit()
+    grades = list_grades(db=db, actor=admin, grade_id=grade_id)
+    return grades[0]

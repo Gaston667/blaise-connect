@@ -26,6 +26,7 @@ import {
   deactivateStudent,
   reactivateStudent,
   enrollStudent,
+  getStudentAcademicSummary,
 } from '../services/students_service.js'
 import {
   linkGuardianToStudent,
@@ -104,6 +105,7 @@ export default function StudentDetailsPage({ student, onNavigate }) {
   const [informationMessage, setInformationMessage] = useState('')
   const [editPhoto, setEditPhoto] = useState(null)
   const [editPhotoPreview, setEditPhotoPreview] = useState('')
+  const [academicSummary, setAcademicSummary] = useState(null)
   const debouncedGuardianQuery = useDebouncedValue(guardianQuery)
 
   function handleHomeNavigation() {
@@ -277,14 +279,16 @@ export default function StudentDetailsPage({ student, onNavigate }) {
   async function load() {
     if (!student?.id) return
     try {
-      const [full, yearsRes, classesRes] = await Promise.all([
+      const [full, yearsRes, classesRes, summary] = await Promise.all([
         getStudent(student.id),
         import('../services/school_year_service.js').then((m) => m.getSchoolYears()),
         import('../services/school_class_service.js').then((m) => m.getSchoolClasses()),
+        getStudentAcademicSummary(student.id),
       ])
       setDetails(full)
       setSchoolYears(yearsRes)
       setClasses(classesRes)
+      setAcademicSummary(summary)
       resetForm(full)
     } catch (e) {
       console.error(e)
@@ -655,28 +659,58 @@ export default function StudentDetailsPage({ student, onNavigate }) {
               <div className="sdp-school-stats">
                 <article>
                   <UserRound aria-hidden="true" size={22} />
-                  <div><span>Absences</span><strong>—</strong></div>
+                  <div><span>Absences</span><strong>{academicSummary?.absence_count ?? 0}</strong></div>
                 </article>
                 <article>
                   <Clock3 aria-hidden="true" size={22} />
-                  <div><span>Retards</span><strong>—</strong></div>
+                  <div><span>Retards</span><strong>{academicSummary?.late_count ?? 0}</strong></div>
                 </article>
                 <article>
                   <ClipboardCheck aria-hidden="true" size={22} />
-                  <div><span>Évaluations notées</span><strong>—</strong></div>
+                  <div><span>Évaluations notées</span><strong>{academicSummary?.scored_assessment_count ?? 0}</strong></div>
                 </article>
                 <article>
                   <ChartNoAxesColumnIncreasing aria-hidden="true" size={22} />
-                  <div><span>Moyenne générale</span><strong>— /20</strong></div>
+                  <div>
+                    <span>Moyenne générale</span>
+                    <strong>
+                      {academicSummary?.general_average_on_20 == null
+                        ? '—'
+                        : `${Number(academicSummary.general_average_on_20).toFixed(2)} /20`}
+                    </strong>
+                  </div>
                 </article>
               </div>
 
               <div className="sdp-school-tables">
                 <section>
-                  <h3>Notes de l’année en cours</h3>
-                  <p className="sdp-placeholder">
-                    Les notes seront affichées lorsque cette fonctionnalité sera disponible.
-                  </p>
+                  <h3>Moyennes de l’année en cours</h3>
+                  <div className="sdp-school-table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Matière</th>
+                          <th>Évaluations retenues</th>
+                          <th>Coefficient</th>
+                          <th>Moyenne</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(academicSummary?.subject_averages ?? []).length === 0 ? (
+                          <tr><td colSpan="4">Aucune moyenne calculable.</td></tr>
+                        ) : academicSummary.subject_averages.map(function renderSubjectAverage(item) {
+                          return (
+                            <tr key={item.class_subject_id}>
+                              <td>{item.subject_name}</td>
+                              <td>{item.assessment_count}</td>
+                              <td>{Number(item.class_coefficient).toFixed(2)}</td>
+                              <td>{item.average_on_20 == null ? '—' : `${Number(item.average_on_20).toFixed(2)} /20`}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </section>
 
                 <section>
@@ -692,12 +726,18 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr>
-                          <td>{details.school_year_name ?? yearName(details.school_year_id)}</td>
-                          <td>{details.class_name ?? className(details.class_id)}</td>
-                          <td><span className="sdp-school-status">En cours</span></td>
-                          <td>—</td>
-                        </tr>
+                        {(academicSummary?.history ?? []).length === 0 ? (
+                          <tr><td colSpan="4">Aucune inscription scolaire.</td></tr>
+                        ) : academicSummary.history.map(function renderAcademicHistory(item) {
+                          return (
+                            <tr key={item.enrollment_id}>
+                              <td>{item.school_year_name}</td>
+                              <td>{item.class_name}</td>
+                              <td><span className="sdp-school-status">{item.end_date ? 'Terminée' : 'En cours'}</span></td>
+                              <td>{item.general_average_on_20 == null ? '—' : `${Number(item.general_average_on_20).toFixed(2)} /20`}</td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>

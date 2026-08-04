@@ -62,7 +62,8 @@ function isHighSchoolLevel(level) {
   return level?.education_stage === 'HIGH_SCHOOL'
 }
 
-export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
+export default function SchoolClassDetailsPage({ account, schoolClass, onNavigate }) {
+  const canEdit = account?.role === 'ADMIN'
   const [details, setDetails] = useState(schoolClass)
   const [activeTab, setActiveTab] = useState('info')
   const [editing, setEditing] = useState(false)
@@ -112,19 +113,22 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     loadFormOptions()
   }, [schoolClass?.id])
 
-  useEffect(function loadClassStudentsEffect() {
+  useEffect(() => {
     if (activeTab === 'students') {
       loadClassStudents()
     }
   }, [activeTab, schoolClass?.id])
 
-  useEffect(function reactiveStudentFiltersEffect() {
+  useEffect(() => {
     if (activeTab === 'students') {
-      loadClassStudents({ q: debouncedStudentSearch, status: debouncedStudentStatus })
+      loadClassStudents({
+        q: debouncedStudentSearch,
+        status: debouncedStudentStatus,
+      })
     }
   }, [activeTab, debouncedStudentSearch, debouncedStudentStatus, schoolClass?.id])
 
-  useEffect(function loadClassSubjectsEffect() {
+  useEffect(() => {
     if (activeTab === 'subjects') {
       loadClassSubjects()
     }
@@ -132,28 +136,34 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
 
   useEffect(function reactiveSubjectFiltersEffect() {
     if (activeTab === 'subjects') {
-      loadClassSubjects({ q: debouncedSubjectSearch, status: debouncedSubjectStatus })
+      loadClassSubjects({
+        q: debouncedSubjectSearch,
+        isActive: debouncedSubjectStatus,
+      })
     }
   }, [activeTab, debouncedSubjectSearch, debouncedSubjectStatus, schoolClass?.id])
 
   async function load() {
     if (!schoolClass?.id) return
+    setError('')
+    setMenuOpen(false)
+    setConfirmingDelete(false)
+    setEditing(false)
+    setSubjectPickerOpen(false)
+    setTeacherPickerOpen(false)
+    setAssignPickerSubjectId(null)
+    setConfirmRemoveSubjectId(null)
+    setEditingSubjectId(null)
+
     try {
       const full = await getSchoolClassDetail(schoolClass.id)
       setDetails(full)
       resetForm(full)
     } catch (e) {
-      console.error(e)
+      setError(e.message)
+      setDetails(schoolClass ?? null)
+      resetForm(schoolClass)
     }
-  }
-
-  function resetForm(d) {
-    setForm({
-      class_level_id: d.class_level_id ?? '',
-      group_label: d.group_label ?? '',
-      capacity: d.capacity ?? '',
-      main_teacher_id: d.main_teacher_id ?? '',
-    })
   }
 
   async function loadFormOptions() {
@@ -165,7 +175,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
       setClassLevels(availableLevels)
       setTeachers(availableTeachers)
     } catch (loadError) {
-      console.error(loadError)
+      setError(loadError.message)
     }
   }
 
@@ -353,6 +363,20 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
+  function resetForm(currentDetails) {
+    if (!currentDetails) {
+      setForm({})
+      return
+    }
+
+    setForm({
+      class_level_id: currentDetails.class_level_id ?? '',
+      group_label: currentDetails.group_label ?? '',
+      capacity: currentDetails.capacity ?? '',
+      main_teacher_id: currentDetails.main_teacher_id ?? '',
+    })
+  }
+
   async function handleSave(e) {
     e.preventDefault()
     setError('')
@@ -446,25 +470,27 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
           </div>
         </div>
 
-        <div className="scd-header__actions">
-          <div className="scd-menu-wrapper">
-            <button type="button" className="scd-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
-              Actions ▾
-            </button>
-            {menuOpen && (
-              <div className="scd-menu">
-                <button className="scd-menu__danger" onClick={() => { setMenuOpen(false); setConfirmingDelete(true) }}>
-                  🗑 Supprimer la classe
-                </button>
-              </div>
-            )}
+        {canEdit && (
+          <div className="scd-header__actions">
+            <div className="scd-menu-wrapper">
+              <button type="button" className="scd-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
+                Actions ▾
+              </button>
+              {menuOpen && (
+                <div className="scd-menu">
+                  <button className="scd-menu__danger" onClick={() => { setMenuOpen(false); setConfirmingDelete(true) }}>
+                    🗑 Supprimer la classe
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {error && <p className="scd-error">{error}</p>}
 
-      {confirmingDelete && (
+      {canEdit && confirmingDelete && (
         <div className="scd-confirm-overlay" onClick={() => setConfirmingDelete(false)}>
           <div className="scd-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Supprimer définitivement cette classe ?</h3>
@@ -516,13 +542,15 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                     <Phone aria-hidden="true" size={15} />
                     {details.teacher_phone ?? 'Téléphone non renseigné'}
                   </div>
-                  <button
-                    type="button"
-                    className="scd-teacher-link"
-                    onClick={openTeacherDetails}
-                  >
-                    Voir le profil de l’enseignant →
-                  </button>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      className="scd-teacher-link"
+                      onClick={openTeacherDetails}
+                    >
+                      Voir le profil de l’enseignant →
+                    </button>
+                  )}
                 </div>
                   </div>
                 </article>
@@ -550,7 +578,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                 </article>
               </section>
 
-              {editing ? (
+              {canEdit && editing ? (
               <form onSubmit={handleSave} className="scd-form">
                 <div className="scd-section-heading">
                   <h3>Informations générales</h3>
@@ -634,9 +662,11 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                 <div className="scd-view">
                   <div className="scd-section-heading">
                     <h3>Informations générales</h3>
-                    <button type="button" className="scd-btn-outline" onClick={handleEdit}>
-                      ✎ Modifier
-                    </button>
+                    {canEdit && (
+                      <button type="button" className="scd-btn-outline" onClick={handleEdit}>
+                        ✎ Modifier
+                      </button>
+                    )}
                   </div>
                   <dl>
                     <div>
@@ -767,9 +797,11 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   <h3>Matières de la classe</h3>
                   <p>{subjects.length} matière(s) affichée(s)</p>
                 </div>
-                <button type="button" className="scd-btn-primary" onClick={openSubjectPicker}>
-                  + Ajouter une matière
-                </button>
+                {canEdit && (
+                  <button type="button" className="scd-btn-primary" onClick={openSubjectPicker}>
+                    + Ajouter une matière
+                  </button>
+                )}
               </div>
 
               <form className="scd-subject-filters" onSubmit={(event) => event.preventDefault()}>
@@ -819,7 +851,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                           </span>
                         </td>
                         <td>
-                          {editingSubjectId === subject.id ? (
+                          {canEdit && editingSubjectId === subject.id ? (
                             <span className="scd-coef-edit">
                               <input
                                 type="number"
@@ -849,14 +881,16 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                           ) : (
                             <span className="scd-coef-display">
                               {Number(subject.coefficient).toLocaleString('fr-FR')}
-                              <button
-                                type="button"
-                                className="scd-btn-icon"
-                                title="Modifier le coefficient"
-                                onClick={() => startEditCoefficient(subject)}
-                              >
-                                ✎
-                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  className="scd-btn-icon"
+                                  title="Modifier le coefficient"
+                                  onClick={() => startEditCoefficient(subject)}
+                                >
+                                  ✎
+                                </button>
+                              )}
                             </span>
                           )}
                         </td>
@@ -864,14 +898,16 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                           {subject.teacher_name ?? (
                             <span className="scd-no-teacher">
                               Non affecté
-                              <button
-                                type="button"
-                                className="scd-btn-icon"
-                                title="Affecter un enseignant"
-                                onClick={() => openAssignPicker(subject.id)}
-                              >
-                                + Affecter
-                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  className="scd-btn-icon"
+                                  title="Affecter un enseignant"
+                                  onClick={() => openAssignPicker(subject.id)}
+                                >
+                                  + Affecter
+                                </button>
+                              )}
                             </span>
                           )}
                         </td>
@@ -884,14 +920,16 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                           </span>
                         </td>
                         <td>
-                          <button
-                            type="button"
-                            className="scd-btn-danger scd-btn-sm"
-                            title="Retirer la matière"
-                            onClick={() => setConfirmRemoveSubjectId(subject.id)}
-                          >
-                            Retirer
-                          </button>
+                          {canEdit ? (
+                            <button
+                              type="button"
+                              className="scd-btn-danger scd-btn-sm"
+                              title="Retirer la matière"
+                              onClick={() => setConfirmRemoveSubjectId(subject.id)}
+                            >
+                              Retirer
+                            </button>
+                          ) : '—'}
                         </td>
                       </tr>
                     ))}
@@ -908,7 +946,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
 
       </div>
 
-      {teacherPickerOpen && (
+      {canEdit && teacherPickerOpen && (
         <div className="scd-confirm-overlay" onClick={closeTeacherPicker}>
           <section
             className="scd-teacher-picker"
@@ -967,7 +1005,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
         </div>
       )}
 
-      {subjectPickerOpen && (
+      {canEdit && subjectPickerOpen && (
         <div className="scd-confirm-overlay" onClick={closeSubjectPicker}>
           <section
             className="scd-teacher-picker"
@@ -1045,7 +1083,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
         </div>
       )}
 
-      {confirmRemoveSubjectId && (
+      {canEdit && confirmRemoveSubjectId && (
         <div className="scd-confirm-overlay" onClick={() => setConfirmRemoveSubjectId(null)}>
           <div className="scd-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Retirer cette matière ?</h3>
@@ -1060,7 +1098,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
         </div>
       )}
 
-      {assignPickerSubjectId && (
+      {canEdit && assignPickerSubjectId && (
         <div className="scd-confirm-overlay" onClick={closeAssignPicker}>
           <section
             className="scd-teacher-picker"

@@ -91,7 +91,8 @@ function getAssignmentEndDate(assignment) {
   return today
 }
 
-export default function TeacherDetailsPage({ teacher }) {
+export default function TeacherDetailsPage({ account, teacher }) {
+  const canEdit = account?.role === 'ADMIN'
   const toast = useToast()
   const [details, setDetails] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -189,21 +190,13 @@ export default function TeacherDetailsPage({ teacher }) {
     })
   }, [evaluationClassFilter, evaluationRows, evaluationSort, evaluationSubjectFilter])
 
-  const evaluationSummary = useMemo(() => {
-    const total = filteredAndSortedEvaluations.length
-    const classes = new Set(filteredAndSortedEvaluations.map((row) => row.class_id)).size
-    const subjects = new Set(filteredAndSortedEvaluations.map((row) => row.subject_name)).size
-    const coefficientAverage = total === 0
-      ? 0
-      : filteredAndSortedEvaluations.reduce((sum, row) => sum + Number(row.coefficient || 0), 0) / total
-
-    return {
-      total,
-      classes,
-      subjects,
-      coefficientAverage,
-    }
-  }, [filteredAndSortedEvaluations])
+  const evaluationSummary = details?.evaluation_summary ?? {
+    assessment_count: 0,
+    class_count: 0,
+    subject_count: 0,
+    expected_grade_count: 0,
+    grade_count: 0,
+  }
 
   function syncPersonalForm(source) {
     setPersonalForm({
@@ -563,12 +556,12 @@ export default function TeacherDetailsPage({ teacher }) {
                 <h3>Informations personnelles</h3>
                 <p className="tdp-panel__description">Données administratives du dossier enseignant.</p>
               </div>
-              {!isEditingPersonal ? (
+              {canEdit && !isEditingPersonal ? (
                 <button type="button" className="tdp-assign-button" onClick={startPersonalEdit}>
                   <Pencil aria-hidden="true" size={16} />
                   Modifier
                 </button>
-              ) : (
+              ) : canEdit && isEditingPersonal ? (
                 <div className="tdp-actions-row">
                   <button type="button" className="tdp-modal__secondary" onClick={cancelPersonalEdit} disabled={personalSaving}>
                     Annuler
@@ -577,10 +570,9 @@ export default function TeacherDetailsPage({ teacher }) {
                     {personalSaving ? 'Enregistrement…' : 'Enregistrer'}
                   </button>
                 </div>
-              )}
+              ) : null}
             </div>
-
-            {!isEditingPersonal ? (
+            {!canEdit || !isEditingPersonal ? (
               <dl className="tdp-personal-list">
                 <div>
                   <dt><UserRound aria-hidden="true" size={16} /> Prénom</dt>
@@ -781,10 +773,12 @@ export default function TeacherDetailsPage({ teacher }) {
                   Liste des matières que l’enseignant enseigne et des classes associées.
                 </p>
               </div>
-              <button type="button" className="tdp-assign-button" onClick={openSubjectAssignModal}>
-                <BookOpen aria-hidden="true" size={16} />
-                Affecter une matière
-              </button>
+              {canEdit && (
+                <button type="button" className="tdp-assign-button" onClick={openSubjectAssignModal}>
+                  <BookOpen aria-hidden="true" size={16} />
+                  Affecter une matière
+                </button>
+              )}
             </div>
 
             <div className="tdp-table-wrap">
@@ -828,14 +822,16 @@ export default function TeacherDetailsPage({ teacher }) {
                         <td>{subjectRow.coefficient}</td>
                         <td>{subjectRow.school_year_name}</td>
                         <td>
-                          <button
-                            type="button"
-                            className="tdp-danger-action"
-                            onClick={() => requestSubjectRemoval(subjectRow)}
-                          >
-                            <Unlink aria-hidden="true" size={14} />
-                            Désaffecter
-                          </button>
+                          {canEdit ? (
+                            <button
+                              type="button"
+                              className="tdp-danger-action"
+                              onClick={() => requestSubjectRemoval(subjectRow)}
+                            >
+                              <Unlink aria-hidden="true" size={14} />
+                              Désaffecter
+                            </button>
+                          ) : '—'}
                         </td>
                       </tr>
                     ))
@@ -851,10 +847,13 @@ export default function TeacherDetailsPage({ teacher }) {
             <section className="tdp-panel tdp-panel--nested">
               <h3>Synthèse des performances</h3>
               <div className="tdp-kpi-grid">
-                <article><span>Évaluations listées</span><strong>{evaluationSummary.total}</strong></article>
-                <article><span>Classes couvertes</span><strong>{evaluationSummary.classes}</strong></article>
-                <article><span>Matières couvertes</span><strong>{evaluationSummary.subjects}</strong></article>
-                <article><span>Coefficient moyen</span><strong>{evaluationSummary.coefficientAverage.toFixed(2)}</strong></article>
+                <article><span>Évaluations créées</span><strong>{evaluationSummary.assessment_count}</strong></article>
+                <article><span>Classes couvertes</span><strong>{evaluationSummary.class_count}</strong></article>
+                <article><span>Matières couvertes</span><strong>{evaluationSummary.subject_count}</strong></article>
+                <article>
+                  <span>Notes saisies</span>
+                  <strong>{evaluationSummary.grade_count} / {evaluationSummary.expected_grade_count}</strong>
+                </article>
               </div>
             </section>
 
@@ -895,7 +894,7 @@ export default function TeacherDetailsPage({ teacher }) {
               <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('class_name')}>
                 Classe {getSortLabel('class_name')}
               </button>
-              <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('date')}>
+              <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('assessment_date')}>
                 Date {getSortLabel('date')}
               </button>
               <button type="button" className="tdp-sort-btn" onClick={() => toggleEvaluationSort('coefficient')}>
@@ -941,9 +940,9 @@ export default function TeacherDetailsPage({ teacher }) {
                         <td>{row.title}</td>
                         <td>{row.subject_name}</td>
                         <td>{row.class_name}</td>
-                        <td>{row.date ? formatDate(row.date) : 'Non disponible V1'}</td>
+                        <td>{formatDate(row.assessment_date)}</td>
                         <td>{row.coefficient}</td>
-                        <td>{row.maximum_score ?? 'Non disponible V1'}</td>
+                        <td>{row.maximum_score}</td>
                       </tr>
                     ))
                   )}
@@ -953,7 +952,7 @@ export default function TeacherDetailsPage({ teacher }) {
           </article>
         )}
 
-        {subjectAssignOpen && (
+        {canEdit && subjectAssignOpen && (
           <div className="tdp-modal-backdrop" role="presentation">
             <section className="tdp-modal" role="dialog" aria-modal="true" aria-labelledby="tdp-assign-subject-title">
               <header className="tdp-modal__header">
@@ -1057,6 +1056,7 @@ export default function TeacherDetailsPage({ teacher }) {
           </div>
         )}
 
+        {canEdit && (
         <ConfirmationDialog
           open={Boolean(subjectToRemove)}
           title="Désaffecter une matière"
@@ -1072,6 +1072,7 @@ export default function TeacherDetailsPage({ teacher }) {
           onCancel={cancelSubjectRemoval}
           onConfirm={confirmSubjectRemoval}
         />
+        )}
 
       </section>
     </main>

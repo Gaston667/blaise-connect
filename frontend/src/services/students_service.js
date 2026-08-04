@@ -24,6 +24,13 @@ export function getStudent(id) {
   })
 }
 
+export function getStudentAcademicSummary(id) {
+  return apiRequestJson(`${STUDENTS_API_URL}${id}/academic-summary`, {
+    method: 'GET',
+    fallbackMessage: 'Impossible de charger les résultats scolaires.',
+  })
+}
+
 export function enrollStudent(studentId, enrollmentData) {
   return apiRequestJson(`${STUDENTS_API_URL}${studentId}/enroll`, {
     method: 'POST',

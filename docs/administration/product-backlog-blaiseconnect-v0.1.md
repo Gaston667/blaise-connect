@@ -52,14 +52,14 @@ Les estimations comprennent le développement, les tests et la documentation.
 | US-010 | Responsables légaux | Gérer et associer les responsables légaux | Indispensable pour le MVP | L | 🟥 À faire |
 | US-011 | Inscriptions | Inscrire un élève dans une classe et une année | Indispensable pour le MVP | M | 🟥 À faire |
 | US-012 | Consultation | Rechercher et consulter les élèves autorisés | Indispensable pour le MVP | M | 🟥 À faire |
-| US-013 | Évaluations | Créer et gérer une évaluation | Indispensable pour le MVP | M | 🟥 À faire |
-| US-014 | Notes | Saisir les notes d’une évaluation | Indispensable pour le MVP | L | 🟥 À faire |
-| US-015 | Moyennes | Calculer les moyennes automatiquement | Indispensable pour le MVP | L | 🟥 À faire |
-| US-016 | Notes | Demander et valider la modification d’une note | Important | L | 🟥 À faire |
+| US-013 | Évaluations | Créer et gérer une évaluation | Indispensable pour le MVP | M | 🟩 Terminé |
+| US-014 | Notes | Saisir les notes d’une évaluation | Indispensable pour le MVP | L | 🟩 Terminé |
+| US-015 | Moyennes | Calculer les moyennes automatiquement | Indispensable pour le MVP | L | 🟨 En cours — arrondi à valider |
+| US-016 | Notes | Demander et valider la modification d’une note | Important | L | 🟩 Terminé |
 | US-017 | Appréciations | Saisir les appréciations des élèves | Important | M | 🟥 À faire |
 | US-018 | Absences | Enregistrer et consulter une absence | Indispensable pour le MVP | L | 🟥 À faire |
 | US-019 | Absences | Justifier, corriger et historiser une absence | Important | L | 🟥 À faire |
-| US-020 | Absence à une évaluation | Appliquer ABS, rattrapage ou zéro | Important | L | 🟥 À faire |
+| US-020 | Absence à une évaluation | Appliquer ABS, rattrapage ou zéro | Important | L | 🟩 Terminé |
 | US-021 | Bulletins | Préparer, valider et générer un bulletin PDF | Indispensable pour le MVP | XL | 🟥 À faire |
 | US-022 | Bulletins | Conserver les versions successives d’un bulletin | Important | M | 🟥 À faire |
 | US-023 | Tableau de bord | Consulter le tableau de bord administrateur | Utile | M | 🟥 À faire |
@@ -192,7 +192,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** ajouter, consulter, modifier et rechercher un élève.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À étudier.
+- **Statut :** Terminé.
 - **Règles de gestion :** le matricule unique et immuable appartient au compte `STUDENT` ; la fiche `students` contient uniquement les informations personnelles et scolaires utiles.
 - **Critères d’acceptation :** une fiche peut être créée et modifiée ; elle est retrouvée par matricule, nom ou prénom ; la photo peut être ajoutée ; les champs obligatoires sont contrôlés.
 - **Dépendances :** décision QD-10.
@@ -267,7 +267,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** créer, consulter et modifier un devoir ou un examen.
 - **Utilisateur concerné :** enseignant.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À étudier.
+- **Statut :** Terminé.
 - **Règles de gestion :** l’enseignant utilise uniquement ses classes et matières ; titre, date, barème et coefficient sont enregistrés ; la période est déduite de la date de l’évaluation.
 - **Critères d’acceptation :** une évaluation valide peut être créée ; elle apparaît pour la classe concernée ; un enseignant ne peut pas créer une évaluation hors affectation ; les valeurs numériques et dates sont contrôlées.
 - **Dépendances :** US-003, US-005, US-007 et décisions QD-5 à QD-7.
@@ -282,7 +282,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** saisie collective ou individuelle des résultats.
 - **Utilisateur concerné :** enseignant.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À étudier.
+- **Statut :** Terminé.
 - **Règles de gestion :** l’enseignant saisit seulement les notes de ses propres évaluations ; la note respecte le barème ; une seule note courante par élève et évaluation.
 - **Critères d’acceptation :** la liste des élèves de la classe est affichée ; les notes valides sont enregistrées ; les notes hors barème sont refusées ; les données restent disponibles après reconnexion.
 - **Dépendances :** US-011, US-013 et décision QD-6.
@@ -297,7 +297,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** calculer les moyennes de matière et la moyenne générale.
 - **Utilisateur concerné :** administrateur, enseignant.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À étudier.
+- **Statut :** En cours : calcul backend terminé, formule d’arrondi définitive à valider.
 - **Règles de gestion :** calcul fondé sur les notes, barèmes et coefficients ; règles d’arrondi à confirmer ; résultats regroupés par période.
 - **Critères d’acceptation :** les moyennes correspondent à des jeux de données de référence ; une modification de note déclenche un recalcul ; les absences sont traitées selon leur statut ; aucune division par zéro n’est possible.
 - **Dépendances :** US-003, US-005, US-014, US-020 et décisions QD-5 à QD-7.
@@ -312,7 +312,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** workflow de demande, validation ou refus d’une correction.
 - **Utilisateur concerné :** enseignant, professeur principal, administrateur.
 - **Priorité :** Important.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** la nouvelle note reste en attente ; le professeur principal valide, sauf pour sa propre note qui est validée par un administrateur ; ancienne et nouvelle valeurs sont conservées.
 - **Critères d’acceptation :** une demande contient l’ancienne et la nouvelle note ; la note courante ne change qu’après validation ; le bon valideur est appliqué ; le refus conserve la note d’origine ; l’historique est consultable.
 - **Dépendances :** US-007, US-014, US-026.
@@ -357,7 +357,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** gérer statuts, motifs, justificatifs, corrections et historique.
 - **Utilisateur concerné :** administrateur ; enseignant pour le signalement d’erreur.
 - **Priorité :** Important.
-- **Statut :** À étudier.
+- **Statut :** À faire valider.
 - **Règles de gestion :** statuts En attente, Justifiée, Non justifiée et Rejetée ; seul l’administrateur accepte ou rejette un justificatif ou corrige définitivement ; les modifications sont historisées et les justificatifs référencés dans le catalogue documentaire.
 - **Critères d’acceptation :** l’administrateur peut modifier le statut avec une trace ; joindre un justificatif valide ; corriger ou supprimer logiquement une absence ; un enseignant peut signaler une erreur sans la corriger directement.
 - **Dépendances :** US-018, US-026 et décision QD-9.
@@ -372,7 +372,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** relier les absences aux résultats d’évaluation.
 - **Utilisateur concerné :** enseignant, administrateur.
 - **Priorité :** Important.
-- **Statut :** À étudier.
+- **Statut :** Terminé.
 - **Règles de gestion :** mention ABS ; absence justifiée non comptée comme zéro et suivie d’un rattrapage ; absence non justifiée transformée en zéro.
 - **Critères d’acceptation :** ABS peut remplacer une note ; une justification empêche le zéro ; une non-justification applique zéro ; la note de rattrapage remplace ABS ; la moyenne est recalculée.
 - **Dépendances :** US-014, US-019, US-015.

@@ -23,6 +23,86 @@ TEACHER_UPDATE_COLUMNS = {
 }
 
 
+def _list_teacher_evaluations(db: Session, teacher_id: str) -> list[dict]:
+    """Liste les évaluations d'un enseignant, indépendamment de leurs notes."""
+
+    rows = db.execute(
+        text(
+            """
+            WITH eligible AS (
+                SELECT
+                    assessment.id AS assessment_id,
+                    COUNT(enrollment.id)::integer AS enrolled_count
+                FROM assessments AS assessment
+                JOIN teacher_assignments AS assignment
+                  ON assignment.id = assessment.teacher_assignment_id
+                JOIN class_subjects AS class_subject
+                  ON class_subject.id = assignment.class_subject_id
+                LEFT JOIN student_enrollments AS enrollment
+                  ON enrollment.class_id = class_subject.class_id
+                 AND assessment.assessment_date >= enrollment.start_date
+                 AND assessment.assessment_date <= COALESCE(
+                        enrollment.end_date,
+                        assessment.assessment_date
+                     )
+                WHERE assignment.teacher_id = :teacher_id
+                GROUP BY assessment.id
+            ),
+            statistics AS (
+                SELECT
+                    grade.assessment_id,
+                    COUNT(grade.id)::integer AS grade_count,
+                    AVG(
+                        CASE
+                            WHEN grade.result_type = 'SCORED'
+                                THEN (grade.score / assessment.maximum_score) * 20
+                            WHEN grade.result_type = 'ABSENT'
+                             AND grade.justification_status IN ('UNJUSTIFIED', 'REJECTED')
+                                THEN 0
+                            ELSE NULL
+                        END
+                    ) AS official_average_on_20
+                FROM grades AS grade
+                JOIN assessments AS assessment ON assessment.id = grade.assessment_id
+                JOIN teacher_assignments AS assignment
+                  ON assignment.id = assessment.teacher_assignment_id
+                WHERE assignment.teacher_id = :teacher_id
+                GROUP BY grade.assessment_id
+            )
+            SELECT
+                assessment.id,
+                assessment.title,
+                assessment.description,
+                subject.id AS subject_id,
+                subject.name AS subject_name,
+                school_class.id AS class_id,
+                concat_ws(' ', class_level.name, school_class.group_label) AS class_name,
+                assessment.assessment_date,
+                assessment.coefficient,
+                assessment.maximum_score,
+                COALESCE(eligible.enrolled_count, 0) AS enrolled_count,
+                COALESCE(statistics.grade_count, 0) AS grade_count,
+                statistics.official_average_on_20
+            FROM assessments AS assessment
+            JOIN teacher_assignments AS assignment
+              ON assignment.id = assessment.teacher_assignment_id
+            JOIN class_subjects AS class_subject
+              ON class_subject.id = assignment.class_subject_id
+            JOIN subjects AS subject ON subject.id = class_subject.subject_id
+            JOIN classes AS school_class ON school_class.id = class_subject.class_id
+            JOIN class_levels AS class_level
+              ON class_level.id = school_class.class_level_id
+            LEFT JOIN eligible ON eligible.assessment_id = assessment.id
+            LEFT JOIN statistics ON statistics.assessment_id = assessment.id
+            WHERE assignment.teacher_id = :teacher_id
+            ORDER BY assessment.assessment_date DESC, assessment.title
+            """
+        ),
+        {"teacher_id": teacher_id},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
 def list_teachers_overview(db: Session, q: str | None = None) -> list[dict]:
     """Liste les enseignants avec leurs matières réellement affectées."""
 
@@ -208,6 +288,10 @@ def get_teacher_detail(db: Session, teacher_id: str) -> dict | None:
         {"teacher_id": teacher_id},
     ).all()
 
+    evaluations = _list_teacher_evaluations(db=db, teacher_id=teacher_id)
+    evaluation_class_ids = {item["class_id"] for item in evaluations}
+    evaluation_subject_ids = {item["subject_id"] for item in evaluations}
+
     return {
         "id": str(row.id),
         "account_id": str(row.account_id),
@@ -258,6 +342,14 @@ def get_teacher_detail(db: Session, teacher_id: str) -> dict | None:
             for subject_row in taught_subject_rows
         ],
         "total_students": sum(class_row.student_count for class_row in class_rows),
+        "evaluations": evaluations,
+        "evaluation_summary": {
+            "assessment_count": len(evaluations),
+            "class_count": len(evaluation_class_ids),
+            "subject_count": len(evaluation_subject_ids),
+            "expected_grade_count": sum(item["enrolled_count"] for item in evaluations),
+            "grade_count": sum(item["grade_count"] for item in evaluations),
+        },
     }
 
 

@@ -1,7 +1,7 @@
 """Routes HTTP pour gérer les matières."""
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.core.authentication import CurrentAdminDependency, DatabaseSession
+from app.core.authentication import CurrentAccountDependency, CurrentAdminDependency, DatabaseSession
 from app.schemas.subject_create import SubjectCreate
 from app.schemas.subject_detail import SubjectDetail
 from app.schemas.subject_overview import SubjectOverview
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/subjects", tags=["subjects"])
 @router.get("/overview", response_model=list[SubjectOverview])
 def get_subjects_overview(
     db: DatabaseSession,
-    current_admin: CurrentAdminDependency,
+    current_account: CurrentAccountDependency,
     q: str | None = Query(None),
     class_id: str | None = Query(None),
     teacher_id: str | None = Query(None),
@@ -36,7 +36,7 @@ def get_subjects_overview(
 def get_subject_detail_route(
     subject_id: str,
     db: DatabaseSession,
-    current_admin: CurrentAdminDependency,
+    current_account: CurrentAccountDependency,
 ):
     """Retourne la fiche d'une matière et ses classes associées."""
 

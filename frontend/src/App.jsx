@@ -142,13 +142,8 @@ export default function App() {
       'school-year-details',
       'guardians',
       'guardian-details',
-      'school-classes',
-      'school-class-details',
       'teachers',
       'teacher-details',
-      'subjects',
-      'subject-details',
-      'notes',
       'administrators',
       'administrator-details',
     ]
@@ -172,6 +167,8 @@ export default function App() {
   }
 
   const canManageSchool = currentAccount.role === 'ADMIN'
+  const canViewSchoolDirectory = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
+  const canManageNotes = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
   let pageContent = <HomePage account={currentAccount} />
 
   if (currentPage === 'students') {
@@ -203,11 +200,12 @@ export default function App() {
         onNavigate={handleNavigate}
       />
     )
-  } else if (currentPage === 'school-classes' && canManageSchool) {
-    pageContent = <SchoolClassesPage onNavigate={handleNavigate} />
-  } else if (currentPage === 'school-class-details' && canManageSchool) {
+  } else if (currentPage === 'school-classes' && canViewSchoolDirectory) {
+    pageContent = <SchoolClassesPage account={currentAccount} onNavigate={handleNavigate} />
+  } else if (currentPage === 'school-class-details' && canViewSchoolDirectory) {
     pageContent = (
       <SchoolClassDetailsPage
+        account={currentAccount}
         schoolClass={selectedEntity || { id: pathId }}
         onNavigate={handleNavigate}
       />
@@ -223,29 +221,31 @@ export default function App() {
     )
   }
   else if (currentPage === 'teachers' && canManageSchool) {
-    pageContent = <TeachersPage onNavigate={handleNavigate} />
+    pageContent = <TeachersPage account={currentAccount} onNavigate={handleNavigate} />
   }
   else if (currentPage === 'teacher-details' && canManageSchool) {
     pageContent = (
       <TeacherDetailsPage
+        account={currentAccount}
         teacher={selectedEntity || { id: pathId }}
         onNavigate={handleNavigate}
       />
     )
   }
-  else if (currentPage === 'subjects' && canManageSchool) {
-    pageContent = <SubjectsPage onNavigate={handleNavigate} />
+  else if (currentPage === 'subjects' && canViewSchoolDirectory) {
+    pageContent = <SubjectsPage account={currentAccount} onNavigate={handleNavigate} />
   }
-  else if (currentPage === 'subject-details' && canManageSchool) {
+  else if (currentPage === 'subject-details' && canViewSchoolDirectory) {
     pageContent = (
       <SubjectDetailsPage
+        account={currentAccount}
         subject={selectedEntity || { id: pathId }}
         onNavigate={handleNavigate}
       />
     )
   }
-  else if (currentPage === 'notes' && canManageSchool) {
-    pageContent = <NotesPage onNavigate={handleNavigate} />
+  else if (currentPage === 'notes' && canManageNotes) {
+    pageContent = <NotesPage account={currentAccount} onNavigate={handleNavigate} />
   }
   else if (currentPage === 'administrators' && canManageSchool) {
     pageContent = <AdministratorsPage onNavigate={handleNavigate} />

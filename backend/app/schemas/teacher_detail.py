@@ -1,6 +1,8 @@
 """Contrat de lecture détaillée d'un enseignant."""
 from datetime import date, datetime
 from pydantic import BaseModel
+from app.schemas.teacher_evaluation_item import TeacherEvaluationItem
+from app.schemas.teacher_evaluation_summary import TeacherEvaluationSummary
 
 
 class TeacherClassSummary(BaseModel):
@@ -57,3 +59,5 @@ class TeacherDetail(BaseModel):
     classes: list[TeacherClassSummary]
     taught_subjects: list[TeacherSubjectSummary]
     total_students: int
+    evaluations: list[TeacherEvaluationItem]
+    evaluation_summary: TeacherEvaluationSummary

@@ -70,7 +70,8 @@ function isHighSchoolLevel(level) {
   return level?.education_stage === 'HIGH_SCHOOL'
 }
 
-export default function SchoolClassesPage({ onNavigate }) {
+export default function SchoolClassesPage({ account, onNavigate }) {
+  const canEdit = account?.role === 'ADMIN'
   const [query, setQuery] = useState('')
   const [schoolYearId, setSchoolYearId] = useState('')
   const [classLevelId, setClassLevelId] = useState('')
@@ -142,7 +143,7 @@ export default function SchoolClassesPage({ onNavigate }) {
       const [years, levels, teacherList] = await Promise.all([
         getSchoolYears(),
         getClassLevels(),
-        getTeachers(),
+        canEdit ? getTeachers() : Promise.resolve([]),
       ])
       setSchoolYears(years)
       setClassLevels(levels)
@@ -244,9 +245,11 @@ export default function SchoolClassesPage({ onNavigate }) {
             <span>Classes</span>
           </nav>
         </div>
-        <button type="button" className="scp-btn-primary" onClick={openCreateModal}>
-          <span className="scp-btn-primary__plus">+</span> Ajouter une classe
-        </button>
+        {canEdit && (
+          <button type="button" className="scp-btn-primary" onClick={openCreateModal}>
+            <span className="scp-btn-primary__plus">+</span> Ajouter une classe
+          </button>
+        )}
       </div>
 
       {confirmationMessage && (
@@ -356,7 +359,7 @@ export default function SchoolClassesPage({ onNavigate }) {
         </div>
       </section>
 
-      {showCreateModal && (
+      {canEdit && showCreateModal && (
         <div className="scp-modal-backdrop" role="presentation" onMouseDown={closeCreateModal}>
           <section
             className="scp-modal"

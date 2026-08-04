@@ -1,694 +1,891 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  AlertCircle,
+  ArrowLeft,
   BarChart3,
-  CalendarDays,
   CheckCircle2,
   ClipboardCheck,
+  FileUp,
+  ListChecks,
   Plus,
-  RotateCcw,
   Search,
   Users,
 } from 'lucide-react'
 
 import { useToast } from '../components/feedback/ToastProvider.jsx'
-import { createGrade, getGradeOptions, listGrades } from '../services/notes_service.js'
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
+import {
+  createAssessment,
+  createGradeChangeRequest,
+  decideGradeChangeRequest,
+  getAssessmentGradeSheet,
+  getAssessmentsSummary,
+  getGradeDocumentDownloadUrl,
+  getGradeDocuments,
+  getGradeOptions,
+  listAssessmentAssignmentOptions,
+  listAssessments,
+  listGradeChangeRequests,
+  reviewGradeAbsence,
+  submitAssessmentGradeSheet,
+  uploadGradeJustification,
+} from '../services/notes_service.js'
 import '../styles/notes_page.css'
 
-const EMPTY_OPTIONS = {
-  classes: [],
-  subjects: [],
-  periods: [],
-  assessments: [],
-  students: [],
+const EMPTY_OPTIONS = { classes: [], subjects: [], periods: [] }
+const EMPTY_SUMMARY = {
+  assessments_count: 0,
+  students_count: 0,
+  expected_grade_count: 0,
+  grade_count: 0,
+  scored_count: 0,
+  absence_count: 0,
+  missing_count: 0,
+  official_average_on_20: null,
+  excellent_count: 0,
+  good_count: 0,
+  average_count: 0,
+  weak_count: 0,
 }
-
-const EMPTY_FORM = {
-  class_id: '',
-  subject_id: '',
-  assessment_id: '',
-  student_enrollment_id: '',
-  result_type: 'SCORED',
+const EMPTY_ASSESSMENT_FORM = {
+  teacher_assignment_id: '',
+  title: '',
+  description: '',
+  assessment_date: '',
+  maximum_score: '20',
+  coefficient: '1',
+}
+const EMPTY_SHEET_ENTRY_FORM = {
   score: '',
-  justification_status: 'UNJUSTIFIED',
   comment: '',
+  is_absent: false,
+}
+const PAGE_SIZE = 10
+
+function formatDate(value) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('fr-FR').format(new Date(`${value}T00:00:00`))
 }
 
 function formatNumber(value) {
+  if (value === null || value === undefined) return '—'
   return Number(value).toLocaleString('fr-FR', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })
 }
 
-function formatDate(value) {
-  return new Intl.DateTimeFormat('fr-FR').format(new Date(`${value}T00:00:00`))
-}
-
-function formatDecimal(value) {
-  return Number(value).toLocaleString('fr-FR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-}
-
-function formatGradeResult(grade) {
-  if (grade.result_type === 'ABSENT') {
-    return grade.justification_status === 'PENDING'
-      ? 'Absent — justificatif en attente'
-      : 'Absent — non justifié'
+function getCompletionLabel(status) {
+  const labels = {
+    EMPTY: 'À saisir',
+    PARTIAL: 'En cours',
+    PENDING_REVIEW: 'Justificatif à traiter',
+    COMPLETE: 'Terminée',
   }
-  return `${formatNumber(grade.score)}/${formatNumber(grade.maximum_score)}`
+  return labels[status] || status
 }
 
-export default function NotesPage({ onNavigate }) {
+function getCompletionTone(status) {
+  const tones = {
+    EMPTY: 'neutral',
+    PARTIAL: 'progress',
+    PENDING_REVIEW: 'warning',
+    COMPLETE: 'done',
+  }
+  return tones[status] || 'neutral'
+}
+
+function getAbsenceStatusLabel(status) {
+  const labels = {
+    PENDING: 'En attente',
+    JUSTIFIED: 'Justifiée',
+    REJECTED: 'Refusée',
+    UNJUSTIFIED: 'Non justifiée',
+  }
+  return labels[status] || status || '—'
+}
+
+function getAbsenceStatusTone(status) {
+  const tones = {
+    PENDING: 'warning',
+    JUSTIFIED: 'done',
+    REJECTED: 'danger',
+    UNJUSTIFIED: 'neutral',
+  }
+  return tones[status] || 'neutral'
+}
+
+export default function NotesPage({ account, onNavigate }) {
   const toast = useToast()
   const [query, setQuery] = useState('')
+  const debouncedQuery = useDebouncedValue(query)
   const [classFilter, setClassFilter] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('')
   const [periodFilter, setPeriodFilter] = useState('')
-  const [assessmentFilter, setAssessmentFilter] = useState('')
-  const [resultTypeFilter, setResultTypeFilter] = useState('')
   const [filterOptions, setFilterOptions] = useState(EMPTY_OPTIONS)
-  const [grades, setGrades] = useState([])
+  const [assessments, setAssessments] = useState([])
+  const [dashboardSummary, setDashboardSummary] = useState(EMPTY_SUMMARY)
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState('')
+  const [page, setPage] = useState(1)
 
-  const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [createOptions, setCreateOptions] = useState(EMPTY_OPTIONS)
-  const [formLoading, setFormLoading] = useState(false)
-  const [formError, setFormError] = useState('')
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState('')
+  const [gradeSheet, setGradeSheet] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailTab, setDetailTab] = useState('students')
+  const [detailSearch, setDetailSearch] = useState('')
+  const [detailStatusFilter, setDetailStatusFilter] = useState('')
+  const [correctionRequests, setCorrectionRequests] = useState([])
 
-  useEffect(function loadInitialOptionsEffect() {
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false)
+  const [assessmentForm, setAssessmentForm] = useState(EMPTY_ASSESSMENT_FORM)
+  const [assignmentOptions, setAssignmentOptions] = useState([])
+  const [assessmentClassId, setAssessmentClassId] = useState('')
+  const [assessmentSaving, setAssessmentSaving] = useState(false)
+  const [assessmentError, setAssessmentError] = useState('')
+
+  const [showSheetModal, setShowSheetModal] = useState(false)
+  const [sheetStudentEnrollmentId, setSheetStudentEnrollmentId] = useState('')
+  const [sheetEntryForm, setSheetEntryForm] = useState(EMPTY_SHEET_ENTRY_FORM)
+  const [sheetSaving, setSheetSaving] = useState(false)
+  const [sheetError, setSheetError] = useState('')
+
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false)
+  const [correctionForm, setCorrectionForm] = useState(null)
+  const [correctionSaving, setCorrectionSaving] = useState(false)
+  const [decisionRequest, setDecisionRequest] = useState(null)
+  const [decisionComment, setDecisionComment] = useState('')
+  const [decisionSaving, setDecisionSaving] = useState(false)
+  const [uploadingGradeId, setUploadingGradeId] = useState('')
+  const [documentStudentName, setDocumentStudentName] = useState('')
+  const [documentGradeId, setDocumentGradeId] = useState('')
+  const [gradeDocuments, setGradeDocuments] = useState([])
+  const [documentsLoading, setDocumentsLoading] = useState(false)
+
+  const isAdmin = account?.role === 'ADMIN'
+
+  useEffect(function loadFilterOptionsEffect() {
+    async function loadFilterOptions() {
+      try {
+        setFilterOptions(await getGradeOptions())
+      } catch (error) {
+        toast.error(error.message)
+      }
+    }
     loadFilterOptions()
   }, [])
 
-  useEffect(function loadGradesEffect() {
-    refreshGrades()
-  }, [query, classFilter, subjectFilter, periodFilter])
-
-  useEffect(function keepAssessmentFilterValid() {
-    if (!assessmentFilter) return
-    const exists = grades.some((grade) => grade.assessment_id === assessmentFilter)
-    if (!exists) setAssessmentFilter('')
-  }, [grades, assessmentFilter])
-
-  async function loadFilterOptions() {
-    try {
-      const options = await getGradeOptions()
-      setFilterOptions(options)
-    } catch (error) {
-      setPageError(error.message)
-      toast.error(error.message)
+  useEffect(function loadAssessmentsEffect() {
+    async function loadWorkspace() {
+      setLoading(true)
+      setPageError('')
+      try {
+        const filters = {
+          q: debouncedQuery,
+          classId: classFilter,
+          subjectId: subjectFilter,
+          periodId: periodFilter,
+        }
+        const [assessmentRows, summary] = await Promise.all([
+          listAssessments(filters),
+          getAssessmentsSummary(),
+        ])
+        setAssessments(assessmentRows)
+        setDashboardSummary(summary)
+        setPage(1)
+      } catch (error) {
+        setAssessments([])
+        setDashboardSummary(EMPTY_SUMMARY)
+        setPageError(error.message)
+        toast.error(error.message)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
+    loadWorkspace()
+  }, [debouncedQuery, classFilter, subjectFilter, periodFilter])
 
-  async function refreshGrades() {
-    setLoading(true)
-    setPageError('')
-    try {
-      const loadedGrades = await listGrades({
-        q: query,
-        classId: classFilter,
-        subjectId: subjectFilter,
-        periodId: periodFilter,
-      })
-      setGrades(loadedGrades)
-    } catch (error) {
-      setGrades([])
-      setPageError(error.message)
-      toast.error(error.message)
-    } finally {
-      setLoading(false)
+  useEffect(function loadSelectedAssessmentEffect() {
+    if (!selectedAssessmentId) {
+      setGradeSheet(null)
+      setCorrectionRequests([])
+      return
     }
-  }
 
-  function handleReset() {
-    setQuery('')
-    setClassFilter('')
-    setSubjectFilter('')
-    setPeriodFilter('')
-  }
+    async function loadSelectedAssessment() {
+      setDetailLoading(true)
+      try {
+        const [sheet, requests] = await Promise.all([
+          getAssessmentGradeSheet(selectedAssessmentId),
+          listGradeChangeRequests({ assessmentId: selectedAssessmentId }),
+        ])
+        setGradeSheet(sheet)
+        setCorrectionRequests(requests)
+      } catch (error) {
+        toast.error(error.message)
+        setGradeSheet(null)
+      } finally {
+        setDetailLoading(false)
+      }
+    }
+    loadSelectedAssessment()
+  }, [selectedAssessmentId])
+
+  const pageCount = Math.max(1, Math.ceil(assessments.length / PAGE_SIZE))
+  const paginatedAssessments = useMemo(function getPaginatedAssessments() {
+    const start = (page - 1) * PAGE_SIZE
+    return assessments.slice(start, start + PAGE_SIZE)
+  }, [assessments, page])
+
+  const assignmentClassOptions = useMemo(function getAssignmentClassOptions() {
+    const uniqueByClassId = new Map()
+    assignmentOptions.forEach(function collectClass(option) {
+      if (!uniqueByClassId.has(option.class_id)) {
+        uniqueByClassId.set(option.class_id, {
+          id: option.class_id,
+          name: option.class_name,
+        })
+      }
+    })
+    return Array.from(uniqueByClassId.values())
+  }, [assignmentOptions])
+
+  const assignmentSubjectOptions = useMemo(function getAssignmentSubjectOptions() {
+    if (!assessmentClassId) return []
+    return assignmentOptions.filter(function filterByClass(option) {
+      return option.class_id === assessmentClassId
+    })
+  }, [assignmentOptions, assessmentClassId])
+
+  const visibleGradeRows = useMemo(function getVisibleGradeRows() {
+    const rows = gradeSheet?.rows || []
+    const normalizedSearch = detailSearch.trim().toLowerCase()
+    return rows.filter(function matchesDetailFilters(row) {
+      const matchesSearch = !normalizedSearch
+        || row.student_name.toLowerCase().includes(normalizedSearch)
+        || row.registration_number.toLowerCase().includes(normalizedSearch)
+      const matchesStatus = !detailStatusFilter
+        || (detailStatusFilter === 'MISSING' && !row.grade_id)
+        || row.result_type === detailStatusFilter
+      return matchesSearch && matchesStatus
+    })
+  }, [gradeSheet, detailSearch, detailStatusFilter])
+
+  const missingGradeRows = useMemo(function getMissingGradeRows() {
+    return (gradeSheet?.rows || []).filter(function filterMissing(row) {
+      return !row.grade_id
+    })
+  }, [gradeSheet])
 
   function handleHomeNavigation() {
     onNavigate?.('home')
   }
 
-  function preventFilterSubmit(event) {
+  function handleAssessmentSelection(assessmentId) {
+    setSelectedAssessmentId(assessmentId)
+    setDetailTab('students')
+    setDetailSearch('')
+    setDetailStatusFilter('')
+  }
+
+  function handleAssessmentRowKeyDown(event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
+    handleAssessmentSelection(event.currentTarget.dataset.assessmentId)
   }
 
-  function handleQueryChange(event) {
-    setQuery(event.target.value)
+  function closeAssessmentDetail() {
+    setSelectedAssessmentId('')
   }
 
-  function handleClassFilterChange(event) {
-    setClassFilter(event.target.value)
+  async function refreshSelectedAssessment() {
+    if (!selectedAssessmentId) return
+    const [sheet, requests, assessmentRows, summary] = await Promise.all([
+      getAssessmentGradeSheet(selectedAssessmentId),
+      listGradeChangeRequests({ assessmentId: selectedAssessmentId }),
+      listAssessments({
+        q: debouncedQuery,
+        classId: classFilter,
+        subjectId: subjectFilter,
+        periodId: periodFilter,
+      }),
+      getAssessmentsSummary(),
+    ])
+    setGradeSheet(sheet)
+    setCorrectionRequests(requests)
+    setAssessments(assessmentRows)
+    setDashboardSummary(summary)
   }
 
-  function handleSubjectFilterChange(event) {
-    setSubjectFilter(event.target.value)
-  }
-
-  function handlePeriodFilterChange(event) {
-    setPeriodFilter(event.target.value)
-  }
-
-  function handleAssessmentFilterChange(event) {
-    setAssessmentFilter(event.target.value)
-  }
-
-  function handleResultTypeFilterChange(event) {
-    setResultTypeFilter(event.target.value)
-  }
-
-  async function openCreateModal() {
-    setForm(EMPTY_FORM)
-    setFormError('')
-    setShowModal(true)
+  async function openAssessmentModal() {
+    setAssessmentForm(EMPTY_ASSESSMENT_FORM)
+    setAssessmentClassId('')
+    setAssessmentError('')
+    setShowAssessmentModal(true)
     try {
-      setCreateOptions(await getGradeOptions())
+      setAssignmentOptions(await listAssessmentAssignmentOptions())
     } catch (error) {
-      setFormError(error.message)
+      setAssessmentError(error.message)
     }
   }
 
-  function closeModal() {
-    if (!formLoading) setShowModal(false)
+  function updateAssessmentForm(event) {
+    const { name, value } = event.target
+    setAssessmentForm(function mergeAssessmentForm(current) {
+      return { ...current, [name]: value }
+    })
+  }
+
+  function handleAssessmentClassChange(event) {
+    const nextClassId = event.target.value
+    setAssessmentClassId(nextClassId)
+    setAssessmentForm(function mergeAssessmentForm(current) {
+      return {
+        ...current,
+        teacher_assignment_id: '',
+      }
+    })
+  }
+
+  async function submitAssessment(event) {
+    event.preventDefault()
+    setAssessmentSaving(true)
+    setAssessmentError('')
+    try {
+      const created = await createAssessment({
+        ...assessmentForm,
+        maximum_score: Number(assessmentForm.maximum_score),
+        coefficient: Number(assessmentForm.coefficient),
+        description: assessmentForm.description.trim() || null,
+      })
+      setShowAssessmentModal(false)
+      toast.success('Évaluation créée avec succès.')
+      const [assessmentRows, summary] = await Promise.all([
+        listAssessments(),
+        getAssessmentsSummary(),
+      ])
+      setAssessments(assessmentRows)
+      setDashboardSummary(summary)
+      handleAssessmentSelection(created.id)
+    } catch (error) {
+      setAssessmentError(error.message)
+    } finally {
+      setAssessmentSaving(false)
+    }
+  }
+
+  async function openGradeSheetModal() {
+    if (!selectedAssessmentId) return
+    setSheetError('')
+    try {
+      const sheet = gradeSheet || await getAssessmentGradeSheet(selectedAssessmentId)
+      const missingRows = (sheet.rows || []).filter(function filterMissing(row) {
+        return !row.grade_id
+      })
+      if (missingRows.length === 0) {
+        toast.warning('Tous les élèves ont déjà une note pour cette évaluation.')
+        return
+      }
+      setGradeSheet(sheet)
+      setSheetStudentEnrollmentId(missingRows[0].student_enrollment_id)
+      setSheetEntryForm(EMPTY_SHEET_ENTRY_FORM)
+      setShowSheetModal(true)
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
+  function handleSheetStudentChange(event) {
+    setSheetStudentEnrollmentId(event.target.value)
+    setSheetEntryForm(EMPTY_SHEET_ENTRY_FORM)
+  }
+
+  function handleSheetEntryChange(event) {
+    const { name, value } = event.target
+    setSheetEntryForm(function mergeSheetEntryForm(current) {
+      return { ...current, [name]: value }
+    })
+  }
+
+  function handleSheetAbsentToggle(event) {
+    const isAbsent = event.target.checked
+    setSheetEntryForm(function mergeSheetEntryForm(current) {
+      return {
+        ...current,
+        is_absent: isAbsent,
+        score: isAbsent ? '' : current.score,
+      }
+    })
+  }
+
+  async function submitGradeSheet(event) {
+    event.preventDefault()
+    if (!sheetStudentEnrollmentId) {
+      setSheetError('Sélectionnez un élève.')
+      return
+    }
+
+    const assessmentMaximumScore = Number(gradeSheet?.assessment?.maximum_score)
+    const isAbsent = sheetEntryForm.is_absent
+    const parsedScore = Number(sheetEntryForm.score)
+    if (!isAbsent && sheetEntryForm.score === '') {
+      setSheetError('Saisissez la note ou cochez absent.')
+      return
+    }
+    if (!isAbsent && (!Number.isFinite(parsedScore) || parsedScore < 0 || parsedScore > assessmentMaximumScore)) {
+      setSheetError(`La note doit être comprise entre 0 et ${formatNumber(assessmentMaximumScore)}.`)
+      return
+    }
+
+    const entries = [{
+      student_enrollment_id: sheetStudentEnrollmentId,
+      result_type: isAbsent ? 'ABSENT' : 'SCORED',
+      score: isAbsent ? null : parsedScore,
+      justification_status: isAbsent ? 'UNJUSTIFIED' : null,
+      comment: sheetEntryForm.comment.trim() || null,
+    }]
+
+    setSheetSaving(true)
+    setSheetError('')
+    try {
+      const updatedSheet = await submitAssessmentGradeSheet(selectedAssessmentId, entries)
+      setGradeSheet(updatedSheet)
+      const nextMissingRows = (updatedSheet.rows || []).filter(function filterMissing(row) {
+        return !row.grade_id
+      })
+      if (nextMissingRows.length === 0) {
+        setShowSheetModal(false)
+        toast.success('Dernière saisie enregistrée. Tous les élèves ont maintenant une note.')
+      } else {
+        setSheetStudentEnrollmentId(nextMissingRows[0].student_enrollment_id)
+        setSheetEntryForm(EMPTY_SHEET_ENTRY_FORM)
+        toast.success('Note enregistrée. Vous pouvez saisir un autre élève.')
+      }
+      await refreshSelectedAssessment()
+    } catch (error) {
+      setSheetError(error.message)
+    } finally {
+      setSheetSaving(false)
+    }
+  }
+
+  function openCorrectionModal() {
+    const firstGrade = gradeSheet?.rows.find(function findExistingGrade(row) {
+      return Boolean(row.grade_id)
+    })
+    if (!firstGrade) {
+      toast.warning('Aucune note existante ne peut être corrigée.')
+      return
+    }
+    setCorrectionForm({
+      grade_id: firstGrade.grade_id,
+      proposed_result_type: firstGrade.result_type,
+      proposed_score: firstGrade.score ?? '',
+      proposed_justification_status: firstGrade.justification_status,
+      request_reason: '',
+    })
+    setShowCorrectionModal(true)
+  }
+
+  function selectCorrectionGrade(event) {
+    const row = gradeSheet.rows.find(function findGrade(item) {
+      return item.grade_id === event.target.value
+    })
+    if (!row) return
+    setCorrectionForm({
+      grade_id: row.grade_id,
+      proposed_result_type: row.result_type,
+      proposed_score: row.score ?? '',
+      proposed_justification_status: row.justification_status,
+      request_reason: '',
+    })
+  }
+
+  function updateCorrectionForm(event) {
+    const { name, value } = event.target
+    setCorrectionForm(function mergeCorrectionForm(current) {
+      const next = { ...current, [name]: value }
+      if (name === 'proposed_result_type') {
+        next.proposed_score = value === 'ABSENT' ? '' : next.proposed_score
+        next.proposed_justification_status = value === 'ABSENT' ? 'UNJUSTIFIED' : null
+      }
+      return next
+    })
+  }
+
+  async function submitCorrectionRequest(event) {
+    event.preventDefault()
+    setCorrectionSaving(true)
+    try {
+      const createdRequest = await createGradeChangeRequest({
+        ...correctionForm,
+        proposed_score: correctionForm.proposed_result_type === 'SCORED'
+          ? Number(correctionForm.proposed_score)
+          : null,
+        proposed_justification_status: correctionForm.proposed_result_type === 'ABSENT'
+          ? correctionForm.proposed_justification_status
+          : null,
+      })
+
+      if (isAdmin && createdRequest?.id) {
+        await decideGradeChangeRequest(createdRequest.id, {
+          status: 'APPROVED',
+          decision_comment: 'Correction validée directement par un administrateur.',
+        })
+      }
+
+      setShowCorrectionModal(false)
+      toast.success(isAdmin ? 'Correction appliquée.' : 'Demande de correction transmise.')
+      await refreshSelectedAssessment()
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setCorrectionSaving(false)
+    }
+  }
+
+  function openDecisionModal(event) {
+    const request = correctionRequests.find(function findRequest(item) {
+      return item.id === event.currentTarget.dataset.requestId
+    })
+    if (!request) return
+    setDecisionRequest({ ...request, decision: event.currentTarget.dataset.decision })
+    setDecisionComment('')
+  }
+
+  async function submitCorrectionDecision(event) {
+    event.preventDefault()
+    setDecisionSaving(true)
+    try {
+      await decideGradeChangeRequest(decisionRequest.id, {
+        status: decisionRequest.decision,
+        decision_comment: decisionComment.trim() || null,
+      })
+      setDecisionRequest(null)
+      toast.success('Décision enregistrée.')
+      await refreshSelectedAssessment()
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setDecisionSaving(false)
+    }
+  }
+
+  async function handleJustificationUpload(event) {
+    const file = event.target.files?.[0]
+    const gradeId = event.currentTarget.dataset.gradeId
+    if (!file || !gradeId) return
+    setUploadingGradeId(gradeId)
+    try {
+      await uploadGradeJustification(gradeId, file)
+      toast.success('Justificatif ajouté et placé en attente de validation.')
+      if (documentGradeId === gradeId) {
+        setGradeDocuments(await getGradeDocuments(gradeId))
+      }
+      await refreshSelectedAssessment()
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setUploadingGradeId('')
+      event.target.value = ''
+    }
+  }
+
+  async function openGradeDocuments(event) {
+    const gradeId = event.currentTarget.dataset.gradeId
+    if (!gradeId) return
+    setDocumentGradeId(gradeId)
+    setDocumentStudentName(event.currentTarget.dataset.studentName || '')
+    setGradeDocuments([])
+    setDocumentsLoading(true)
+    try {
+      setGradeDocuments(await getGradeDocuments(gradeId))
+    } catch (error) {
+      toast.error(error.message)
+      setDocumentGradeId('')
+    } finally {
+      setDocumentsLoading(false)
+    }
+  }
+
+  function closeGradeDocuments() {
+    setDocumentGradeId('')
+    setDocumentStudentName('')
+    setGradeDocuments([])
+  }
+
+  async function handleAbsenceReview(event) {
+    const gradeId = event.currentTarget.dataset.gradeId
+    const status = event.currentTarget.dataset.status
+    try {
+      await reviewGradeAbsence(gradeId, status)
+      toast.success(status === 'JUSTIFIED' ? 'Absence justifiée.' : 'Justificatif rejeté.')
+      await refreshSelectedAssessment()
+    } catch (error) {
+      toast.error(error.message)
+    }
   }
 
   function stopModalPropagation(event) {
     event.stopPropagation()
   }
 
-  async function handleClassChange(event) {
-    const classId = event.target.value
-    setForm({ ...EMPTY_FORM, class_id: classId })
-    setFormError('')
-    try {
-      setCreateOptions(await getGradeOptions({ classId }))
-    } catch (error) {
-      setFormError(error.message)
-    }
-  }
+  if (selectedAssessmentId) {
+    const assessment = gradeSheet?.assessment
+    const statistics = gradeSheet?.statistics
+    return (
+      <main className="ntp-main">
+        <div className="ntp-topbar ntp-topbar--detail">
+          <div>
+            <button type="button" className="ntp-back-button" onClick={closeAssessmentDetail}>
+              <ArrowLeft size={17} aria-hidden="true" /> Retour aux évaluations
+            </button>
+            <h1 className="ntp-title">Détails de l’évaluation</h1>
+            <nav className="ntp-breadcrumb" aria-label="Fil d’Ariane">
+              <button type="button" onClick={handleHomeNavigation}>Accueil</button>
+              <span>›</span><button type="button" onClick={closeAssessmentDetail}>Notes</button>
+              <span>›</span><span>{assessment?.title || 'Évaluation'}</span>
+            </nav>
+          </div>
+          <div className="ntp-topbar__actions">
+            <button type="button" className="ntp-btn-ghost" onClick={openCorrectionModal}>
+              {isAdmin ? 'Corriger' : 'Demander une correction'}
+            </button>
+            <button type="button" className="ntp-btn-primary" onClick={openGradeSheetModal}>
+              <Plus size={16} aria-hidden="true" /> Saisir les notes
+            </button>
+          </div>
+        </div>
 
-  async function handleSubjectChange(event) {
-    const subjectId = event.target.value
-    const nextForm = {
-      ...form,
-      subject_id: subjectId,
-      assessment_id: '',
-      student_enrollment_id: '',
-    }
-    setForm(nextForm)
-    setFormError('')
-    try {
-      setCreateOptions(await getGradeOptions({
-        classId: nextForm.class_id,
-        subjectId,
-      }))
-    } catch (error) {
-      setFormError(error.message)
-    }
-  }
+        {detailLoading || !assessment ? (
+          <p className="ntp-loading">Chargement de la feuille de notes…</p>
+        ) : (
+          <>
+            <section className="ntp-assessment-hero">
+              <div><h2>{assessment.title}</h2><p>{assessment.description || 'Aucune description.'}</p></div>
+              <span className={`ntp-status ntp-status--${getCompletionTone(assessment.completion_status)}`}>
+                {getCompletionLabel(assessment.completion_status)}
+              </span>
+              <div className="ntp-assessment-hero__meta">
+                <div><span>Matière</span><strong>{assessment.subject_name}</strong></div>
+                <div><span>Classe</span><strong>{assessment.class_name}</strong></div>
+                <div><span>Période</span><strong>{assessment.reporting_period_name || 'Hors période définie'}</strong></div>
+                <div><span>Date</span><strong>{formatDate(assessment.assessment_date)}</strong></div>
+                <div><span>Barème</span><strong>/{formatNumber(assessment.maximum_score)}</strong></div>
+                <div><span>Coefficient</span><strong>{formatNumber(assessment.coefficient)}</strong></div>
+              </div>
+            </section>
 
-  async function handleAssessmentChange(event) {
-    const assessmentId = event.target.value
-    const nextForm = {
-      ...form,
-      assessment_id: assessmentId,
-      student_enrollment_id: '',
-      score: '',
-    }
-    setForm(nextForm)
-    setFormError('')
-    try {
-      setCreateOptions(await getGradeOptions({
-        classId: nextForm.class_id,
-        subjectId: nextForm.subject_id,
-        assessmentId,
-      }))
-    } catch (error) {
-      setFormError(error.message)
-    }
-  }
+            <div className="ntp-detail-tabs" role="tablist" aria-label="Navigation de l’évaluation">
+              <button type="button" className={detailTab === 'students' ? 'ntp-detail-tab ntp-detail-tab--active' : 'ntp-detail-tab'} onClick={() => setDetailTab('students')}>Notes des élèves</button>
+              <button type="button" className={detailTab === 'statistics' ? 'ntp-detail-tab ntp-detail-tab--active' : 'ntp-detail-tab'} onClick={() => setDetailTab('statistics')}>Statistiques</button>
+              <button type="button" className={detailTab === 'justifications' ? 'ntp-detail-tab ntp-detail-tab--active' : 'ntp-detail-tab'} onClick={() => setDetailTab('justifications')}>Absences et justificatifs</button>
+              <button type="button" className={detailTab === 'corrections' ? 'ntp-detail-tab ntp-detail-tab--active' : 'ntp-detail-tab'} onClick={() => setDetailTab('corrections')}>Corrections</button>
+            </div>
 
-  function updateField(event) {
-    const { name, value } = event.target
-    setForm((current) => ({ ...current, [name]: value }))
-  }
+            {detailTab === 'students' && (
+              <section className="ntp-list">
+                <header className="ntp-detail-toolbar">
+                  <label className="ntp-search ntp-search--detail">
+                    <Search className="ntp-search__icon" aria-hidden="true" size={18} />
+                    <input type="search" placeholder="Rechercher un élève…" value={detailSearch} onChange={(event) => setDetailSearch(event.target.value)} />
+                  </label>
+                  <select value={detailStatusFilter} onChange={(event) => setDetailStatusFilter(event.target.value)}>
+                    <option value="">Tous les statuts</option>
+                    <option value="SCORED">Noté</option>
+                    <option value="ABSENT">Absent</option>
+                    <option value="MISSING">Non saisi</option>
+                  </select>
+                </header>
+                <div className="ntp-table-wrapper">
+                  <table className="ntp-table ntp-table--detail">
+                    <thead><tr><th>N°</th><th>Élève</th><th>Résultat</th><th>Note /20</th><th>Appréciation</th></tr></thead>
+                    <tbody>
+                      {visibleGradeRows.length === 0 ? (
+                        <tr><td colSpan="5" className="ntp-loading">Aucun élève ne correspond aux filtres.</td></tr>
+                      ) : visibleGradeRows.map(function renderGradeRow(row, index) {
+                        return (
+                          <tr key={row.student_enrollment_id} className="ntp-table__row">
+                            <td>{index + 1}</td>
+                            <td><strong>{row.student_name}</strong><small>{row.registration_number}</small></td>
+                            <td>{row.grade_id ? (row.result_type === 'ABSENT' ? 'Absent' : 'Noté') : 'Non saisi'}</td>
+                            <td>{row.normalized_score_on_20 === null ? '—' : `${formatNumber(row.normalized_score_on_20)} / 20`}</td>
+                            <td>{row.comment || '—'}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
 
-  function handleResultTypeChange(event) {
-    const resultType = event.target.value
-    setForm((current) => ({
-      ...current,
-      result_type: resultType,
-      score: resultType === 'ABSENT' ? '' : current.score,
-      justification_status: resultType === 'ABSENT' ? 'UNJUSTIFIED' : '',
-    }))
-  }
+            {detailTab === 'statistics' && statistics && (
+              <section className="ntp-stats ntp-stats--detail">
+                <article className="ntp-stat-card"><ClipboardCheck size={21} /><div><strong>{statistics.grade_count} / {statistics.enrolled_count}</strong><span>Saisie</span></div></article>
+                <article className="ntp-stat-card"><Users size={21} /><div><strong>{statistics.absent_count}</strong><span>Absences</span></div></article>
+                <article className="ntp-stat-card"><BarChart3 size={21} /><div><strong>{formatNumber(statistics.official_average_on_20)} /20</strong><span>Moyenne officielle</span></div></article>
+                <article className="ntp-stat-card"><CheckCircle2 size={21} /><div><strong>{formatNumber(statistics.highest_score_on_20)} /20</strong><span>Note la plus haute</span></div></article>
+                <article className="ntp-stat-card"><ListChecks size={21} /><div><strong>{statistics.pending_absence_count}</strong><span>Justificatifs en attente</span></div></article>
+                <article className="ntp-stat-card"><AlertCircle size={21} /><div><strong>{statistics.missing_count}</strong><span>Résultats manquants</span></div></article>
+              </section>
+            )}
 
-  async function handleSubmit(event) {
-    event.preventDefault()
-    setFormError('')
+            {detailTab === 'justifications' && (
+              <section className="ntp-list">
+                <header className="ntp-card-header"><div><h3>Absences à l’évaluation</h3><p>Les fichiers sont stockés hors de la base et référencés de façon sécurisée.</p></div></header>
+                <div className="ntp-table-wrapper">
+                  <table className="ntp-table"><thead><tr><th>Élève</th><th>Statut</th><th>Justificatif</th><th>Action</th></tr></thead>
+                    <tbody>
+                      {(gradeSheet.rows || []).filter(function onlyAbsences(row) { return row.result_type === 'ABSENT' }).map(function renderAbsence(row) {
+                        return (
+                          <tr key={row.grade_id}>
+                            <td><strong>{row.student_name}</strong><small>{row.registration_number}</small></td>
+                            <td><span className={`ntp-status ntp-status--${getAbsenceStatusTone(row.justification_status)}`}>{getAbsenceStatusLabel(row.justification_status)}</span></td>
+                            <td><div className="ntp-document-actions"><label className="ntp-upload-button"><FileUp size={15} />{uploadingGradeId === row.grade_id ? 'Envoi…' : 'Ajouter un fichier'}<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" data-grade-id={row.grade_id} onChange={handleJustificationUpload} disabled={uploadingGradeId === row.grade_id} /></label><button type="button" className="ntp-document-list-button" data-grade-id={row.grade_id} data-student-name={row.student_name} onClick={openGradeDocuments}>Voir le justificatif</button></div></td>
+                            <td>{isAdmin && row.justification_status === 'PENDING' ? <div className="ntp-inline-actions"><button type="button" className="ntp-btn-success" data-grade-id={row.grade_id} data-status="JUSTIFIED" onClick={handleAbsenceReview}>Accepter</button><button type="button" className="ntp-btn-danger" data-grade-id={row.grade_id} data-status="REJECTED" onClick={handleAbsenceReview}>Refuser</button></div> : '—'}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
 
-    const selectedAssessment = createOptions.assessments.find(
-      (assessment) => assessment.id === form.assessment_id,
+            {detailTab === 'corrections' && (
+              <section className="ntp-list">
+                <header className="ntp-card-header"><div><h3>Demandes de correction</h3><p>Une note existante n’est jamais écrasée silencieusement.</p></div></header>
+                <div className="ntp-table-wrapper">
+                  <table className="ntp-table"><thead><tr><th>Élève</th><th>Ancien résultat</th><th>Proposition</th><th>Motif</th><th>Statut</th>{isAdmin ? <th>Action</th> : null}</tr></thead>
+                    <tbody>
+                      {correctionRequests.length === 0 ? <tr><td colSpan={isAdmin ? 6 : 5} className="ntp-loading">Aucune demande.</td></tr> : correctionRequests.map(function renderRequest(request) {
+                        return (
+                          <tr key={request.id}>
+                            <td>{request.student_name}</td>
+                            <td>{request.previous_result_type === 'SCORED' ? request.previous_score : 'Absent'}</td>
+                            <td>{request.proposed_result_type === 'SCORED' ? request.proposed_score : 'Absent'}</td>
+                            <td>{request.request_reason}</td><td>{request.status}</td>
+                            {isAdmin ? <td>{request.status === 'PENDING' ? <div className="ntp-inline-actions"><button type="button" data-request-id={request.id} data-decision="APPROVED" onClick={openDecisionModal}>Valider</button><button type="button" data-request-id={request.id} data-decision="REJECTED" onClick={openDecisionModal}>Rejeter</button></div> : '—'}</td> : null}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
+        {showSheetModal && (
+          <div className="ntp-modal-backdrop" role="presentation" onMouseDown={() => setShowSheetModal(false)}>
+            <section className="ntp-modal ntp-modal--wide" role="dialog" aria-modal="true" onMouseDown={stopModalPropagation}>
+              <div className="ntp-modal__header"><div><h2>Saisie des notes</h2><p>Sélectionnez un élève sans note, puis enregistrez sa note ou son absence.</p></div><button type="button" onClick={() => setShowSheetModal(false)}>×</button></div>
+              <form onSubmit={submitGradeSheet}>
+                <div className="ntp-modal__form">
+                  <label className="ntp-modal__wide-field">
+                    Élève *
+                    <select value={sheetStudentEnrollmentId} onChange={handleSheetStudentChange} required>
+                      <option value="">Sélectionner un élève sans note</option>
+                      {missingGradeRows.map(function renderMissingStudent(row) {
+                        return (
+                          <option key={row.student_enrollment_id} value={row.student_enrollment_id}>
+                            {row.student_name} — {row.registration_number}
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </label>
+
+                  <label>
+                    Note /{formatNumber(assessment.maximum_score)} *
+                    <input
+                      name="score"
+                      type="number"
+                      min="0"
+                      max={assessment.maximum_score}
+                      step="0.01"
+                      value={sheetEntryForm.score}
+                      onChange={handleSheetEntryChange}
+                      disabled={sheetEntryForm.is_absent}
+                      required={!sheetEntryForm.is_absent}
+                    />
+                  </label>
+
+                  <label className="ntp-checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={sheetEntryForm.is_absent}
+                      onChange={handleSheetAbsentToggle}
+                    />
+                    <span>Élève absent</span>
+                  </label>
+
+                  <label className="ntp-modal__wide-field">
+                    Appréciation
+                    <input
+                      name="comment"
+                      value={sheetEntryForm.comment}
+                      onChange={handleSheetEntryChange}
+                      placeholder="Commentaire optionnel"
+                    />
+                  </label>
+
+                  {sheetEntryForm.is_absent && (
+                    <p className="ntp-absence-hint">Absent: la note est désactivée pour cet élève.</p>
+                  )}
+                </div>
+                {sheetError && <p className="ntp-modal__error" role="alert">{sheetError}</p>}
+                <div className="ntp-modal__actions"><button type="button" className="ntp-btn-reset" onClick={() => setShowSheetModal(false)}>Annuler</button><button type="submit" className="ntp-btn-primary" disabled={sheetSaving}>{sheetSaving ? 'Enregistrement…' : 'Enregistrer'}</button></div>
+              </form>
+            </section>
+          </div>
+        )}
+
+        {showCorrectionModal && correctionForm && (
+          <div className="ntp-modal-backdrop" role="presentation" onMouseDown={() => setShowCorrectionModal(false)}><section className="ntp-modal" role="dialog" aria-modal="true" onMouseDown={stopModalPropagation}><div className="ntp-modal__header"><div><h2>{isAdmin ? 'Corriger une note' : 'Demander une correction'}</h2><p>{isAdmin ? 'La correction est appliquée directement.' : 'L’ancienne valeur est conservée dans la demande.'}</p></div><button type="button" onClick={() => setShowCorrectionModal(false)}>×</button></div><form className="ntp-modal__form" onSubmit={submitCorrectionRequest}><label className="ntp-modal__wide-field">Élève *<select value={correctionForm.grade_id} onChange={selectCorrectionGrade}>{gradeSheet.rows.filter(function existingRows(row) { return Boolean(row.grade_id) }).map(function gradeOption(row) { return <option key={row.grade_id} value={row.grade_id}>{row.student_name} — {row.result_type === 'SCORED' ? row.score : 'Absent'}</option> })}</select></label><label>Résultat proposé *<select name="proposed_result_type" value={correctionForm.proposed_result_type} onChange={updateCorrectionForm}><option value="SCORED">Note chiffrée</option><option value="ABSENT">Absent</option></select></label>{correctionForm.proposed_result_type === 'SCORED' ? <label>Nouvelle note *<input name="proposed_score" type="number" min="0" max={assessment.maximum_score} step="0.01" value={correctionForm.proposed_score} onChange={updateCorrectionForm} required /></label> : <label>Statut de l’absence<select name="proposed_justification_status" value={correctionForm.proposed_justification_status || 'UNJUSTIFIED'} onChange={updateCorrectionForm}><option value="UNJUSTIFIED">Non justifiée</option><option value="PENDING">En attente</option><option value="JUSTIFIED">Justifiée</option><option value="REJECTED">Rejetée</option></select></label>}<label className="ntp-modal__wide-field">Motif *<textarea name="request_reason" minLength="3" maxLength="2000" value={correctionForm.request_reason} onChange={updateCorrectionForm} required /></label><div className="ntp-modal__actions"><button type="button" className="ntp-btn-reset" onClick={() => setShowCorrectionModal(false)}>Annuler</button><button type="submit" className="ntp-btn-primary" disabled={correctionSaving}>{correctionSaving ? 'Envoi…' : isAdmin ? 'Appliquer la correction' : 'Envoyer la demande'}</button></div></form></section></div>
+        )}
+
+        {decisionRequest && (
+          <div className="ntp-modal-backdrop" role="presentation" onMouseDown={() => setDecisionRequest(null)}><section className="ntp-modal ntp-modal--small" role="dialog" aria-modal="true" onMouseDown={stopModalPropagation}><div className="ntp-modal__header"><div><h2>{decisionRequest.decision === 'APPROVED' ? 'Approuver la correction' : 'Rejeter la correction'}</h2><p>Cette décision est enregistrée avec votre compte.</p></div></div><form className="ntp-modal__form" onSubmit={submitCorrectionDecision}><label className="ntp-modal__wide-field">{decisionRequest.decision === 'REJECTED' ? 'Motif du rejet *' : 'Commentaire (optionnel)'}<textarea value={decisionComment} onChange={(event) => setDecisionComment(event.target.value)} required={decisionRequest.decision === 'REJECTED'} /></label><div className="ntp-modal__actions"><button type="button" className="ntp-btn-reset" onClick={() => setDecisionRequest(null)}>Annuler</button><button type="submit" className="ntp-btn-primary" disabled={decisionSaving}>Confirmer</button></div></form></section></div>
+        )}
+
+        {documentGradeId && (
+          <div className="ntp-modal-backdrop" role="presentation" onMouseDown={closeGradeDocuments}>
+            <section className="ntp-modal ntp-modal--small" role="dialog" aria-modal="true" onMouseDown={stopModalPropagation}>
+              <div className="ntp-modal__header">
+                <div><h2>Justificatifs</h2><p>{documentStudentName}</p></div>
+                <button type="button" onClick={closeGradeDocuments}>×</button>
+              </div>
+              {documentsLoading ? <p>Chargement…</p> : gradeDocuments.length === 0 ? <p>Aucun justificatif enregistré.</p> : (
+                <ul className="ntp-document-list">
+                  {gradeDocuments.map(function renderGradeDocument(document) {
+                    return (
+                      <li key={document.id}>
+                        <div><strong>{document.original_filename}</strong><small>{document.mime_type} — {Math.ceil(document.size_bytes / 1024)} Ko</small></div>
+                        <a href={getGradeDocumentDownloadUrl(documentGradeId, document.id)} target="_blank" rel="noreferrer">Ouvrir</a>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
+        )}
+      </main>
     )
-    if (!selectedAssessment || !form.student_enrollment_id) {
-      setFormError('La classe, la matière, l’évaluation et l’élève sont obligatoires.')
-      return
-    }
-    if (form.result_type === 'SCORED') {
-      const score = Number(form.score)
-      if (!Number.isFinite(score) || score < 0 || score > Number(selectedAssessment.maximum_score)) {
-        setFormError(`La note doit être comprise entre 0 et ${formatNumber(selectedAssessment.maximum_score)}.`)
-        return
-      }
-    }
-
-    setFormLoading(true)
-    try {
-      await createGrade({
-        assessment_id: form.assessment_id,
-        student_enrollment_id: form.student_enrollment_id,
-        result_type: form.result_type,
-        score: form.result_type === 'SCORED' ? Number(form.score) : null,
-        justification_status: form.result_type === 'ABSENT'
-          ? form.justification_status
-          : null,
-        comment: form.comment.trim() || null,
-      })
-      setShowModal(false)
-      toast.success('La note a été enregistrée en base de données.')
-      await refreshGrades()
-    } catch (error) {
-      setFormError(error.message)
-      toast.error(error.message)
-    } finally {
-      setFormLoading(false)
-    }
   }
-
-  const assessmentOptions = useMemo(() => {
-    const byAssessment = new Map()
-    grades.forEach((grade) => {
-      if (!byAssessment.has(grade.assessment_id)) {
-        byAssessment.set(grade.assessment_id, {
-          id: grade.assessment_id,
-          title: grade.assessment_title,
-          date: grade.assessment_date,
-          className: grade.class_name,
-          subjectName: grade.subject_name,
-        })
-      }
-    })
-    return [...byAssessment.values()]
-  }, [grades])
-
-  const visibleGrades = useMemo(() => {
-    return grades.filter((grade) => {
-      const matchesAssessment = !assessmentFilter || grade.assessment_id === assessmentFilter
-      const matchesResultType = !resultTypeFilter || grade.result_type === resultTypeFilter
-      return matchesAssessment && matchesResultType
-    })
-  }, [grades, assessmentFilter, resultTypeFilter])
-
-  const selectedAssessment = useMemo(() => {
-    if (assessmentFilter) {
-      return assessmentOptions.find((item) => item.id === assessmentFilter) || null
-    }
-    return null
-  }, [assessmentFilter, assessmentOptions])
-
-  const displayGrades = useMemo(() => {
-    if (!selectedAssessment) return visibleGrades
-    return visibleGrades.filter((grade) => grade.assessment_id === selectedAssessment.id)
-  }, [selectedAssessment, visibleGrades])
-
-  const stats = useMemo(() => {
-    const scoredGrades = visibleGrades.filter((grade) => grade.result_type === 'SCORED')
-    const absentGrades = visibleGrades.filter((grade) => grade.result_type === 'ABSENT')
-    const studentsCount = new Set(visibleGrades.map((grade) => grade.student_enrollment_id)).size
-    const weightedAverage = scoredGrades.length === 0
-      ? null
-      : scoredGrades.reduce((sum, grade) => sum + ((Number(grade.score) / Number(grade.maximum_score)) * 20), 0) / scoredGrades.length
-
-    return {
-      assessmentsCount: new Set(visibleGrades.map((grade) => grade.assessment_id)).size,
-      scoredCount: scoredGrades.length,
-      totalCount: visibleGrades.length,
-      absenceCount: absentGrades.length,
-      studentsCount,
-      weightedAverage,
-    }
-  }, [visibleGrades])
-
-  const visibleAssessmentList = useMemo(() => {
-    const byAssessment = new Map()
-    visibleGrades.forEach((grade) => {
-      if (!byAssessment.has(grade.assessment_id)) {
-        byAssessment.set(grade.assessment_id, {
-          id: grade.assessment_id,
-          title: grade.assessment_title,
-          subjectName: grade.subject_name,
-          className: grade.class_name,
-          assessmentDate: grade.assessment_date,
-          gradeCount: 1,
-        })
-        return
-      }
-
-      const current = byAssessment.get(grade.assessment_id)
-      current.gradeCount += 1
-    })
-
-    return [...byAssessment.values()]
-  }, [visibleGrades])
-
-  const assessmentMeta = displayGrades[0] || null
 
   return (
     <main className="ntp-main">
-      <div className="ntp-topbar">
-        <div>
-          <h1 className="ntp-title">Gestion des notes</h1>
-          <nav className="ntp-breadcrumb" aria-label="Fil d’Ariane">
-            <button type="button" onClick={handleHomeNavigation}>Accueil</button>
-            <span>›</span>
-            <button type="button" onClick={() => onNavigate?.('notes')}>Notes</button>
-            <span>›</span>
-            <span>Notes</span>
-          </nav>
-          <p className="ntp-subtitle">Consultez, saisissez et gérez les notes des élèves.</p>
-        </div>
-      </div>
-
+      <div className="ntp-topbar"><div><h1 className="ntp-title">Gestion des évaluations et des notes</h1><nav className="ntp-breadcrumb" aria-label="Fil d’Ariane"><button type="button" onClick={handleHomeNavigation}>Accueil</button><span>›</span><span>Notes</span></nav><p className="ntp-subtitle">Créez les évaluations puis saisissez les résultats de tous les inscrits.</p></div><button type="button" className="ntp-btn-primary" onClick={openAssessmentModal}><Plus size={16} /> Créer une évaluation</button></div>
       {pageError && <p className="ntp-page-error" role="alert">{pageError}</p>}
+      <section className="ntp-stats" aria-label="Résumé officiel"><article className="ntp-stat-card"><ClipboardCheck size={21} /><div><strong>{dashboardSummary.assessments_count}</strong><span>Évaluations</span></div></article><article className="ntp-stat-card"><CheckCircle2 size={21} /><div><strong>{dashboardSummary.grade_count} / {dashboardSummary.expected_grade_count}</strong><span>Résultats saisis</span></div></article><article className="ntp-stat-card"><ListChecks size={21} /><div><strong>{dashboardSummary.missing_count}</strong><span>Résultats manquants</span></div></article><article className="ntp-stat-card"><BarChart3 size={21} /><div><strong>{formatNumber(dashboardSummary.official_average_on_20)} /20</strong><span>Moyenne des résultats</span></div></article><article className="ntp-stat-card"><Users size={21} /><div><strong>{dashboardSummary.students_count}</strong><span>Élèves concernés</span></div></article></section>
+      <form className="ntp-filters" onSubmit={(event) => event.preventDefault()}><div className="ntp-filters__row ntp-filters__row--dashboard"><label>Recherche<div className="ntp-search"><Search className="ntp-search__icon" size={18} /><input type="search" placeholder="Titre, classe, matière, enseignant…" value={query} onChange={(event) => setQuery(event.target.value)} /></div></label><label>Classe<select value={classFilter} onChange={(event) => setClassFilter(event.target.value)}><option value="">Toutes les classes</option>{filterOptions.classes.map(function classOption(item) { return <option key={item.id} value={item.id}>{item.name}</option> })}</select></label><label>Matière<select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)}><option value="">Toutes les matières</option>{filterOptions.subjects.map(function subjectOption(item) { return <option key={item.id} value={item.id}>{item.name}</option> })}</select></label><label>Période<select value={periodFilter} onChange={(event) => setPeriodFilter(event.target.value)}><option value="">Toutes les périodes</option>{filterOptions.periods.map(function periodOption(item) { return <option key={item.id} value={item.id}>{item.name}</option> })}</select></label></div></form>
+      <section className="ntp-list"><header className="ntp-card-header"><div><h3>Évaluations</h3><p>{assessments.length} évaluation(s) visible(s), y compris sans note.</p></div></header><div className="ntp-table-wrapper"><table className="ntp-table ntp-table--compact"><thead><tr><th>Évaluation</th><th>Matière</th><th>Classe</th><th>Enseignant</th><th>Date</th><th>Barème</th><th>Statut</th><th>Saisie</th></tr></thead><tbody>{loading ? <tr><td colSpan="8" className="ntp-loading">Chargement…</td></tr> : paginatedAssessments.length === 0 ? <tr><td colSpan="8" className="ntp-loading">Aucune évaluation.</td></tr> : paginatedAssessments.map(function renderAssessment(row) { return <tr key={row.id} className="ntp-table__row" data-assessment-id={row.id} tabIndex="0" onClick={() => handleAssessmentSelection(row.id)} onKeyDown={handleAssessmentRowKeyDown}><td><strong>{row.title}</strong><small>{row.reporting_period_name || 'Hors période'}</small></td><td>{row.subject_name}</td><td>{row.class_name}</td><td>{row.teacher_name}</td><td>{formatDate(row.assessment_date)}</td><td>/{formatNumber(row.maximum_score)}</td><td><span className={`ntp-status ntp-status--${getCompletionTone(row.completion_status)}`}>{getCompletionLabel(row.completion_status)}</span></td><td>{row.completion_status === 'COMPLETE' ? 'Fini' : 'En cours'}</td></tr> })}</tbody></table></div>{assessments.length > PAGE_SIZE && <footer className="ntp-table-pagination"><span>Page {page} sur {pageCount}</span><div className="ntp-table-pagination__actions"><button type="button" className="ntp-page-btn" onClick={() => setPage(page - 1)} disabled={page === 1}>‹</button><button type="button" className="ntp-page-btn ntp-page-btn--active">{page}</button><button type="button" className="ntp-page-btn" onClick={() => setPage(page + 1)} disabled={page === pageCount}>›</button></div></footer>}</section>
 
-      <section className="ntp-stats" aria-label="Résumé des notes">
-        <article className="ntp-stat-card">
-          <span className="ntp-stat-icon ntp-stat-icon--violet"><ClipboardCheck size={20} aria-hidden="true" /></span>
-          <div>
-            <strong>{stats.assessmentsCount}</strong>
-            <span>Évaluations</span>
-            <small>Cette période</small>
-          </div>
-        </article>
-        <article className="ntp-stat-card">
-          <span className="ntp-stat-icon ntp-stat-icon--green"><CheckCircle2 size={20} aria-hidden="true" /></span>
-          <div>
-            <strong>{stats.scoredCount} / {stats.totalCount}</strong>
-            <span>Notes saisies</span>
-            <small>{stats.totalCount === 0 ? '0%' : `${formatDecimal((stats.scoredCount / stats.totalCount) * 100)}%`}</small>
-          </div>
-        </article>
-        <article className="ntp-stat-card">
-          <span className="ntp-stat-icon ntp-stat-icon--blue"><BarChart3 size={20} aria-hidden="true" /></span>
-          <div>
-            <strong>{stats.weightedAverage === null ? '—' : `${formatDecimal(stats.weightedAverage)} / 20`}</strong>
-            <span>Moyenne générale</span>
-            <small>Toutes classes</small>
-          </div>
-        </article>
-        <article className="ntp-stat-card">
-          <span className="ntp-stat-icon ntp-stat-icon--orange"><Users size={20} aria-hidden="true" /></span>
-          <div>
-            <strong>{stats.studentsCount}</strong>
-            <span>Élèves concernés</span>
-            <small>Absences : {stats.absenceCount}</small>
-          </div>
-        </article>
-      </section>
-
-      <form onSubmit={preventFilterSubmit} className="ntp-filters">
-        <div className="ntp-filters__row ntp-filters__row--top">
-          <label>
-            Classe
-            <select value={classFilter} onChange={handleClassFilterChange}>
-              <option value="">Toutes les classes</option>
-              {filterOptions.classes.map((schoolClass) => (
-                <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Matière
-            <select value={subjectFilter} onChange={handleSubjectFilterChange}>
-              <option value="">Toutes les matières</option>
-              {filterOptions.subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>{subject.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Période / Évaluation
-            <select value={assessmentFilter} onChange={handleAssessmentFilterChange}>
-              <option value="">Toutes les évaluations</option>
-              {assessmentOptions.map((assessment) => (
-                <option key={assessment.id} value={assessment.id}>
-                  {assessment.title} — {assessment.className}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Type de résultat
-            <select value={resultTypeFilter} onChange={handleResultTypeFilterChange}>
-              <option value="">Tous</option>
-              <option value="SCORED">Noté</option>
-              <option value="ABSENT">Absent</option>
-            </select>
-          </label>
-
-          <button type="button" className="ntp-btn-reset" onClick={handleReset}>
-            <RotateCcw size={15} aria-hidden="true" /> Réinitialiser
-          </button>
-
-          <button type="button" className="ntp-btn-primary" onClick={openCreateModal}>
-            <Plus size={16} aria-hidden="true" /> Nouvelle évaluation
-          </button>
-        </div>
-
-        <div className="ntp-filters__row ntp-filters__row--search">
-          <label className="ntp-search">
-            <Search className="ntp-search__icon" aria-hidden="true" size={18} />
-            <input
-              type="search"
-              aria-label="Rechercher un élève"
-              placeholder="Rechercher un élève, une classe, une matière..."
-              value={query}
-              onChange={handleQueryChange}
-            />
-          </label>
-
-          <label>
-            Période scolaire
-            <select value={periodFilter} onChange={handlePeriodFilterChange}>
-              <option value="">Toutes les périodes</option>
-              {filterOptions.periods.map((period) => (
-                <option key={period.id} value={period.id}>{period.name}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </form>
-
-      <section className="ntp-list">
-        <header className="ntp-evaluation-head">
-          <div>
-            <h3>{selectedAssessment?.title || 'Toutes les évaluations'}</h3>
-            <span className="ntp-evaluation-tag">{selectedAssessment ? 'Évaluation notée' : 'Vue globale'}</span>
-            {selectedAssessment && assessmentMeta && (
-              <p>
-                <span>Matière : {assessmentMeta.subject_name}</span>
-                <span>Classe : {assessmentMeta.class_name}</span>
-                <span>Date : {formatDate(assessmentMeta.assessment_date)}</span>
-                <span>Note maximale : {formatNumber(assessmentMeta.maximum_score)}</span>
-                <span>Coefficient : {formatNumber(assessmentMeta.coefficient)}</span>
-              </p>
-            )}
-            {!selectedAssessment && visibleAssessmentList.length > 0 && (
-              <div className="ntp-evaluation-list" aria-label="Liste des évaluations visibles">
-                {visibleAssessmentList.map((assessment) => (
-                  <article key={assessment.id} className="ntp-evaluation-list__item">
-                    <strong>{assessment.title}</strong>
-                    <span>{assessment.subjectName}</span>
-                    <span>{assessment.className}</span>
-                    <span>{formatDate(assessment.assessmentDate)}</span>
-                    <small>{assessment.gradeCount} note{assessment.gradeCount > 1 ? 's' : ''}</small>
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-        </header>
-
-        <div className="ntp-table-wrapper">
-          <table className="ntp-table">
-            <thead>
-              <tr>
-                <th>N°</th>
-                <th>Élève</th>
-                <th>Matière</th>
-                <th>Date</th>
-                <th>Coefficient</th>
-                <th>Statut</th>
-                <th>Note saisie</th>
-                <th>Absent</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={8} className="ntp-loading">Chargement des notes…</td></tr>
-              ) : displayGrades.length === 0 ? (
-                <tr><td colSpan={8} className="ntp-loading">Aucune note enregistrée. Ajoutez-en une pour tester l'écran.</td></tr>
-              ) : (
-                displayGrades.map((grade, index) => (
-                  <tr key={grade.id}>
-                    <td>{index + 1}</td>
-                    <td>
-                      <strong>{grade.student_name}</strong>
-                      <small>{grade.registration_number}</small>
-                    </td>
-                    <td>{grade.subject_name}</td>
-                    <td>{formatDate(grade.assessment_date)}</td>
-                    <td>{formatNumber(grade.coefficient)}</td>
-                    <td>
-                      <span className={grade.result_type === 'ABSENT' ? 'ntp-status ntp-status--absent' : 'ntp-status ntp-status--scored'}>
-                        {grade.result_type === 'ABSENT' ? 'Absent' : 'Noté'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className={grade.result_type === 'ABSENT' ? 'ntp-grade-input ntp-grade-input--muted' : 'ntp-grade-input'}>
-                        {grade.result_type === 'ABSENT' ? '—' : formatDecimal((Number(grade.score) / Number(grade.maximum_score)) * 20)}
-                      </div>
-                    </td>
-                    <td>
-                      <input type="checkbox" checked={grade.result_type === 'ABSENT'} readOnly aria-label="Absent" />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {showModal && (
-        <div className="ntp-modal-backdrop" role="presentation" onMouseDown={closeModal}>
-          <section
-            className="ntp-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ntp-modal-title"
-            onMouseDown={stopModalPropagation}
-          >
-            <div className="ntp-modal__header">
-              <div>
-                <h2 id="ntp-modal-title">Ajouter une note</h2>
-                <p>Choisissez une évaluation existante, puis l’élève concerné.</p>
-              </div>
-              <button type="button" onClick={closeModal} aria-label="Fermer">×</button>
-            </div>
-
-            <form className="ntp-modal__form" onSubmit={handleSubmit}>
-              <label>
-                Classe *
-                <select name="class_id" value={form.class_id} onChange={handleClassChange} required>
-                  <option value="">Sélectionner une classe</option>
-                  {filterOptions.classes.map((schoolClass) => (
-                    <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Matière *
-                <select name="subject_id" value={form.subject_id} onChange={handleSubjectChange} disabled={!form.class_id} required>
-                  <option value="">Sélectionner une matière</option>
-                  {createOptions.subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>{subject.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="ntp-modal__wide-field">
-                Évaluation *
-                <select name="assessment_id" value={form.assessment_id} onChange={handleAssessmentChange} disabled={!form.subject_id} required>
-                  <option value="">Sélectionner une évaluation</option>
-                  {createOptions.assessments.map((assessment) => (
-                    <option key={assessment.id} value={assessment.id}>
-                      {assessment.title} — {formatDate(assessment.assessment_date)} — /{formatNumber(assessment.maximum_score)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="ntp-modal__wide-field">
-                Élève *
-                <select name="student_enrollment_id" value={form.student_enrollment_id} onChange={updateField} disabled={!form.assessment_id} required>
-                  <option value="">Sélectionner un élève sans résultat</option>
-                  {createOptions.students.map((student) => (
-                    <option key={student.enrollment_id} value={student.enrollment_id}>
-                      {student.name} — {student.registration_number}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Type de résultat *
-                <select name="result_type" value={form.result_type} onChange={handleResultTypeChange}>
-                  <option value="SCORED">Note chiffrée</option>
-                  <option value="ABSENT">Absent</option>
-                </select>
-              </label>
-
-              {form.result_type === 'SCORED' ? (
-                <label>
-                  Note *
-                  <input
-                    name="score"
-                    type="number"
-                    min="0"
-                    max={createOptions.assessments.find((item) => item.id === form.assessment_id)?.maximum_score ?? undefined}
-                    step="0.01"
-                    value={form.score}
-                    onChange={updateField}
-                    required
-                  />
-                </label>
-              ) : (
-                <label>
-                  Justification
-                  <select name="justification_status" value={form.justification_status} onChange={updateField}>
-                    <option value="UNJUSTIFIED">Non justifiée</option>
-                    <option value="PENDING">Justificatif en attente</option>
-                  </select>
-                </label>
-              )}
-
-              <label className="ntp-modal__wide-field">
-                Appréciation
-                <textarea name="comment" value={form.comment} onChange={updateField} rows="3" maxLength="2000" />
-              </label>
-
-              {formError && <p className="ntp-modal__error" role="alert">{formError}</p>}
-
-              <div className="ntp-modal__actions">
-                <button type="button" className="ntp-btn-reset" onClick={closeModal}>Annuler</button>
-                <button type="submit" className="ntp-btn-primary" disabled={formLoading}>
-                  {formLoading ? 'Enregistrement…' : 'Enregistrer la note'}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
+      {showAssessmentModal && <div className="ntp-modal-backdrop" role="presentation" onMouseDown={() => setShowAssessmentModal(false)}><section className="ntp-modal" role="dialog" aria-modal="true" onMouseDown={stopModalPropagation}><div className="ntp-modal__header"><div><h2>Créer une évaluation</h2><p>Choisissez d’abord la classe, puis la matière avec son enseignant.</p></div><button type="button" onClick={() => setShowAssessmentModal(false)}>×</button></div><form className="ntp-modal__form" onSubmit={submitAssessment}><label>Classe *<select value={assessmentClassId} onChange={handleAssessmentClassChange} required><option value="">Sélectionner une classe</option>{assignmentClassOptions.map(function classOption(item) { return <option key={item.id} value={item.id}>{item.name}</option> })}</select></label><label>Matière *<select name="teacher_assignment_id" value={assessmentForm.teacher_assignment_id} onChange={updateAssessmentForm} disabled={!assessmentClassId} required><option value="">{assessmentClassId ? 'Sélectionner une matière' : 'Choisissez d\'abord une classe'}</option>{assignmentSubjectOptions.map(function assignmentOption(item) { return <option key={item.id} value={item.id}>{item.teacher_name} — {item.subject_name}</option> })}</select></label><label className="ntp-modal__wide-field">Titre *<input name="title" maxLength="150" value={assessmentForm.title} onChange={updateAssessmentForm} required /></label><label>Date *<input name="assessment_date" type="date" value={assessmentForm.assessment_date} onChange={updateAssessmentForm} required /></label><label>Barème *<input name="maximum_score" type="number" min="0.01" step="0.01" value={assessmentForm.maximum_score} onChange={updateAssessmentForm} required /></label><label>Coefficient *<input name="coefficient" type="number" min="0.01" step="0.01" value={assessmentForm.coefficient} onChange={updateAssessmentForm} required /></label><label className="ntp-modal__wide-field">Description<textarea name="description" value={assessmentForm.description} onChange={updateAssessmentForm} /></label>{assessmentError && <p className="ntp-modal__error">{assessmentError}</p>}<div className="ntp-modal__actions"><button type="button" className="ntp-btn-reset" onClick={() => setShowAssessmentModal(false)}>Annuler</button><button type="submit" className="ntp-btn-primary" disabled={assessmentSaving}>{assessmentSaving ? 'Création…' : 'Créer l’évaluation'}</button></div></form></section></div>}
     </main>
   )
 }
