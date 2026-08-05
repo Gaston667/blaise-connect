@@ -23,6 +23,12 @@ def post_room(payload: RoomCreate, db: DatabaseSession, current_admin: CurrentAd
     return timetable_service.create_room(db=db, name=payload.name, capacity=payload.capacity)
 
 
+@router.get("/teacher-busy-slots")
+def get_teacher_busy_slots(db: DatabaseSession, current_admin: CurrentAdminDependency, exclude_class_id: str | None = None):
+    """Retourne les créneaux déjà occupés par chaque enseignant, hors de la classe donnée."""
+    return timetable_service.get_teacher_busy_slots(db=db, exclude_class_id=exclude_class_id)
+
+
 @router.get("/school-classes/{class_id}/timetable")
 def get_class_timetable(class_id: str, db: DatabaseSession, current_admin: CurrentAdminDependency):
     """Retourne les créneaux de la classe."""
@@ -88,3 +94,9 @@ def post_special_course(
 def delete_special_course(special_course_id: str, db: DatabaseSession, current_admin: CurrentAdminDependency):
     """Supprime un cours particulier."""
     timetable_service.delete_special_course(db=db, special_course_id=special_course_id)
+
+
+@router.get("/teachers/{teacher_id}/timetable")
+def get_teacher_timetable(teacher_id: str, db: DatabaseSession, current_admin: CurrentAdminDependency):
+    """Retourne l'emploi du temps d'un enseignant, toutes classes confondues."""
+    return timetable_service.get_teacher_timetable(db=db, teacher_id=teacher_id)

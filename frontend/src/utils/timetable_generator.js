@@ -88,9 +88,24 @@ export function getDayScheduleForStage(educationStage, options = {}) {
   return schedule
 }
 
+function periodsOverlap(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && aEnd > bStart
+}
+
 /**
- * @param {{ subjectId: string, subjectName: string, hours: number }[]} subjectHours
- * @param {{ days?: string[], periods?: {start: string, end: string}[] }} options
+ * L'algorithme doit toujours produire un emploi du temps, quelle que soit la
+ * disponibilité réelle des enseignants (un même enseignant partagé par
+ * plusieurs classes est le cas normal, pas une exception à contourner en
+ * amont). Il ne place donc jamais une matière sur un créneau où son
+ * enseignant est déjà en cours ailleurs, mais reste libre de la placer un
+ * autre jour ou sur un autre créneau du même jour.
+ *
+ * @param {{ subjectId: string, subjectName: string, hours: number, teacherId?: string }[]} subjectHours
+ * @param {{
+ *   days?: string[],
+ *   periods?: {start: string, end: string}[],
+ *   busySlotsByTeacherId?: Map<string, {day_of_week: number, start: string, end: string}[]>,
+ * }} options
  * @returns {{
  *   grid: Record<string, (string|null)[]>,
  *   periods: {start: string, end: string}[],
@@ -101,6 +116,7 @@ export function getDayScheduleForStage(educationStage, options = {}) {
 export function generateWeeklyTimetable(subjectHours, options = {}) {
   const days = options.days ?? DEFAULT_DAYS
   const periods = options.periods ?? SECONDARY_PERIODS
+  const busySlotsByTeacherId = options.busySlotsByTeacherId ?? new Map()
   const hoursPerPeriod = 2
 
   const remainingHoursBySubjectId = new Map(
@@ -108,6 +124,9 @@ export function generateWeeklyTimetable(subjectHours, options = {}) {
   )
   const subjectNameById = new Map(
     subjectHours.map((entry) => [entry.subjectId, entry.subjectName])
+  )
+  const teacherIdBySubjectId = new Map(
+    subjectHours.map((entry) => [entry.subjectId, entry.teacherId ?? null])
   )
 
   const grid = {}
@@ -122,18 +141,45 @@ export function generateWeeklyTimetable(subjectHours, options = {}) {
     )
   }
 
-  for (const day of days) {
+  function isTeacherBusy(subjectId, dayNumber, period) {
+    const teacherId = teacherIdBySubjectId.get(subjectId)
+    if (!teacherId) return false
+    const busySlots = busySlotsByTeacherId.get(teacherId)
+    if (!busySlots) return false
+    return busySlots.some(
+      (slot) => slot.day_of_week === dayNumber && periodsOverlap(slot.start, slot.end, period.start, period.end)
+    )
+  }
+
+  let teacherConflictsAvoided = 0
+
+  for (const [dayIndex, day] of days.entries()) {
+    const dayNumber = dayIndex + 1
     const subjectsUsedToday = new Set()
     for (let period = 0; period < periods.length; period++) {
+      const currentPeriod = periods[period]
+
       let candidates = [...remainingHoursBySubjectId.entries()].filter(
-        ([subjectId, hours]) => hours > 0 && !subjectsUsedToday.has(subjectId)
+        ([subjectId, hours]) =>
+          hours > 0 && !subjectsUsedToday.has(subjectId) && !isTeacherBusy(subjectId, dayNumber, currentPeriod)
       )
       if (candidates.length === 0) {
         // Plus aucune matière "fraîche" pour ce jour : on autorise une répétition
         // plutôt que de laisser un trou, si des heures restent à placer.
-        candidates = [...remainingHoursBySubjectId.entries()].filter(([, hours]) => hours > 0)
+        candidates = [...remainingHoursBySubjectId.entries()].filter(
+          ([subjectId, hours]) => hours > 0 && !isTeacherBusy(subjectId, dayNumber, currentPeriod)
+        )
       }
-      if (candidates.length === 0) break
+      if (candidates.length === 0) {
+        // Rien de plaçable sur CE créneau précis (matières restantes toutes
+        // bloquées par leur enseignant) : on continue vers le créneau
+        // suivant plutôt que d'abandonner le reste de la journée, un
+        // enseignant occupé à 10h peut très bien être libre à 14h.
+        if ([...remainingHoursBySubjectId.values()].some((hours) => hours > 0)) {
+          teacherConflictsAvoided += 1
+        }
+        continue
+      }
 
       candidates.sort((a, b) => b[1] - a[1])
       const [subjectId] = candidates[0]
@@ -149,6 +195,12 @@ export function generateWeeklyTimetable(subjectHours, options = {}) {
   const unplacedHoursBySubject = [...remainingHoursBySubjectId.entries()]
     .filter(([, hours]) => hours > 0)
     .map(([subjectId, hours]) => ({ subjectId, subjectName: subjectNameById.get(subjectId), hours }))
+
+  if (unplacedHoursBySubject.length > 0 && teacherConflictsAvoided > 0) {
+    warnings.push(
+      "Certaines heures n'ont pas pu être placées car l'enseignant concerné est déjà en cours dans une autre classe sur tous les créneaux restants disponibles."
+    )
+  }
 
   return { grid, periods, warnings, unplacedHoursBySubject }
 }

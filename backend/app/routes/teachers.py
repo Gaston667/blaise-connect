@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 
-from app.core.authentication import CurrentAdminDependency, DatabaseSession
+from app.core.authentication import CurrentAdminDependency, CurrentStaffDependency, DatabaseSession
 from app.core.postgres_error_message import extract_postgres_error_message
 from app.core.teacher_assignment_conflict_error import TeacherAssignmentConflictError
 from app.schemas.teacher_assignment_create import TeacherAssignmentCreate
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/teachers", tags=["teachers"])
 @router.get("/overview", response_model=list[TeacherOverview])
 def get_teachers_overview(
     db: DatabaseSession,
-    current_admin: CurrentAdminDependency,
+    current_staff: CurrentStaffDependency,
     q: str | None = Query(None),
 ):
     """Vue enrichie des enseignants : matricule, matières, statut brut."""

@@ -95,6 +95,7 @@ def list_school_classes_overview(
     school_year_id: str | None = None,
     class_level_id: str | None = None,
     status: str | None = None,
+    teacher_id: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict]:
@@ -145,6 +146,20 @@ def list_school_classes_overview(
     if status:
         sql += " AND (CASE WHEN sy.closed_at IS NOT NULL THEN 'ARCHIVEE' ELSE 'ACTIVE' END) = :status"
         params["status"] = status
+    if teacher_id:
+        sql += """ AND (
+            c.main_teacher_id = :teacher_id
+            OR EXISTS (
+                SELECT 1
+                FROM class_subjects AS class_subject
+                JOIN teacher_assignments AS assignment
+                  ON assignment.class_subject_id = class_subject.id
+                 AND assignment.end_date IS NULL
+                WHERE class_subject.class_id = c.id
+                  AND assignment.teacher_id = :teacher_id
+            )
+        )"""
+        params["teacher_id"] = teacher_id
 
     sql += " ORDER BY level_display_order, c.group_label LIMIT :limit OFFSET :offset"
 
@@ -272,6 +287,13 @@ def list_school_class_subjects(
             s.name,
             cs.coefficient,
             s.is_active,
+            (
+                SELECT assignment.teacher_id
+                FROM teacher_assignments AS assignment
+                WHERE assignment.class_subject_id = cs.id
+                  AND assignment.end_date IS NULL
+                LIMIT 1
+            ) AS teacher_id,
             (
                 SELECT string_agg(
                     (CASE

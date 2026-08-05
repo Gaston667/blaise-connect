@@ -1,10 +1,23 @@
-import { BookOpen, CalendarDays, CalendarRange, ContactRound, GraduationCap, House, NotebookPen, ShieldCheck, Users, Presentation, X } from 'lucide-react';
+import {
+  BookOpen,
+  CalendarDays,
+  CalendarRange,
+  ContactRound,
+  GraduationCap,
+  House,
+  NotebookPen,
+  ShieldCheck,
+  Users,
+  Presentation,
+  X,
+} from 'lucide-react';
 import logo from '../assets/logo-blaise-connect.png.png';
 import LogoutButton from '../pages/logout_button.jsx';
+import SidebarProfile from './sidebar_profile.jsx';
 
 /**
  * Composant principal de la barre latérale.
- * Gère la navigation et l'affichage conditionnel des éléments.
+ * Gère la navigation et l'affichage conditionnel des éléments selon le rôle.
  */
 export default function Sidebar({
   account,
@@ -16,14 +29,16 @@ export default function Sidebar({
 }) {
   const isStaff = account.role === 'ADMIN' || account.role === 'TEACHER';
   const isStudent = account.role === 'STUDENT';
+  const isTeacher = account.role === 'TEACHER';
+  const isAdmin = account.role === 'ADMIN';
 
   /**
    * Gère la navigation vers une page et ferme le menu mobile.
    */
-  const handleNavigation = (page) => {
+  function handleNavigation(page) {
     onNavigate(page);
     onClose();
-  };
+  }
 
   return (
     <aside className={isOpen ? 'layout-sidebar layout-sidebar-open' : 'layout-sidebar'}>
@@ -31,10 +46,14 @@ export default function Sidebar({
       <nav className="layout-navigation" aria-label="Navigation principale">
         {renderCommonNavigation(currentPage, handleNavigation)}
         {isStaff && renderStaffNavigation(currentPage, handleNavigation)}
-        {account.role === 'ADMIN' && renderAdminNavigation(currentPage, handleNavigation)}
+        {isAdmin && renderAdminNavigation(currentPage, handleNavigation)}
         {isStudent && renderStudentNavigation(currentPage, handleNavigation)}
+        {isTeacher && renderTeacherNavigation(currentPage, handleNavigation)}
       </nav>
-      {renderLogoutButton(onLogoutSuccess)}
+      <div className="sidebar-bottom-card">
+        <SidebarProfile account={account} />
+        {renderLogoutButton(onLogoutSuccess)}
+      </div>
     </aside>
   );
 }
@@ -80,7 +99,7 @@ function renderCommonNavigation(currentPage, handleNavigation) {
 }
 
 /**
- * Navigation spécifique au personnel (ADMIN/TEACHER).
+ * Navigation commune au personnel (ADMIN + TEACHER) : élèves, classes, matières, notes, emploi du temps général.
  */
 function renderStaffNavigation(currentPage, handleNavigation) {
   return (
@@ -140,20 +159,6 @@ function renderStaffNavigation(currentPage, handleNavigation) {
         <NotebookPen aria-hidden="true" size={20} />
         Notes
       </button>
-
-      <button
-        className={
-          currentPage === 'timetables'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="timetables"
-        onClick={() => handleNavigation('timetables')}
-      >
-        <CalendarDays aria-hidden="true" size={20} />
-        Emploi du temps
-      </button>
     </>
   );
 }
@@ -192,6 +197,20 @@ function renderAdminNavigation(currentPage, handleNavigation) {
       >
         <Users aria-hidden="true" size={20} />
         Responsables légaux
+      </button>
+
+      <button
+        className={
+          currentPage === 'timetables'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="timetables"
+        onClick={() => handleNavigation('timetables')}
+      >
+        <CalendarDays aria-hidden="true" size={20} />
+        Emploi du temps
       </button>
 
       <button
@@ -240,7 +259,7 @@ function renderAdminNavigation(currentPage, handleNavigation) {
 }
 
 /**
- * Navigation spécifique aux étudiants.
+ * Navigation spécifique aux élèves.
  */
 function renderStudentNavigation(currentPage, handleNavigation) {
   return (
@@ -273,6 +292,27 @@ function renderStudentNavigation(currentPage, handleNavigation) {
         Mon emploi du temps
       </button>
     </>
+  );
+}
+
+/**
+ * Navigation spécifique aux enseignants.
+ */
+function renderTeacherNavigation(currentPage, handleNavigation) {
+  return (
+    <button
+      className={
+        currentPage === 'teacher-timetable'
+          ? 'layout-navigation-item layout-navigation-item-active'
+          : 'layout-navigation-item'
+      }
+      type="button"
+      data-page="teacher-timetable"
+      onClick={() => handleNavigation('teacher-timetable')}
+    >
+      <CalendarDays aria-hidden="true" size={20} />
+      Mon emploi du temps
+    </button>
   );
 }
 

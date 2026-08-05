@@ -50,11 +50,7 @@ export default function MainLayout({
       ) : null}
 
       <div className="layout-content">
-        <AppHeader
-          account={account}
-          onMenuOpen={handleSidebarOpen}
-          onLogoutSuccess={onLogoutSuccess}
-        />
+        <AppHeader onMenuOpen={handleSidebarOpen} />
 
         {children}
       </div>

@@ -94,3 +94,23 @@ CurrentAdminDependency = Annotated[
 ]
 
 
+def require_staff_account(
+    current_account: CurrentAccountDependency,
+) -> Account:
+    """Autorise le personnel de l'établissement (administrateur ou enseignant)
+    à accéder à une ressource en lecture."""
+
+    if current_account.role not in ("ADMIN", "TEACHER"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas les droits pour accéder à cette ressource.",
+        )
+
+    return current_account
+
+CurrentStaffDependency = Annotated[
+    Account,
+    Depends(require_staff_account),
+]
+
+
