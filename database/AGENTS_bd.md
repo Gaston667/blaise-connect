@@ -106,7 +106,7 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 
 ### 3.6 Absences et retards
 
-- Aucun emploi du temps complet ni table générique de séances de cours n'est prévu pour le moment.
+- L'emploi du temps hebdomadaire récurrent est distinct de l'appel : voir `timetable_slots` (§3.9). `attendance_events` reste la source du contexte d'un appel ponctuel.
 - `attendance_events` contient uniquement le contexte d'un appel : affectation, date et horaires du cours.
 - `attendance_records` contient les élèves absents ou en retard pendant cet appel.
 - Le contexte évite de répéter le professeur, la matière et les horaires pour chaque élève concerné.
@@ -134,6 +134,23 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - `report_card_grades` conserve la liste exacte des notes utilisées.
 - Une fois validé, le bulletin et ses lignes deviennent immuables, sauf procédure explicite d'invalidation autorisée et auditée.
 - Les moyennes stockées sont des instantanés historiques volontaires, pas une erreur de normalisation.
+
+### 3.9 Emploi du temps
+
+- `timetable_slots` représente un créneau hebdomadaire récurrent (jour de la
+  semaine + heure de début/fin), rattaché à une `teacher_assignment` — pas de
+  date précise, pas de duplication de `teacher_id`/`class_id` (résolus par
+  jointure pour rester en 3NF).
+- `rooms` est une table dédiée plutôt qu'un texte libre, pour éviter la
+  duplication/les fautes de saisie sur le nom de salle.
+- Trois conflits sont interdits par trigger (`check_timetable_slot_conflicts`) :
+  un même enseignant, une même classe ou une même salle ne peuvent pas avoir
+  deux créneaux qui se chevauchent le même jour.
+- Contrairement aux notes/absences, l'emploi du temps ne conserve pas de piste
+  d'audit : un planning se corrige, il ne se justifie pas. `DELETE` reste donc
+  autorisé pour `blaise_app`.
+- Un emploi du temps d'une année clôturée est immuable, comme le reste de
+  l'activité pédagogique.
 
 ## 4. Conventions PostgreSQL obligatoires
 

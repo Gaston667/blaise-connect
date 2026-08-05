@@ -143,7 +143,7 @@ export default function SchoolClassesPage({ account, onNavigate }) {
       const [years, levels, teacherList] = await Promise.all([
         getSchoolYears(),
         getClassLevels(),
-        canEdit ? getTeachers() : Promise.resolve([]),
+        getTeachers(),
       ])
       setSchoolYears(years)
       setClassLevels(levels)

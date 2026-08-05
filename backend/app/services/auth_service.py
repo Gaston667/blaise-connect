@@ -10,7 +10,7 @@ from app.core.security import DUMMY_PASSWORD_HASH, verify_password
 from app.models.account import Account
 
 
-ALLOWED_AUTHENTICATION_ROLES = ("ADMIN", "TEACHER")
+ALLOWED_AUTHENTICATION_ROLES = ("ADMIN", "TEACHER", "STUDENT")
 MAX_FAILED_LOGIN_ATTEMPTS = 5
 ACCOUNT_LOCK_DURATION = timedelta(minutes=5)
 

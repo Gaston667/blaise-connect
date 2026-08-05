@@ -22,6 +22,9 @@ import AdministratorsPage from './pages/administrators_page.jsx'
 import AdministratorDetailsPage from './pages/administrator_details_page.jsx'
 import TeachersPage from './pages/teachers_page.jsx'
 import TeacherDetailsPage from './pages/teacher_details_page.jsx'
+import StudentGradesPage from './pages/student_grades_page.jsx'
+import StudentTimetablePage from './pages/student_timetable_page.jsx'
+import TimetableManagementPage from './pages/timetable_management_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
 
 const PAGE_PATHS = {
@@ -36,6 +39,9 @@ const PAGE_PATHS = {
   subjects: '/subjects',
   notes: '/notes',
   administrators: '/administrators',
+  'student-grades': '/my-grades',
+  'student-timetable': '/my-timetable',
+  timetables: '/timetables',
 }
 
 /**
@@ -60,6 +66,9 @@ function getCurrentPage(pathname) {
   if (pathname === '/subjects') return 'subjects'
   if (pathname === '/notes') return 'notes'
   if (pathname === '/administrators') return 'administrators'
+  if (pathname === '/my-grades') return 'student-grades'
+  if (pathname === '/my-timetable') return 'student-timetable'
+  if (pathname === '/timetables') return 'timetables'
   return 'home'
 }
 
@@ -138,6 +147,8 @@ export default function App() {
       'accounts',
       'account-details',
       'account-new',
+      'students',
+      'student-details',
       'school-years',
       'school-year-details',
       'guardians',
@@ -171,11 +182,11 @@ export default function App() {
   const canManageNotes = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
   let pageContent = <HomePage account={currentAccount} />
 
-  if (currentPage === 'students') {
+  if (currentPage === 'students' && canManageSchool) {
     pageContent = <StudentsPage onNavigate={handleNavigate} />
   } else if (currentPage === 'guardians' && canManageSchool) {
     pageContent = <GuardiansPage onNavigate={handleNavigate} />
-  } else if (currentPage === 'student-details') {
+  } else if (currentPage === 'student-details' && canManageSchool) {
     pageContent = (
       <StudentDetailsPage
         student={selectedEntity || { id: pathId }}
@@ -257,6 +268,15 @@ export default function App() {
         onNavigate={handleNavigate}
       />
     )
+  }
+  else if (currentPage === 'student-grades' && currentAccount.role === 'STUDENT') {
+    pageContent = <StudentGradesPage />
+  }
+  else if (currentPage === 'student-timetable' && currentAccount.role === 'STUDENT') {
+    pageContent = <StudentTimetablePage />
+  }
+  else if (currentPage === 'timetables' && canManageSchool) {
+    pageContent = <TimetableManagementPage />
   }
   return (
     <MainLayout

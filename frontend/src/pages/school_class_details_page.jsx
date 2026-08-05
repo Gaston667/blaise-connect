@@ -28,7 +28,7 @@ import {
   getTeachers,
   updateSchoolClass,
 } from '../services/school_classes_overview_service.js'
-import { listStudents } from '../services/students_service.js'
+import { enrollStudent, listStudents } from '../services/students_service.js'
 import { createTeacherAssignment } from '../services/teachers_overview_service.js'
 import './../styles/school_class_details_page.css'
 
@@ -80,6 +80,13 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
   const [studentSearch, setStudentSearch] = useState('')
   const [studentStatus, setStudentStatus] = useState('')
   const [studentsLoading, setStudentsLoading] = useState(false)
+  // Inscription d'un élève dans la classe
+  const [enrollPickerOpen, setEnrollPickerOpen] = useState(false)
+  const [enrollableStudents, setEnrollableStudents] = useState([])
+  const [enrollPickerLoading, setEnrollPickerLoading] = useState(false)
+  const [enrollSearch, setEnrollSearch] = useState('')
+  const [enrolling, setEnrolling] = useState(false)
+  const [enrollError, setEnrollError] = useState('')
   const [subjects, setSubjects] = useState([])
   const [subjectSearch, setSubjectSearch] = useState('')
   const [subjectStatus, setSubjectStatus] = useState('')
@@ -345,6 +352,51 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
   const filteredAssignTeachers = teachers.filter((teacher) => {
     const searchable = `${teacher.first_name} ${teacher.last_name} ${teacher.registration_number}`.toLowerCase()
     return searchable.includes(assignTeacherSearch.trim().toLowerCase())
+  })
+
+  async function openEnrollPicker() {
+    setEnrollSearch('')
+    setEnrollError('')
+    setEnrollPickerOpen(true)
+    setEnrollPickerLoading(true)
+    try {
+      const result = await listStudents({ status: 'ACTIVE', limit: 200 })
+      const candidates = Array.isArray(result) ? result : result.items ?? []
+      const enrolledIds = new Set(students.map((student) => student.id))
+      setEnrollableStudents(candidates.filter((student) => !enrolledIds.has(student.id)))
+    } catch (e) {
+      setEnrollError(e.message)
+    } finally {
+      setEnrollPickerLoading(false)
+    }
+  }
+
+  function closeEnrollPicker() {
+    if (enrolling) return
+    setEnrollPickerOpen(false)
+  }
+
+  async function handleEnrollStudent(student) {
+    setEnrolling(true)
+    setEnrollError('')
+    try {
+      await enrollStudent(student.id, {
+        class_id: schoolClass.id,
+        start_date: computeAssignmentStartDate(),
+      })
+      setEnrollPickerOpen(false)
+      loadClassStudents()
+      load()
+    } catch (e) {
+      setEnrollError(e.message)
+    } finally {
+      setEnrolling(false)
+    }
+  }
+
+  const filteredEnrollableStudents = enrollableStudents.filter((student) => {
+    const searchable = `${student.first_name} ${student.last_name} ${student.registration_number}`.toLowerCase()
+    return searchable.includes(enrollSearch.trim().toLowerCase())
   })
 
   function openTeacherDetails() {
@@ -715,6 +767,10 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                   <h3>Élèves de la classe</h3>
                   <p>{students.length} élève(s) affiché(s)</p>
                 </div>
+                <button type="button" className="scd-btn-primary" onClick={openEnrollPicker}>
+                  <UserRoundCheck aria-hidden="true" size={18} />
+                  Inscrire un élève
+                </button>
               </div>
 
               <form className="scd-student-filters" onSubmit={(event) => event.preventDefault()}>
@@ -1148,6 +1204,68 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
               ))}
               {filteredAssignTeachers.length === 0 && (
                 <p className="scd-teacher-results__empty">Aucun enseignant trouvé.</p>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {enrollPickerOpen && (
+        <div className="scd-confirm-overlay" onClick={closeEnrollPicker}>
+          <section
+            className="scd-teacher-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="enroll-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="scd-teacher-picker__header">
+              <div>
+                <h3 id="enroll-picker-title">Inscrire un élève</h3>
+                <p>Recherchez un élève actif par nom, prénom ou matricule.</p>
+              </div>
+              <button type="button" className="scd-btn-outline" onClick={closeEnrollPicker}>Fermer</button>
+            </div>
+
+            <label className="scd-teacher-search">
+              <Search aria-hidden="true" size={18} />
+              <input
+                autoFocus
+                type="search"
+                placeholder="Nom ou matricule…"
+                value={enrollSearch}
+                onChange={(event) => setEnrollSearch(event.target.value)}
+              />
+            </label>
+
+            {enrollError && <p className="scd-error">{enrollError}</p>}
+
+            <div className="scd-teacher-results">
+              {enrollPickerLoading ? (
+                <p className="scd-teacher-results__empty">Chargement des élèves…</p>
+              ) : (
+                <>
+                  {filteredEnrollableStudents.map((student) => (
+                    <button
+                      key={student.id}
+                      type="button"
+                      className="scd-teacher-result"
+                      disabled={enrolling}
+                      onClick={() => handleEnrollStudent(student)}
+                    >
+                      <span className="scd-avatar">
+                        {initials(student.first_name, student.last_name)}
+                      </span>
+                      <span>
+                        <strong>{formatProfileName(student.first_name, student.last_name, student.gender)}</strong>
+                        <small>Matricule : {student.registration_number}</small>
+                      </span>
+                    </button>
+                  ))}
+                  {filteredEnrollableStudents.length === 0 && (
+                    <p className="scd-teacher-results__empty">Aucun élève disponible à inscrire.</p>
+                  )}
+                </>
               )}
             </div>
           </section>

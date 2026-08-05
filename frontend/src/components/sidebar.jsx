@@ -1,9 +1,7 @@
-
-import { BookOpen, CalendarRange, ContactRound, GraduationCap, House, NotebookPen, ShieldCheck, Users, Presentation, X }
-from 'lucide-react'
-import logo from '../assets/logo-blaise-connect.png.png'
-import LogoutButton from '../pages/logout_button.jsx'
-
+import { BookOpen, CalendarDays, CalendarRange, ContactRound, GraduationCap, House, NotebookPen, ShieldCheck, Users, Presentation, X }
+from 'lucide-react';
+import logo from '../assets/logo-blaise-connect.png.png';
+import LogoutButton from '../pages/logout_button.jsx';
 
 /**
  * Affiche la navigation principale de l'espace connecté.
@@ -16,15 +14,15 @@ export default function Sidebar({
   onNavigate,
   onLogoutSuccess,
 }) {
-  const canManageAccounts = account.role === 'ADMIN'
-  const canManageNotes = account.role === 'ADMIN' || account.role === 'TEACHER'
+  const isStaff = account.role === 'ADMIN' || account.role === 'TEACHER';
+  const isStudent = account.role === 'STUDENT';
 
   /**
    * Affiche la page choisie puis ferme le menu mobile.
    */
   function handleNavigation(event) {
-    onNavigate(event.currentTarget.dataset.page)
-    onClose()
+    onNavigate(event.currentTarget.dataset.page);
+    onClose();
   }
 
   return (
@@ -41,7 +39,6 @@ export default function Sidebar({
           src={logo}
           alt="Logo BlaiseConnect"
         />
-
         <button
           className="layout-sidebar-close"
           type="button"
@@ -56,6 +53,7 @@ export default function Sidebar({
         className="layout-navigation"
         aria-label="Navigation principale"
       >
+        {/* Tableau de bord */}
         <button
           className={
             currentPage === 'home'
@@ -70,7 +68,25 @@ export default function Sidebar({
           Tableau de bord
         </button>
 
-       {canManageAccounts ? (
+        {/* Élèves */}
+        {isStaff && (
+          <button
+            className={
+              currentPage === 'students' || currentPage === 'student-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="students"
+            onClick={handleNavigation}
+          >
+            <GraduationCap aria-hidden="true" size={20} />
+            Élèves
+          </button>
+        )}
+
+        {/* Gestion des comptes */}
+        {account.role === 'ADMIN' && (
           <button
             className={
               currentPage === 'accounts' ||
@@ -86,51 +102,10 @@ export default function Sidebar({
             <ContactRound aria-hidden="true" size={20} />
             Gestion des comptes
           </button>
-        ) : null}
+        )}
 
-        <button
-          className={
-            currentPage === 'students' || currentPage === 'student-details'
-              ? 'layout-navigation-item layout-navigation-item-active'
-              : 'layout-navigation-item'
-          }
-          type="button"
-          data-page="students"
-          onClick={handleNavigation}
-        >
-          <GraduationCap aria-hidden="true" size={20} />
-          Élèves
-        </button>
-
-        {canManageAccounts ? (
-          <button
-            className={currentPage === 'teachers' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
-            type="button"
-            data-page="teachers"
-            onClick={handleNavigation}
-          >
-            <Presentation aria-hidden="true" size={20} />
-            Enseignants
-          </button>
-        ) : null}
-
-        {canManageAccounts ? (
-          <button
-            className={
-              currentPage === 'administrators' || currentPage === 'administrator-details'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="administrators"
-            onClick={handleNavigation}
-          >
-            <ShieldCheck aria-hidden="true" size={20} />
-            Administrateurs
-          </button>
-        ) : null}
-
-        {canManageAccounts ? (
+        {/* Responsables légaux */}
+        {account.role === 'ADMIN' && (
           <button
             className={
               currentPage === 'guardians' || currentPage === 'guardian-details'
@@ -144,9 +119,27 @@ export default function Sidebar({
             <Users aria-hidden="true" size={20} />
             Responsables légaux
           </button>
-        ) : null}
+        )}
 
-        {canManageAccounts ? (
+        {/* Emploi du temps */}
+        {(isStaff || account.role === 'ADMIN') && (
+          <button
+            className={
+              currentPage === 'timetables'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="timetables"
+            onClick={handleNavigation}
+          >
+            <CalendarDays aria-hidden="true" size={20} />
+            Emploi du temps
+          </button>
+        )}
+
+        {/* Années scolaires */}
+        {account.role === 'ADMIN' && (
           <button
             className={
               currentPage === 'school-years'
@@ -160,36 +153,84 @@ export default function Sidebar({
             <CalendarRange aria-hidden="true" size={20} />
             Années scolaires
           </button>
-        ) : null}
-        <button
-          className={
-            currentPage === 'school-classes'
-              ? 'layout-navigation-item layout-navigation-item-active'
-              : 'layout-navigation-item'
-          }
-          type="button"
-          data-page="school-classes"
-          onClick={handleNavigation}
-        >
-          <Users aria-hidden="true" size={20} />
-          Classes
-        </button>
-        <button
-          className={
-            currentPage === 'subjects' || currentPage === 'subject-details'
-              ? 'layout-navigation-item layout-navigation-item-active'
-              : 'layout-navigation-item'
-          }
-          type="button"
-          data-page="subjects"
-          onClick={handleNavigation}
-        >
-          <BookOpen aria-hidden="true" size={20} />
-          Matières
-        </button>
-        {canManageNotes ? (
+        )}
+
+        {/* Classes */}
+        {isStaff && (
           <button
-            className={currentPage === 'notes' ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}
+            className={
+              currentPage === 'school-classes'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="school-classes"
+            onClick={handleNavigation}
+          >
+            <Users aria-hidden="true" size={20} />
+            Classes
+          </button>
+        )}
+
+        {/* Enseignants */}
+        {account.role === 'ADMIN' && (
+          <button
+            className={
+              currentPage === 'teachers'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="teachers"
+            onClick={handleNavigation}
+          >
+            <Presentation aria-hidden="true" size={20} />
+            Enseignants
+          </button>
+        )}
+
+        {/* Administrateurs */}
+        {account.role === 'ADMIN' && (
+          <button
+            className={
+              currentPage === 'administrators' || currentPage === 'administrator-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="administrators"
+            onClick={handleNavigation}
+          >
+            <ShieldCheck aria-hidden="true" size={20} />
+            Administrateurs
+          </button>
+        )}
+
+        {/* Matières */}
+        {isStaff && (
+          <button
+            className={
+              currentPage === 'subjects' || currentPage === 'subject-details'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="subjects"
+            onClick={handleNavigation}
+          >
+            <BookOpen aria-hidden="true" size={20} />
+            Matières
+          </button>
+        )}
+
+        {/* Notes */}
+        {isStaff && (
+          <button
+            className={
+              currentPage === 'notes'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
             type="button"
             data-page="notes"
             onClick={handleNavigation}
@@ -197,10 +238,44 @@ export default function Sidebar({
             <NotebookPen aria-hidden="true" size={20} />
             Notes
           </button>
-        ) : null}
+        )}
+
+        {/* Mes notes (pour les élèves) */}
+        {isStudent && (
+          <button
+            className={
+              currentPage === 'student-grades'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="student-grades"
+            onClick={handleNavigation}
+          >
+            <NotebookPen aria-hidden="true" size={20} />
+            Mes notes
+          </button>
+        )}
+
+        {/* Mon emploi du temps (pour les élèves) */}
+        {isStudent && (
+          <button
+            className={
+              currentPage === 'student-timetable'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="student-timetable"
+            onClick={handleNavigation}
+          >
+            <CalendarDays aria-hidden="true" size={20} />
+            Mon emploi du temps
+          </button>
+        )}
       </nav>
 
       <LogoutButton onLogoutSuccess={onLogoutSuccess} />
     </aside>
-  )
+  );
 }

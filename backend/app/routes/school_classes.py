@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from app.schemas.school_class_overview import SchoolClassOverview
 from app.services.school_class_service import list_school_classes_overview
-from app.core.authentication import CurrentAccountDependency, CurrentAdminDependency, DatabaseSession
+from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.core.postgres_error_message import extract_postgres_error_message
 from app.core.school_class_not_found_error import SchoolClassNotFoundError
 from app.core.school_class_level_locked_error import SchoolClassLevelLockedError
@@ -46,7 +46,7 @@ router = APIRouter(
 )
 def get_school_classes(
     db: DatabaseSession,
-    current_account: CurrentAccountDependency,
+    current_admin: CurrentAdminDependency,
 ) -> list[SchoolClassResponse]:
     """Retourne toutes les classes à un administrateur connecté."""
 
@@ -58,7 +58,7 @@ def get_school_classes(
 @router.get("/overview", response_model=list[SchoolClassOverview])
 def get_school_classes_overview(
     db: DatabaseSession,
-    current_account: CurrentAccountDependency,
+    current_admin: CurrentAdminDependency,
     q: str | None = None,
     school_year_id: str | None = None,
     class_level_id: str | None = None,
@@ -171,7 +171,7 @@ def patch_school_class(
 def get_school_class_detail_route(
     school_class_id: UUID,
     db: DatabaseSession,
-    current_account: CurrentAccountDependency,
+    current_admin: CurrentAdminDependency,
 ):
     """Vue détaillée d'une classe avec effectif, professeur et statut."""
     detail = get_school_class_detail(db=db, school_class_id=str(school_class_id))
@@ -187,7 +187,7 @@ def get_school_class_detail_route(
 def get_school_class_subjects(
     school_class_id: UUID,
     db: DatabaseSession,
-    current_account: CurrentAccountDependency,
+    current_admin: CurrentAdminDependency,
     q: str | None = Query(None, description="Recherche par nom de matière"),
     is_active: bool | None = Query(None, description="Filtre sur les matières actives"),
 ):

@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 from app.schemas.student_update import StudentUpdate
 from app.services.student_service import update_student, archive_student, deactivate_student, reactivate_student
-from app.core.authentication import CurrentAccountDependency, CurrentAdminDependency, DatabaseSession
+from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.services.student_service import list_students, get_student
 from app.schemas.student_response import StudentResponse
 from app.services.student_service import get_student_status_history
@@ -24,7 +24,7 @@ router = APIRouter(
 def get_student_academic_summary_route(
     student_id: UUID,
     db: DatabaseSession,
-    current_account: CurrentAccountDependency,
+    current_admin: CurrentAdminDependency,
 ) -> dict:
     """Retourne les notes, moyennes et absences calculées côté backend."""
 
@@ -65,7 +65,7 @@ def post_student_enrollment(
 @router.get("/", response_model=List[StudentResponse])
 def read_students(
     db: DatabaseSession,
-    current_account: CurrentAccountDependency,
+    current_admin: CurrentAdminDependency,
     q: str | None = Query(None, description="Recherche par nom, prénom ou matricule"),
     status: str | None = Query(None, description="Filtrer par statut : ACTIVE, INACTIVE, ARCHIVED"),
     class_id: str | None = Query(None, description="Filtrer par classe id"),
@@ -92,7 +92,7 @@ def read_students(
 def read_student(
     student_id: str,
     db: DatabaseSession,
-    current_account: CurrentAccountDependency,
+    current_admin: CurrentAdminDependency,
 ):
     """Détail lecture seule d'un élève."""
 
@@ -166,7 +166,7 @@ def post_reactivate_student(
 def get_status_history(
     student_id: str,
     db: DatabaseSession,
-    current_account: CurrentAccountDependency,
+    current_admin: CurrentAdminDependency,
 ):
     """Historique des changements de statut d'un élève."""
     return get_student_status_history(db=db, student_id=student_id)

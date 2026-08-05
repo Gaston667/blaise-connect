@@ -43,6 +43,8 @@ Thumbs.db
 cookies.txt
 login.json
 guardian_test.json
+student_cookies.txt
+student_login.json
 
 # Runtime files containing personal or generated data
 storage/photos/*

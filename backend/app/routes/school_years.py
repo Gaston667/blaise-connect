@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
-from app.core.authentication import CurrentAccountDependency, CurrentAdminDependency, DatabaseSession
+from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.core.postgres_error_message import extract_postgres_error_message
 from app.core.school_year_already_closed_error import (
     SchoolYearAlreadyClosedError,
@@ -53,7 +53,7 @@ router = APIRouter(
 )
 def get_school_years(
     db: DatabaseSession,
-    current_account: CurrentAccountDependency,
+    current_admin: CurrentAdminDependency,
 ) -> list[SchoolYearResponse]:
     """Retourne les années scolaires à un administrateur connecté."""
 
