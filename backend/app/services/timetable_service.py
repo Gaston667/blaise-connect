@@ -57,6 +57,30 @@ def create_room(db: Session, name: str, capacity: int | None) -> dict:
     return dict(row)
 
 
+def get_teacher_busy_slots(db: Session, exclude_class_id: str | None) -> list[dict]:
+    """Retourne les créneaux déjà occupés par chaque enseignant, hors de la
+    classe donnée (dont l'emploi du temps est sur le point d'être régénéré).
+    Sert au générateur pour éviter de proposer un créneau où l'enseignant
+    d'une matière est déjà en cours ailleurs."""
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                assignment.teacher_id,
+                slot.day_of_week,
+                slot.start_time,
+                slot.end_time
+            FROM timetable_slots AS slot
+            JOIN teacher_assignments AS assignment ON assignment.id = slot.teacher_assignment_id
+            JOIN class_subjects AS class_subject ON class_subject.id = assignment.class_subject_id
+            WHERE CAST(:exclude_class_id AS uuid) IS NULL OR class_subject.class_id <> CAST(:exclude_class_id AS uuid)
+            """
+        ),
+        {"exclude_class_id": exclude_class_id},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
 def get_class_timetable(db: Session, class_id: str) -> list[dict]:
     """Retourne les créneaux de la classe, matière et enseignant résolus par jointure."""
     rows = db.execute(
@@ -276,6 +300,36 @@ def delete_special_course(db: Session, special_course_id: str) -> bool:
     )
     db.commit()
     return result.rowcount > 0
+
+
+def get_teacher_timetable(db: Session, teacher_id: str) -> list[dict]:
+    """Retourne l'emploi du temps d'un enseignant, toutes classes confondues."""
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                slot.id,
+                slot.day_of_week,
+                slot.start_time,
+                slot.end_time,
+                class_subject.id AS class_subject_id,
+                subject.name AS subject_name,
+                class_level.name || ' ' || school_class.group_label AS class_name,
+                room.name AS room_name
+            FROM timetable_slots AS slot
+            JOIN teacher_assignments AS assignment ON assignment.id = slot.teacher_assignment_id
+            JOIN class_subjects AS class_subject ON class_subject.id = assignment.class_subject_id
+            JOIN subjects AS subject ON subject.id = class_subject.subject_id
+            JOIN classes AS school_class ON school_class.id = class_subject.class_id
+            JOIN class_levels AS class_level ON class_level.id = school_class.class_level_id
+            LEFT JOIN rooms AS room ON room.id = slot.room_id
+            WHERE assignment.teacher_id = :teacher_id
+            ORDER BY slot.day_of_week, slot.start_time
+            """
+        ),
+        {"teacher_id": teacher_id},
+    ).mappings().all()
+    return [dict(row) for row in rows]
 
 
 def get_student_timetable(db: Session, student_id: str) -> list[dict]:

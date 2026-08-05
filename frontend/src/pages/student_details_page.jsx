@@ -76,8 +76,10 @@ function formatDate(dateValue) {
   return new Intl.DateTimeFormat('fr-FR').format(date)
 }
 
-export default function StudentDetailsPage({ student, onNavigate }) {
+export default function StudentDetailsPage({ student, onNavigate, account }) {
+  const canEdit = account?.role === 'ADMIN'
   const [details, setDetails] = useState(student)
+  const canViewAcademics = canEdit || Boolean(details?.viewer_is_main_teacher)
   const [classes, setClasses] = useState([])
   const [schoolYears, setSchoolYears] = useState([])
   const [editing, setEditing] = useState(false)
@@ -279,17 +281,24 @@ export default function StudentDetailsPage({ student, onNavigate }) {
   async function load() {
     if (!student?.id) return
     try {
-      const [full, yearsRes, classesRes, summary] = await Promise.all([
+      const [full, yearsRes, classesRes] = await Promise.all([
         getStudent(student.id),
         import('../services/school_year_service.js').then((m) => m.getSchoolYears()),
         import('../services/school_class_service.js').then((m) => m.getSchoolClasses()),
-        getStudentAcademicSummary(student.id),
       ])
       setDetails(full)
       setSchoolYears(yearsRes)
       setClasses(classesRes)
-      setAcademicSummary(summary)
       resetForm(full)
+
+      // Isolé du reste : un enseignant qui n'est pas professeur principal
+      // reçoit un 403 ici, ça ne doit pas empêcher le reste du dossier
+      // (responsables légaux, infos personnelles) de s'afficher.
+      try {
+        setAcademicSummary(await getStudentAcademicSummary(student.id))
+      } catch (summaryError) {
+        setAcademicSummary(null)
+      }
     } catch (e) {
       console.error(e)
     }
@@ -427,37 +436,39 @@ export default function StudentDetailsPage({ student, onNavigate }) {
           </div>
         </div>
 
-        <div className="sdp-header__actions">
-          <button
-            type="button"
-            className="sdp-btn-secondary"
-            onClick={openEnrollmentModal}
-            disabled={details.status === 'ARCHIVED'}
-            title={details.status === 'ARCHIVED' ? 'Un élève archivé ne peut pas être inscrit dans une classe.' : ''}
-          >
-            <CalendarPlus aria-hidden="true" size={17} />
-            {details.class_id ? 'Changer de classe' : 'Inscrire dans une classe'}
-          </button>
-          <div className="sdp-menu-wrapper">
-            <button type="button" className="sdp-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
-              Actions
-              <ChevronDown aria-hidden="true" size={16} />
+        {canEdit && (
+          <div className="sdp-header__actions">
+            <button
+              type="button"
+              className="sdp-btn-secondary"
+              onClick={openEnrollmentModal}
+              disabled={details.status === 'ARCHIVED'}
+              title={details.status === 'ARCHIVED' ? 'Un élève archivé ne peut pas être inscrit dans une classe.' : ''}
+            >
+              <CalendarPlus aria-hidden="true" size={17} />
+              {details.class_id ? 'Changer de classe' : 'Inscrire dans une classe'}
             </button>
-            {menuOpen && (
-              <div className="sdp-menu">
-                <button onClick={() => handleAction(archiveStudent)} disabled={details.status === 'ARCHIVED'}>
-                  🗄 Archiver l'élève
-                </button>
-                <button onClick={() => handleAction(deactivateStudent)} disabled={details.status !== 'ACTIVE'}>
-                  ⏸ Désactiver l'élève
-                </button>
-                <button onClick={() => handleAction(reactivateStudent)} disabled={details.status === 'ACTIVE'}>
-                  ↻ Réactiver l'élève
-                </button>
-              </div>
-            )}
+            <div className="sdp-menu-wrapper">
+              <button type="button" className="sdp-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
+                Actions
+                <ChevronDown aria-hidden="true" size={16} />
+              </button>
+              {menuOpen && (
+                <div className="sdp-menu">
+                  <button onClick={() => handleAction(archiveStudent)} disabled={details.status === 'ARCHIVED'}>
+                    🗄 Archiver l'élève
+                  </button>
+                  <button onClick={() => handleAction(deactivateStudent)} disabled={details.status !== 'ACTIVE'}>
+                    ⏸ Désactiver l'élève
+                  </button>
+                  <button onClick={() => handleAction(reactivateStudent)} disabled={details.status === 'ACTIVE'}>
+                    ↻ Réactiver l'élève
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {error && <p className="sdp-error">{error}</p>}
@@ -542,14 +553,16 @@ export default function StudentDetailsPage({ student, onNavigate }) {
               <UserRound aria-hidden="true" size={17} />
               Informations personnelles
             </button>
-            <button
-              type="button"
-              className={activeTab === 'school' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'}
-              onClick={showSchoolInformation}
-            >
-              <GraduationCap aria-hidden="true" size={18} />
-              Scolarité
-            </button>
+            {canViewAcademics && (
+              <button
+                type="button"
+                className={activeTab === 'school' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'}
+                onClick={showSchoolInformation}
+              >
+                <GraduationCap aria-hidden="true" size={18} />
+                Scolarité
+              </button>
+            )}
             <button
               type="button"
               className={activeTab === 'guardians' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'}
@@ -558,14 +571,16 @@ export default function StudentDetailsPage({ student, onNavigate }) {
               <UsersRound aria-hidden="true" size={18} />
               Responsables légaux
             </button>
-            <button
-              type="button"
-              className={activeTab === 'documents' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'}
-              onClick={showDocuments}
-            >
-              <FolderOpen aria-hidden="true" size={18} />
-              Documents
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                className={activeTab === 'documents' ? 'sdp-tab sdp-tab--active' : 'sdp-tab'}
+                onClick={showDocuments}
+              >
+                <FolderOpen aria-hidden="true" size={18} />
+                Documents
+              </button>
+            )}
           </nav>
 
           {activeTab === 'personal' && (editing ? (
@@ -622,10 +637,12 @@ export default function StudentDetailsPage({ student, onNavigate }) {
               <div className="sdp-view">
                 <div className="sdp-section-heading">
                   <h2>Informations personnelles</h2>
-                  <button type="button" className="sdp-btn-outline" onClick={startStudentEditing}>
-                    <Pencil aria-hidden="true" size={16} />
-                    Modifier
-                  </button>
+                  {canEdit && (
+                    <button type="button" className="sdp-btn-outline" onClick={startStudentEditing}>
+                      <Pencil aria-hidden="true" size={16} />
+                      Modifier
+                    </button>
+                  )}
                 </div>
                 <div className="sdp-personal-grid">
                   <section>
@@ -753,9 +770,11 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                   <h2>Responsables légaux</h2>
                   <p>Les personnes responsables de cet élève.</p>
                 </div>
-                <button type="button" onClick={openGuardianModal}>
-                  + Associer un responsable
-                </button>
+                {canEdit && (
+                  <button type="button" onClick={openGuardianModal}>
+                    + Associer un responsable
+                  </button>
+                )}
               </div>
 
               {(details.guardians ?? []).length === 0 ? (
@@ -796,13 +815,15 @@ export default function StudentDetailsPage({ student, onNavigate }) {
                           <td>{guardian.phone ?? '—'}</td>
                           <td>{guardian.email ?? '—'}</td>
                           <td className="sdp-guardian-actions-cell">
-                            <button
-                              type="button"
-                              className="sdp-guardian-remove-btn"
-                              onClick={(event) => openUnlinkGuardianModal(event, guardian)}
-                            >
-                              Retirer
-                            </button>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                className="sdp-guardian-remove-btn"
+                                onClick={(event) => openUnlinkGuardianModal(event, guardian)}
+                              >
+                                Retirer
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}

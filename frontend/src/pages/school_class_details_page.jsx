@@ -767,10 +767,12 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                   <h3>Élèves de la classe</h3>
                   <p>{students.length} élève(s) affiché(s)</p>
                 </div>
-                <button type="button" className="scd-btn-primary" onClick={openEnrollPicker}>
-                  <UserRoundCheck aria-hidden="true" size={18} />
-                  Inscrire un élève
-                </button>
+                {canEdit && (
+                  <button type="button" className="scd-btn-primary" onClick={openEnrollPicker}>
+                    <UserRoundCheck aria-hidden="true" size={18} />
+                    Inscrire un élève
+                  </button>
+                )}
               </div>
 
               <form className="scd-student-filters" onSubmit={(event) => event.preventDefault()}>

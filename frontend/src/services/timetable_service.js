@@ -18,6 +18,15 @@ export function createRoom(payload) {
   })
 }
 
+/** Créneaux déjà occupés par chaque enseignant, hors de la classe donnée. */
+export function getTeacherBusySlots(excludeClassId) {
+  const params = excludeClassId ? `?exclude_class_id=${excludeClassId}` : ''
+  return apiRequestJson(`/api/teacher-busy-slots${params}`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des disponibilités des enseignants',
+  })
+}
+
 /** Emploi du temps réel d'une classe (créneaux enregistrés en base). */
 export function getClassTimetable(classId) {
   return apiRequestJson(`/api/school-classes/${classId}/timetable`, {

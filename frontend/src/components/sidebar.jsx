@@ -2,6 +2,7 @@ import { BookOpen, CalendarDays, CalendarRange, ContactRound, GraduationCap, Hou
 from 'lucide-react';
 import logo from '../assets/logo-blaise-connect.png.png';
 import LogoutButton from '../pages/logout_button.jsx';
+import SidebarProfile from './sidebar_profile.jsx';
 
 /**
  * Affiche la navigation principale de l'espace connecté.
@@ -122,7 +123,7 @@ export default function Sidebar({
         )}
 
         {/* Emploi du temps */}
-        {(isStaff || account.role === 'ADMIN') && (
+        {account.role === 'ADMIN' && (
           <button
             className={
               currentPage === 'timetables'
@@ -273,9 +274,29 @@ export default function Sidebar({
             Mon emploi du temps
           </button>
         )}
+
+        {/* Mon emploi du temps (pour les enseignants) */}
+        {account.role === 'TEACHER' && (
+          <button
+            className={
+              currentPage === 'teacher-timetable'
+                ? 'layout-navigation-item layout-navigation-item-active'
+                : 'layout-navigation-item'
+            }
+            type="button"
+            data-page="teacher-timetable"
+            onClick={handleNavigation}
+          >
+            <CalendarDays aria-hidden="true" size={20} />
+            Mon emploi du temps
+          </button>
+        )}
       </nav>
 
-      <LogoutButton onLogoutSuccess={onLogoutSuccess} />
+      <div className="sidebar-bottom-card">
+        <SidebarProfile account={account} />
+        <LogoutButton onLogoutSuccess={onLogoutSuccess} />
+      </div>
     </aside>
   );
 }

@@ -51,6 +51,7 @@ def list_students(
             s.created_at,
             s.updated_at,
             se.class_id as class_id,
+            c.main_teacher_id as class_main_teacher_id,
             c.school_year_id as school_year_id,
             CONCAT_WS(' ', cl.name, NULLIF(c.group_label, '')) AS class_name,
             sy.name AS school_year_name
@@ -154,6 +155,7 @@ def get_student(db: Session, student_id):
             s.created_at,
             s.updated_at,
             se.class_id as class_id,
+            c.main_teacher_id as class_main_teacher_id,
             c.school_year_id as school_year_id,
             CONCAT_WS(' ', cl.name, NULLIF(c.group_label, '')) AS class_name,
             sy.name AS school_year_name
@@ -196,6 +198,7 @@ def get_student(db: Session, student_id):
         'created_at': row.created_at,
         'updated_at': row.updated_at,
         'class_id': row.class_id,
+        'class_main_teacher_id': row.class_main_teacher_id,
         'class_name': row.class_name,
         'guardians': guardians,
         'school_year_id': row.school_year_id,

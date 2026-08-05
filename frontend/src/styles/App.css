@@ -559,6 +559,99 @@
   background: var(--color-primary-lighter);
 }
 
+.sidebar-bottom-card {
+  position: relative;
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: var(--space-3);
+  background: var(--color-surface);
+  border: var(--border-width-thin) solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.sidebar-profile {
+  --profile-accent: var(--color-primary);
+  --profile-accent-soft: var(--color-primary-light);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
+  background: linear-gradient(155deg, var(--color-surface) 0%, var(--profile-accent-soft) 220%);
+}
+
+.sidebar-profile::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--profile-accent);
+}
+
+.sidebar-profile--teacher {
+  --profile-accent: var(--color-secondary);
+  --profile-accent-soft: var(--color-secondary-light);
+}
+
+.sidebar-profile--student {
+  --profile-accent: var(--color-accent);
+  --profile-accent-soft: var(--color-accent-light);
+}
+
+.sidebar-profile__avatar {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-on-primary);
+  background: linear-gradient(155deg, var(--profile-accent) 0%, var(--color-secondary-active) 160%);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.02em;
+}
+
+.sidebar-profile__identity {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-profile__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.sidebar-profile__role {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 2px var(--space-2) 2px var(--space-1);
+  color: var(--profile-accent);
+  background: var(--color-surface);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--shadow-xs);
+}
+
+.sidebar-profile__role-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--profile-accent);
+}
+
 .layout-navigation {
   display: flex;
   flex-direction: column;
@@ -607,8 +700,13 @@
   cursor: wait;
 }
 
-.layout-logout-wrapper {
-  margin-top: auto;
+.sidebar-bottom-card .layout-logout-wrapper {
+  border-top: var(--border-width-thin) solid var(--color-border-light);
+}
+
+.sidebar-bottom-card .layout-logout {
+  padding-inline: var(--space-3);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .layout-logout-error {
@@ -2665,8 +2763,9 @@
   }
 
   .layout-header {
-    justify-content: flex-end;
-    padding-inline: var(--space-8);
+    /* Le hamburger n'existe que sur mobile et l'identité du compte vit
+       désormais dans la sidebar : l'en-tête n'a plus rien à afficher. */
+    display: none;
   }
 
   .accueil-main,
