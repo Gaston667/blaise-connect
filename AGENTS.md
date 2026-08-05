@@ -119,6 +119,19 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - `grade_documents` relie les justificatifs aux absences d'évaluation et
   `attendance_record_documents` les relie aux absences ou retards de cours.
 
+## 3.6 bis — Emploi du temps et cours particuliers (ajout du 05/08/2026)
+- Deux nouvelles tables : `rooms`, `timetable_slots` (cours réguliers, liés à
+  `teacher_assignments`) et `special_courses` (cours individuels/rattrapage,
+  liés à `student_enrollments` + `subject_id`, `teacher_id` optionnel connu
+  à l'avance, `room_id` optionnel — pas de matière/classe imposée).
+- Règle stricte : aucun chevauchement horaire n'est toléré, quel que soit
+  le type de cours (régulier ou particulier), pour : un même élève, un même
+  enseignant (si renseigné), une même salle (si renseignée).
+- Aucune plage horaire réservée n'est imposée aux cours particuliers : ils
+  peuvent avoir lieu à toute heure, sous réserve d'absence de chevauchement.
+- Ces tables remplacent la mention "aucun emploi du temps prévu" du §3.6 :
+  la fonctionnalité US-029 du Product Backlog est désormais implémentée.
+
 ### 3.7 Documents
 
 - Les fichiers restent dans le stockage applicatif ; PostgreSQL conserve leur

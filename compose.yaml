@@ -39,8 +39,7 @@ services:
       - ./database/migration/004_school_structure.sql:/docker-entrypoint-initdb.d/004_school_structure.sql:ro
       - ./database/migration/005_academic_activity.sql:/docker-entrypoint-initdb.d/005_academic_activity.sql:ro
       - ./database/migration/006_report_cards_and_year_deletion.sql:/docker-entrypoint-initdb.d/006_report_cards_and_year_deletion.sql:ro
-      - ./database/migration/007_timetable.sql:/docker-entrypoint-initdb.d/007_timetable.sql:ro
-      - ./database/migration/008_special_courses.sql:/docker-entrypoint-initdb.d/008_special_courses.sql:ro
+      - ./database/migration/007_create_timetable.sql:/docker-entrypoint-initdb.d/007_create_timetable.sql:ro
       # Ajoute les données fictives après la création complète du schéma.
       - ./database/init/050_creat_teste_data.sql:/docker-entrypoint-initdb.d/050_creat_teste_data.sql:ro
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.

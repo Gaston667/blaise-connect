@@ -1,10 +1,10 @@
-import { BookOpen, CalendarDays, CalendarRange, ContactRound, GraduationCap, House, NotebookPen, ShieldCheck, Users, Presentation, X }
-from 'lucide-react';
+import { BookOpen, CalendarDays, CalendarRange, ContactRound, GraduationCap, House, NotebookPen, ShieldCheck, Users, Presentation, X } from 'lucide-react';
 import logo from '../assets/logo-blaise-connect.png.png';
 import LogoutButton from '../pages/logout_button.jsx';
 
 /**
- * Affiche la navigation principale de l'espace connecté.
+ * Composant principal de la barre latérale.
+ * Gère la navigation et l'affichage conditionnel des éléments.
  */
 export default function Sidebar({
   account,
@@ -18,264 +18,267 @@ export default function Sidebar({
   const isStudent = account.role === 'STUDENT';
 
   /**
-   * Affiche la page choisie puis ferme le menu mobile.
+   * Gère la navigation vers une page et ferme le menu mobile.
    */
-  function handleNavigation(event) {
-    onNavigate(event.currentTarget.dataset.page);
+  const handleNavigation = (page) => {
+    onNavigate(page);
     onClose();
-  }
+  };
 
   return (
-    <aside
-      className={
-        isOpen
-          ? 'layout-sidebar layout-sidebar-open'
-          : 'layout-sidebar'
-      }
-    >
-      <div className="layout-sidebar-brand">
-        <img
-          className="layout-logo"
-          src={logo}
-          alt="Logo BlaiseConnect"
-        />
-        <button
-          className="layout-sidebar-close"
-          type="button"
-          onClick={onClose}
-          aria-label="Fermer le menu"
-        >
-          <X aria-hidden="true" size={22} />
-        </button>
-      </div>
-
-      <nav
-        className="layout-navigation"
-        aria-label="Navigation principale"
-      >
-        {/* Tableau de bord */}
-        <button
-          className={
-            currentPage === 'home'
-              ? 'layout-navigation-item layout-navigation-item-active'
-              : 'layout-navigation-item'
-          }
-          type="button"
-          data-page="home"
-          onClick={handleNavigation}
-        >
-          <House aria-hidden="true" size={20} />
-          Tableau de bord
-        </button>
-
-        {/* Élèves */}
-        {isStaff && (
-          <button
-            className={
-              currentPage === 'students' || currentPage === 'student-details'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="students"
-            onClick={handleNavigation}
-          >
-            <GraduationCap aria-hidden="true" size={20} />
-            Élèves
-          </button>
-        )}
-
-        {/* Gestion des comptes */}
-        {account.role === 'ADMIN' && (
-          <button
-            className={
-              currentPage === 'accounts' ||
-              currentPage === 'account-details' ||
-              currentPage === 'account-new'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="accounts"
-            onClick={handleNavigation}
-          >
-            <ContactRound aria-hidden="true" size={20} />
-            Gestion des comptes
-          </button>
-        )}
-
-        {/* Responsables légaux */}
-        {account.role === 'ADMIN' && (
-          <button
-            className={
-              currentPage === 'guardians' || currentPage === 'guardian-details'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="guardians"
-            onClick={handleNavigation}
-          >
-            <Users aria-hidden="true" size={20} />
-            Responsables légaux
-          </button>
-        )}
-
-        {/* Emploi du temps */}
-        {(isStaff || account.role === 'ADMIN') && (
-          <button
-            className={
-              currentPage === 'timetables'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="timetables"
-            onClick={handleNavigation}
-          >
-            <CalendarDays aria-hidden="true" size={20} />
-            Emploi du temps
-          </button>
-        )}
-
-        {/* Années scolaires */}
-        {account.role === 'ADMIN' && (
-          <button
-            className={
-              currentPage === 'school-years'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="school-years"
-            onClick={handleNavigation}
-          >
-            <CalendarRange aria-hidden="true" size={20} />
-            Années scolaires
-          </button>
-        )}
-
-        {/* Classes */}
-        {isStaff && (
-          <button
-            className={
-              currentPage === 'school-classes'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="school-classes"
-            onClick={handleNavigation}
-          >
-            <Users aria-hidden="true" size={20} />
-            Classes
-          </button>
-        )}
-
-        {/* Enseignants */}
-        {account.role === 'ADMIN' && (
-          <button
-            className={
-              currentPage === 'teachers'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="teachers"
-            onClick={handleNavigation}
-          >
-            <Presentation aria-hidden="true" size={20} />
-            Enseignants
-          </button>
-        )}
-
-        {/* Administrateurs */}
-        {account.role === 'ADMIN' && (
-          <button
-            className={
-              currentPage === 'administrators' || currentPage === 'administrator-details'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="administrators"
-            onClick={handleNavigation}
-          >
-            <ShieldCheck aria-hidden="true" size={20} />
-            Administrateurs
-          </button>
-        )}
-
-        {/* Matières */}
-        {isStaff && (
-          <button
-            className={
-              currentPage === 'subjects' || currentPage === 'subject-details'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="subjects"
-            onClick={handleNavigation}
-          >
-            <BookOpen aria-hidden="true" size={20} />
-            Matières
-          </button>
-        )}
-
-        {/* Notes */}
-        {isStaff && (
-          <button
-            className={
-              currentPage === 'notes'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="notes"
-            onClick={handleNavigation}
-          >
-            <NotebookPen aria-hidden="true" size={20} />
-            Notes
-          </button>
-        )}
-
-        {/* Mes notes (pour les élèves) */}
-        {isStudent && (
-          <button
-            className={
-              currentPage === 'student-grades'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="student-grades"
-            onClick={handleNavigation}
-          >
-            <NotebookPen aria-hidden="true" size={20} />
-            Mes notes
-          </button>
-        )}
-
-        {/* Mon emploi du temps (pour les élèves) */}
-        {isStudent && (
-          <button
-            className={
-              currentPage === 'student-timetable'
-                ? 'layout-navigation-item layout-navigation-item-active'
-                : 'layout-navigation-item'
-            }
-            type="button"
-            data-page="student-timetable"
-            onClick={handleNavigation}
-          >
-            <CalendarDays aria-hidden="true" size={20} />
-            Mon emploi du temps
-          </button>
-        )}
+    <aside className={isOpen ? 'layout-sidebar layout-sidebar-open' : 'layout-sidebar'}>
+      {renderBrand(onClose)}
+      <nav className="layout-navigation" aria-label="Navigation principale">
+        {renderCommonNavigation(currentPage, handleNavigation)}
+        {isStaff && renderStaffNavigation(currentPage, handleNavigation)}
+        {account.role === 'ADMIN' && renderAdminNavigation(currentPage, handleNavigation)}
+        {isStudent && renderStudentNavigation(currentPage, handleNavigation)}
       </nav>
-
-      <LogoutButton onLogoutSuccess={onLogoutSuccess} />
+      {renderLogoutButton(onLogoutSuccess)}
     </aside>
   );
+}
+
+/**
+ * Rendu du logo et du bouton de fermeture.
+ */
+function renderBrand(onClose) {
+  return (
+    <div className="layout-sidebar-brand">
+      <img className="layout-logo" src={logo} alt="Logo BlaiseConnect" />
+      <button
+        className="layout-sidebar-close"
+        type="button"
+        onClick={onClose}
+        aria-label="Fermer le menu"
+      >
+        <X aria-hidden="true" size={22} />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Navigation commune à tous les utilisateurs (Tableau de bord).
+ */
+function renderCommonNavigation(currentPage, handleNavigation) {
+  return (
+    <button
+      className={
+        currentPage === 'home'
+          ? 'layout-navigation-item layout-navigation-item-active'
+          : 'layout-navigation-item'
+      }
+      type="button"
+      data-page="home"
+      onClick={() => handleNavigation('home')}
+    >
+      <House aria-hidden="true" size={20} />
+      Tableau de bord
+    </button>
+  );
+}
+
+/**
+ * Navigation spécifique au personnel (ADMIN/TEACHER).
+ */
+function renderStaffNavigation(currentPage, handleNavigation) {
+  return (
+    <>
+      <button
+        className={
+          currentPage === 'students' || currentPage === 'student-details'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="students"
+        onClick={() => handleNavigation('students')}
+      >
+        <GraduationCap aria-hidden="true" size={20} />
+        Élèves
+      </button>
+
+      <button
+        className={
+          currentPage === 'school-classes'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="school-classes"
+        onClick={() => handleNavigation('school-classes')}
+      >
+        <Users aria-hidden="true" size={20} />
+        Classes
+      </button>
+
+      <button
+        className={
+          currentPage === 'subjects' || currentPage === 'subject-details'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="subjects"
+        onClick={() => handleNavigation('subjects')}
+      >
+        <BookOpen aria-hidden="true" size={20} />
+        Matières
+      </button>
+
+      <button
+        className={
+          currentPage === 'notes'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="notes"
+        onClick={() => handleNavigation('notes')}
+      >
+        <NotebookPen aria-hidden="true" size={20} />
+        Notes
+      </button>
+
+      <button
+        className={
+          currentPage === 'timetables'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="timetables"
+        onClick={() => handleNavigation('timetables')}
+      >
+        <CalendarDays aria-hidden="true" size={20} />
+        Emploi du temps
+      </button>
+    </>
+  );
+}
+
+/**
+ * Navigation spécifique aux administrateurs.
+ */
+function renderAdminNavigation(currentPage, handleNavigation) {
+  return (
+    <>
+      <button
+        className={
+          currentPage === 'accounts' ||
+          currentPage === 'account-details' ||
+          currentPage === 'account-new'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="accounts"
+        onClick={() => handleNavigation('accounts')}
+      >
+        <ContactRound aria-hidden="true" size={20} />
+        Gestion des comptes
+      </button>
+
+      <button
+        className={
+          currentPage === 'guardians' || currentPage === 'guardian-details'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="guardians"
+        onClick={() => handleNavigation('guardians')}
+      >
+        <Users aria-hidden="true" size={20} />
+        Responsables légaux
+      </button>
+
+      <button
+        className={
+          currentPage === 'school-years'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="school-years"
+        onClick={() => handleNavigation('school-years')}
+      >
+        <CalendarRange aria-hidden="true" size={20} />
+        Années scolaires
+      </button>
+
+      <button
+        className={
+          currentPage === 'teachers'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="teachers"
+        onClick={() => handleNavigation('teachers')}
+      >
+        <Presentation aria-hidden="true" size={20} />
+        Enseignants
+      </button>
+
+      <button
+        className={
+          currentPage === 'administrators' || currentPage === 'administrator-details'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="administrators"
+        onClick={() => handleNavigation('administrators')}
+      >
+        <ShieldCheck aria-hidden="true" size={20} />
+        Administrateurs
+      </button>
+    </>
+  );
+}
+
+/**
+ * Navigation spécifique aux étudiants.
+ */
+function renderStudentNavigation(currentPage, handleNavigation) {
+  return (
+    <>
+      <button
+        className={
+          currentPage === 'student-grades'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="student-grades"
+        onClick={() => handleNavigation('student-grades')}
+      >
+        <NotebookPen aria-hidden="true" size={20} />
+        Mes notes
+      </button>
+
+      <button
+        className={
+          currentPage === 'student-timetable'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="student-timetable"
+        onClick={() => handleNavigation('student-timetable')}
+      >
+        <CalendarDays aria-hidden="true" size={20} />
+        Mon emploi du temps
+      </button>
+    </>
+  );
+}
+
+/**
+ * Bouton de déconnexion.
+ */
+function renderLogoutButton(onLogoutSuccess) {
+  return <LogoutButton onLogoutSuccess={onLogoutSuccess} />;
 }
