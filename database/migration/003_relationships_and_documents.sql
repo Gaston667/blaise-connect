@@ -1,12 +1,16 @@
 -- =========================================================
 -- MIGRATION 003 : relations familiales et documents
 -- =========================================================
--- Table de liaison entre un élève et ses responsables.
--- Le dossier du responsable reste dans guardians.
--- Le catalogue documentaire est commun aux justificatifs et bulletins.
+-- Tables : student_guardians, document_types, documents, document_links
+-- Règles : un contact principal par élève, catalogue documentaire générique,
+--          liaison polymorphe document ↔ entité.
 -- =========================================================
 
 BEGIN;
+
+-- =========================================================
+-- 1. RELATIONS FAMILLE
+-- =========================================================
 
 CREATE TABLE student_guardians (
     student_id uuid NOT NULL,
@@ -50,6 +54,9 @@ CREATE TABLE student_guardians (
         )
 );
 
+CREATE INDEX idx_student_guardians_student_id
+    ON student_guardians (student_id);
+
 CREATE INDEX idx_student_guardians_guardian_id
     ON student_guardians (guardian_id);
 
@@ -64,7 +71,7 @@ FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
 -- =========================================================
--- CATALOGUE DES TYPES DE DOCUMENTS
+-- 2. CATALOGUE DOCUMENTAIRE
 -- =========================================================
 
 CREATE TABLE document_types (
@@ -145,8 +152,79 @@ BEFORE UPDATE ON documents
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
--- Ces valeurs constituent le catalogue initial. Ajouter un type ne demande
--- aucune nouvelle colonne dans les tables métier.
+-- =========================================================
+-- 3. LIAISON POLYMORPHE : DOCUMENT ↔ ENTITE (D-022)
+-- =========================================================
+-- Cette table permet de rattacher un document à n'importe quelle entité
+-- sans créer une nouvelle FK par type d'entité.
+-- entity_type contrôle les entités autorisées via CHECK.
+-- =========================================================
+
+CREATE TABLE document_links (
+    id uuid
+        CONSTRAINT pk_document_links PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+    document_id uuid NOT NULL,
+    entity_type varchar(50) NOT NULL,
+    entity_id uuid NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_document_links_document
+        FOREIGN KEY (document_id)
+        REFERENCES documents(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT ck_document_links_entity_type
+        CHECK (entity_type IN (
+            'STUDENT',
+            'ATTENDANCE_RECORD',
+            'ASSESSMENT',
+            'REPORT_CARD',
+            'SCHOOL_YEAR'
+        )),
+
+    CONSTRAINT uq_document_links_document_entity
+        UNIQUE (document_id, entity_type, entity_id)
+);
+
+CREATE INDEX idx_document_links_document_id
+    ON document_links (document_id);
+
+CREATE INDEX idx_document_links_entity
+    ON document_links (entity_type, entity_id);
+
+-- =========================================================
+-- 4. TRIGGERS POUR REGLES METIER
+-- =========================================================
+
+-- Un document ne peut être lié à un élève que si ce dernier existe.
+-- Les autres entités seront vérifiées lors de leur création.
+CREATE OR REPLACE FUNCTION check_document_link_entity_exists()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE entity_count integer;
+BEGIN
+    IF NEW.entity_type = 'STUDENT' THEN
+        SELECT count(*) INTO entity_count FROM students WHERE id = NEW.entity_id;
+        IF entity_count = 0 THEN
+            RAISE EXCEPTION USING ERRCODE = '23503',
+                MESSAGE = 'L''élève lié au document n''existe pas.';
+        END IF;
+    END IF;
+    -- Les autres entités seront vérifiées dans leurs propres triggers
+    -- ou lors de leur création (absences, évaluations, bulletins).
+    RETURN NEW;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER trg_document_links_check_entity
+AFTER INSERT OR UPDATE ON document_links
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_document_link_entity_exists();
+
+-- =========================================================
+-- 5. DONNEES INITIALES
+-- =========================================================
+
 INSERT INTO document_types (code, label, description)
 VALUES
     ('PROFILE_PHOTO', 'Photo de profil', 'Photo affichée dans un dossier utilisateur.'),
@@ -157,7 +235,7 @@ VALUES
     ('OTHER', 'Autre document', 'Type de document non couvert par le catalogue courant.');
 
 -- =========================================================
--- DROITS APPLICATIFS
+-- 6. DROITS APPLICATIFS
 -- =========================================================
 
 GRANT SELECT ON TABLE student_guardians TO blaise_app;
@@ -180,10 +258,9 @@ GRANT UPDATE (
     is_emergency_contact
 ) ON student_guardians TO blaise_app;
 
--- DELETE retire uniquement l'association, pas les dossiers liés.
 GRANT DELETE ON TABLE student_guardians TO blaise_app;
 
-GRANT SELECT ON TABLE document_types, documents TO blaise_app;
+GRANT SELECT ON TABLE document_types, documents, document_links TO blaise_app;
 
 GRANT INSERT (
     document_type_id,
@@ -200,6 +277,9 @@ GRANT UPDATE (
     title,
     archived_at
 ) ON documents TO blaise_app;
+
+GRANT INSERT (document_id, entity_type, entity_id) ON document_links TO blaise_app;
+GRANT DELETE ON TABLE document_links TO blaise_app;
 
 REVOKE INSERT, UPDATE, DELETE ON TABLE document_types FROM blaise_app;
 REVOKE DELETE ON TABLE documents FROM blaise_app;

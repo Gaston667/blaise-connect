@@ -13,6 +13,7 @@ class SpecialCourseCreate(BaseModel):
 
     student_id: UUID
     subject_id: UUID
+    title: str = Field(min_length=1, max_length=150)
     day_of_week: int = Field(ge=1, le=7)
     start_time: time
     end_time: time

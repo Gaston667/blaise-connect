@@ -4,6 +4,8 @@
 -- Tables : school_years, reporting_periods, class_levels,
 --          subjects, classes, student_enrollments, class_subjects
 -- Règles inter-tables, triggers et droits applicatifs.
+-- D-023 : main_teacher_id nullable, validation en FastAPI.
+-- D-024 : classes et class_subjects autorisent DELETE si vides.
 -- =========================================================
 
 BEGIN;
@@ -114,11 +116,14 @@ CREATE TABLE reporting_periods (
         )
 );
 
+CREATE INDEX idx_reporting_periods_school_year_id
+    ON reporting_periods (school_year_id);
+
 CREATE INDEX idx_reporting_periods_school_year_start_date
     ON reporting_periods (school_year_id, start_date);
 
 -- =========================================================
--- 3. NIVEAUX
+-- 3. NIVEAUX SCOLAIRES
 -- =========================================================
 
 CREATE TYPE class_level_code_enum AS ENUM (
@@ -186,6 +191,28 @@ CREATE TABLE class_levels (
         CHECK (display_order >= 0)
 );
 
+-- Protéger les niveaux : immuables une fois insérés (comme document_types).
+CREATE OR REPLACE FUNCTION protect_class_level_immutability()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        IF NEW.code IS DISTINCT FROM OLD.code
+           OR NEW.name IS DISTINCT FROM OLD.name
+           OR NEW.education_stage IS DISTINCT FROM OLD.education_stage
+           OR NEW.display_order IS DISTINCT FROM OLD.display_order
+        THEN
+            RAISE EXCEPTION USING ERRCODE = '23514',
+                MESSAGE = 'Les niveaux scolaires sont immuables. Seul is_active peut être modifié.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_class_levels_10_protect_immutability
+BEFORE UPDATE ON class_levels
+FOR EACH ROW EXECUTE FUNCTION protect_class_level_immutability();
+
 -- =========================================================
 -- 4. MATIERES
 -- =========================================================
@@ -226,7 +253,7 @@ CREATE TABLE classes (
         DEFAULT gen_random_uuid(),
     school_year_id uuid NOT NULL,
     class_level_id uuid NOT NULL,
-    main_teacher_id uuid NOT NULL,
+    main_teacher_id uuid,
     group_label varchar(30) NOT NULL,
     capacity smallint,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -262,7 +289,8 @@ CREATE TABLE classes (
 
 CREATE INDEX idx_classes_school_year_id   ON classes (school_year_id);
 CREATE INDEX idx_classes_class_level_id   ON classes (class_level_id);
-CREATE INDEX idx_classes_main_teacher_id  ON classes (main_teacher_id);
+CREATE INDEX idx_classes_main_teacher_id  ON classes (main_teacher_id)
+    WHERE main_teacher_id IS NOT NULL;
 
 -- =========================================================
 -- 6. INSCRIPTIONS DES ELEVES
@@ -346,7 +374,7 @@ CREATE INDEX idx_class_subjects_subject_id
     ON class_subjects (subject_id);
 
 -- =========================================================
--- 8. REGLES INTER-TABLES
+-- 8. REGLES INTER-TABLES ET TRIGGERS
 -- =========================================================
 
 -- Seul un ADMIN peut clôturer une année.
@@ -557,7 +585,7 @@ CREATE TRIGGER trg_school_years_20_close_open_enrollments
 AFTER UPDATE OF closed_at ON school_years
 FOR EACH ROW EXECUTE FUNCTION close_open_enrollments_for_school_year();
 
--- Immuabilité des données d'une année clôturée.
+-- Immuabilité des données d'une année clôturée : périodes, classes, class_subjects.
 CREATE OR REPLACE FUNCTION protect_closed_reporting_period()
 RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
@@ -673,7 +701,29 @@ BEFORE UPDATE ON class_subjects
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- =========================================================
--- 10. DROITS APPLICATIFS
+-- 10. DONNEES INITIALES : NIVEAUX SCOLAIRES
+-- =========================================================
+
+INSERT INTO class_levels (code, name, education_stage, display_order)
+VALUES
+    ('PETITE_SECTION', 'Petite section', 'PRESCHOOL', 1),
+    ('MOYENNE_SECTION', 'Moyenne section', 'PRESCHOOL', 2),
+    ('GRANDE_SECTION', 'Grande section', 'PRESCHOOL', 3),
+    ('CP', 'CP', 'PRIMARY', 4),
+    ('CE1', 'CE1', 'PRIMARY', 5),
+    ('CE2', 'CE2', 'PRIMARY', 6),
+    ('CM1', 'CM1', 'PRIMARY', 7),
+    ('CM2', 'CM2', 'PRIMARY', 8),
+    ('SIXIEME', '6ème', 'MIDDLE_SCHOOL', 9),
+    ('CINQUIEME', '5ème', 'MIDDLE_SCHOOL', 10),
+    ('QUATRIEME', '4ème', 'MIDDLE_SCHOOL', 11),
+    ('TROISIEME', '3ème', 'MIDDLE_SCHOOL', 12),
+    ('SECONDE', 'Seconde', 'HIGH_SCHOOL', 13),
+    ('PREMIERE', '1ère', 'HIGH_SCHOOL', 14),
+    ('TERMINALE', 'Terminale', 'HIGH_SCHOOL', 15);
+
+-- =========================================================
+-- 11. DROITS APPLICATIFS
 -- =========================================================
 
 GRANT SELECT ON TABLE
@@ -693,15 +743,16 @@ GRANT UPDATE (name, start_date, end_date, is_current, closed_at, closed_by_accou
 GRANT INSERT (school_year_id, name, start_date, end_date) ON reporting_periods TO blaise_app;
 GRANT UPDATE (school_year_id, name, start_date, end_date) ON reporting_periods TO blaise_app;
 
-GRANT INSERT (code, name, education_stage, display_order) ON class_levels TO blaise_app;
-GRANT UPDATE (code, name, education_stage, display_order, is_active) ON class_levels TO blaise_app;
+-- class_levels : immutables, seul is_active peut changer (D-023).
+GRANT UPDATE (is_active) ON class_levels TO blaise_app;
 
+-- classes : main_teacher_id peut rester NULL jusqu'à publication (D-023).
 GRANT INSERT (school_year_id, class_level_id, main_teacher_id, group_label, capacity)
     ON classes TO blaise_app;
 GRANT UPDATE (school_year_id, class_level_id, main_teacher_id, group_label, capacity)
     ON classes TO blaise_app;
--- Suppression autorisée si la classe est vide (RESTRICT sur les tables enfants)
--- et que l'année n'est pas clôturée (trigger protect_closed_class).
+-- DELETE autorisée si la classe est vide (RESTRICT sur student_enrollments et class_subjects)
+-- et que l'année n'est pas clôturée (trigger protect_closed_class). D-024.
 GRANT DELETE ON TABLE classes TO blaise_app;
 
 GRANT INSERT (student_id, class_id, start_date, end_date, end_reason)
@@ -714,10 +765,10 @@ GRANT UPDATE (name, description, is_active) ON subjects TO blaise_app;
 
 GRANT INSERT (class_id, subject_id, coefficient) ON class_subjects TO blaise_app;
 GRANT UPDATE (class_id, subject_id, coefficient) ON class_subjects TO blaise_app;
--- Retirer une matière d'une classe supprime uniquement l'association. Les
--- futures évaluations la protégeront ensuite avec ON DELETE RESTRICT.
+-- DELETE autorisée si aucune donnée future ne la référence (RESTRICT dans migrations 005+).
 GRANT DELETE ON TABLE class_subjects TO blaise_app;
 
+-- Pas de DELETE sur ces tables : années, périodes, niveaux, inscriptions, matières.
 REVOKE DELETE ON TABLE
     school_years,
     reporting_periods,
