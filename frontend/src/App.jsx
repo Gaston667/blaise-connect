@@ -9,6 +9,8 @@ import HomePage from './pages/home_page.jsx'
 import GuardianDetailsPage from './pages/guardian_details_page.jsx'
 import GuardiansPage from './pages/guardians_page.jsx'
 import LoginPage from './pages/login_page.jsx'
+import AboutPage from './pages/about_page.jsx'
+import TuitionFeesPage from './pages/tuition_fees_page.jsx'
 import SchoolClassDetailsPage from './pages/school_class_details_page.jsx'
 import SchoolClassesPage from './pages/school_classes_page.jsx'
 import SchoolYearDetailsPage from './pages/school_year_details_page.jsx'
@@ -168,6 +170,14 @@ export default function App() {
     navigate(getNavigationPath(page, entity), {
       state: entity ? { entity } : null,
     })
+  }
+
+  if (location.pathname === '/about') {
+    return <AboutPage />
+  }
+
+  if (location.pathname === '/tuition-fees') {
+    return <TuitionFeesPage />
   }
 
   if (isSessionLoading) {

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   ArrowRight,
   Eye,
@@ -244,15 +245,22 @@ export default function LoginPage({ onLoginSuccess }) {
         </section>
       </main>
 
-      <footer className="connexion-footer">
-        <p className="connexion-footer-security">
-          <ShieldCheck aria-hidden="true" size={21} />
-          Vos données sont protégées et sécurisées
-        </p>
+      <footer className="connexion-site-footer">
+        <div className="connexion-site-footer-inner">
+          <p className="connexion-footer-security">
+            <ShieldCheck aria-hidden="true" size={21} />
+            Vos données sont protégées et sécurisées
+          </p>
 
-        <p className="connexion-copyright">
-          <strong>BlaiseConnect</strong> © 2026
-        </p>
+          <nav className="connexion-site-footer-links" aria-label="Liens utiles">
+            <Link to="/about" className="connexion-site-footer-link">À propos</Link>
+            <Link to="/tuition-fees" className="connexion-site-footer-link">Frais de scolarité</Link>
+          </nav>
+
+          <p className="connexion-copyright">
+            <strong>BlaiseConnect</strong> © 2026
+          </p>
+        </div>
       </footer>
     </div>
   )

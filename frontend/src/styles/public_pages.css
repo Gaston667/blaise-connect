@@ -1,0 +1,420 @@
+/* Pages publiques : About et Frais de scolarité */
+
+.public-page {
+  min-height: 100vh;
+  background: var(--color-background);
+  display: flex;
+  flex-direction: column;
+}
+
+.public-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  border-bottom: var(--border-default);
+  background: var(--color-surface);
+}
+
+.public-page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.public-page-back:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-primary);
+}
+
+.public-page-logo {
+  height: 36px;
+}
+
+.public-page-main {
+  flex: 1;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) var(--space-12);
+}
+
+.public-page-intro {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.public-page-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+  margin: 0 0 var(--space-3);
+}
+
+.public-page-description {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  max-width: 640px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* About */
+
+.about-developers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-8);
+}
+
+.about-developer-card {
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  text-align: center;
+  box-shadow: var(--shadow-xs);
+}
+
+.about-developer-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  margin-bottom: var(--space-4);
+}
+
+.about-developer-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1);
+}
+
+.about-developer-role {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 var(--space-3);
+}
+
+.about-developer-bio {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.business-card-mini {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary-active));
+  border: var(--border-width-thin) solid rgba(255, 255, 255, 0.12);
+  text-align: left;
+}
+
+.business-card-mini-avatar {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.business-card-mini-body {
+  min-width: 0;
+}
+
+.business-card-mini-name {
+  margin: 0;
+  color: var(--color-text-on-secondary);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.business-card-mini-status {
+  margin: var(--space-1) 0 var(--space-2);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.78rem;
+}
+
+.business-card-mini-stack {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.business-card-mini-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-accent);
+}
+
+.business-card-mini-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.business-card-mini-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full, 999px);
+  border: var(--border-width-thin) solid rgba(255, 255, 255, 0.3);
+  color: var(--color-text-on-secondary);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.business-card-mini-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+@media (max-width: 480px) {
+  .business-card-mini {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .business-card-mini-links {
+    justify-content: center;
+  }
+}
+
+.about-footer-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+/* Frais de scolarité */
+
+.tuition-fee-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-9);
+}
+
+.tuition-fee-group {
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-xs);
+}
+
+.tuition-fee-group-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+  margin: 0 0 var(--space-3);
+}
+
+.tuition-fee-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tuition-fee-table th {
+  text-align: left;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-default);
+}
+
+.tuition-fee-table td {
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-width-thin) solid var(--color-divider);
+  color: var(--color-text-primary);
+}
+
+.tuition-fee-table td:last-child {
+  text-align: right;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.tuition-fee-table tr:last-child td {
+  border-bottom: none;
+}
+
+.tuition-enrollment {
+  background: var(--color-primary-lighter);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.tuition-enrollment-download {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.tuition-enrollment-download:hover {
+  background: var(--color-primary-hover);
+}
+
+.tuition-print-button {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-secondary);
+  color: var(--color-text-on-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+}
+
+.tuition-print-button:hover {
+  background: var(--color-secondary-hover);
+}
+
+/* Fiche d'inscription imprimable */
+
+.print-only {
+  display: none;
+}
+
+.enrollment-form-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: var(--border-width-thick) double var(--color-border-strong);
+}
+
+.enrollment-form-logo {
+  height: 48px;
+}
+
+.enrollment-form-header h2 {
+  margin: 0 0 var(--space-1);
+}
+
+.enrollment-form-header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.enrollment-form-section {
+  margin-bottom: var(--space-5);
+}
+
+.enrollment-form-section h3 {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-secondary);
+  margin: 0 0 var(--space-3);
+}
+
+.enrollment-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+.enrollment-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.enrollment-form-grid label span {
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.enrollment-form-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-8);
+  color: var(--color-text-secondary);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .public-page-main {
+    padding: 0;
+    max-width: none;
+  }
+
+  body {
+    background: #ffffff;
+  }
+}
+
+@media (max-width: 640px) {
+  .enrollment-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
