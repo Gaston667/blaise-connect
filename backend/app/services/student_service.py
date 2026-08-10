@@ -127,6 +127,51 @@ def list_students(
     return results
 
 
+def count_students(
+    db: Session,
+    q: str | None = None,
+    status: str | None = None,
+    class_id: str | None = None,
+    school_year_id: str | None = None,
+) -> int:
+    """Compte les élèves correspondant aux mêmes filtres que la liste paginée."""
+
+    where_clauses: list[str] = ["1 = 1"]
+    params: dict = {}
+
+    if q:
+        params["q"] = f"%{q}%"
+        where_clauses.append(
+            "(s.first_name ILIKE :q OR s.last_name ILIKE :q OR a.registration_number ILIKE :q)"
+        )
+    if status:
+        params["status"] = status
+        where_clauses.append("s.status = :status")
+    if class_id:
+        params["class_id"] = class_id
+        where_clauses.append("se.class_id = :class_id")
+    if school_year_id:
+        params["school_year_id"] = school_year_id
+        where_clauses.append("c.school_year_id = :school_year_id")
+
+    query = text(
+        """
+        SELECT COUNT(*)
+        FROM students AS s
+        LEFT JOIN accounts AS a ON a.id = s.account_id
+        LEFT JOIN LATERAL (
+            SELECT class_id
+            FROM student_enrollments
+            WHERE student_id = s.id AND end_date IS NULL
+            LIMIT 1
+        ) AS se ON true
+        LEFT JOIN classes AS c ON c.id = se.class_id
+        WHERE """
+        + " AND ".join(where_clauses)
+    )
+    return db.execute(query, params).scalar_one()
+
+
 def get_student(db: Session, student_id):
     """Renvoie un étudiant par `id` ou `None` si absent. Retourne un dict
     contenant les mêmes champs que `list_students` fournit.
@@ -228,15 +273,14 @@ def enroll_student(
         ),
         {"student_id": student_id},
     ).first()
-    if open_enrollment is not None:
-        raise ValueError("Cet élève possède déjà une inscription en cours.")
-
     school_class = db.execute(
         text(
             """
-            SELECT c.id, sy.start_date, sy.end_date, sy.closed_at
+            SELECT c.id, sy.start_date, sy.end_date, sy.closed_at,
+                   cl.code AS level_code
             FROM classes AS c
             JOIN school_years AS sy ON sy.id = c.school_year_id
+            JOIN class_levels AS cl ON cl.id = c.class_level_id
             WHERE c.id = :class_id
             """
         ),
@@ -248,6 +292,17 @@ def enroll_student(
         raise ValueError("L'année scolaire de cette classe est clôturée.")
     if not school_class.start_date <= enrollment_data.start_date <= school_class.end_date:
         raise ValueError("La date d'inscription doit appartenir à l'année scolaire.")
+
+    from app.services.student_specialty_service import (
+        validate_specialty_selection_for_class,
+    )
+
+    validate_specialty_selection_for_class(
+        db=db,
+        class_id=enrollment_data.class_id,
+        level_code=school_class.level_code,
+        subject_ids=enrollment_data.specialty_subject_ids,
+    )
 
     if open_enrollment is not None:
         if str(open_enrollment.class_id) == str(enrollment_data.class_id):
@@ -272,11 +327,12 @@ def enroll_student(
             },
         )
 
-    db.execute(
+    enrollment_id = db.execute(
         text(
             """
             INSERT INTO student_enrollments (student_id, class_id, start_date)
             VALUES (:student_id, :class_id, :start_date)
+            RETURNING id
             """
         ),
         {
@@ -284,7 +340,18 @@ def enroll_student(
             "class_id": str(enrollment_data.class_id),
             "start_date": enrollment_data.start_date,
         },
-    )
+    ).scalar_one()
+
+    for subject_id in enrollment_data.specialty_subject_ids:
+        db.execute(
+            text(
+                """
+                INSERT INTO student_specialties (student_enrollment_id, subject_id)
+                VALUES (:enrollment_id, :subject_id)
+                """
+            ),
+            {"enrollment_id": enrollment_id, "subject_id": subject_id},
+        )
     db.commit()
     return get_student(db=db, student_id=student_id)
 

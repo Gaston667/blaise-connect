@@ -227,6 +227,44 @@ package "Bulletins" #F3E5F5 {
   }
 }
 
+package "Emploi du temps" #E0F2F1 {
+  entity school_day_schedules #B2DFDB {
+    * id : uuid <<PK>>
+    * school_year_id : uuid <<FK>>
+    * education_stage : education_stage_enum
+    * day_of_week : smallint
+  }
+  entity break_schedules #B2DFDB {
+    * id : uuid <<PK>>
+    * school_day_schedule_id : uuid <<FK>>
+    * start_time : time
+    * end_time : time
+  }
+  entity level_subject_requirements #B2DFDB {
+    * school_year_id : uuid <<FK>>
+    * class_level_id : uuid <<FK>>
+    * subject_id : uuid <<FK>>
+    * weekly_minutes : smallint
+  }
+  entity timetables #B2DFDB {
+    * id : uuid <<PK>>
+    * class_id : uuid <<FK>>
+    * version : smallint
+    * status : timetable_status_enum
+  }
+  entity timetable_slots #B2DFDB {
+    * id : uuid <<PK>>
+    * timetable_id : uuid <<FK>>
+    * teacher_assignment_id : uuid <<FK>>
+    room_id : uuid <<FK>>
+  }
+  entity special_courses #B2DFDB {
+    * id : uuid <<PK>>
+    * student_enrollment_id : uuid <<FK>>
+    * subject_id : uuid <<FK>>
+  }
+}
+
 accounts ||--o{ auth_sessions
 accounts ||--o| students
 accounts ||--o| teachers
@@ -272,6 +310,17 @@ class_subjects ||--o{ report_card_subjects
 report_cards ||--o{ report_card_grades
 grades ||--o{ report_card_grades
 documents |o--o| report_cards : PDF
+
+school_years ||--o{ school_day_schedules
+school_day_schedules ||--o{ break_schedules
+school_years ||--o{ level_subject_requirements
+class_levels ||--o{ level_subject_requirements
+subjects ||--o{ level_subject_requirements
+classes ||--o{ timetables
+timetables ||--o{ timetable_slots
+teacher_assignments ||--o{ timetable_slots
+student_enrollments ||--o{ special_courses
+subjects ||--o{ special_courses
 
 note bottom of grades
 Absence justifiée : exclue du calcul.

@@ -17,7 +17,8 @@ def list_subjects_overview(
     """Vue enrichie des matières : coefficient moyen, nb enseignants/classes concernés."""
     sql = """
         SELECT
-            s.id, s.name, s.description, s.is_active, s.created_at, s.updated_at,
+            s.id, s.name, s.description, s.is_active, s.is_specialty,
+            s.created_at, s.updated_at,
             AVG(cs.coefficient) AS coefficient,
             COUNT(DISTINCT ta.teacher_id) AS teacher_count,
             COUNT(DISTINCT c.id) AS class_count
@@ -44,7 +45,7 @@ def list_subjects_overview(
         sql += " AND ta.teacher_id = :teacher_id"
         params["teacher_id"] = teacher_id
 
-    sql += " GROUP BY s.id, s.name, s.description, s.is_active, s.created_at, s.updated_at"
+    sql += " GROUP BY s.id, s.name, s.description, s.is_active, s.is_specialty, s.created_at, s.updated_at"
     sql += " ORDER BY s.name"
 
     rows = db.execute(text(sql), params).all()
@@ -54,6 +55,7 @@ def list_subjects_overview(
             "name": row.name,
             "description": row.description,
             "is_active": row.is_active,
+            "is_specialty": row.is_specialty,
             "coefficient": float(row.coefficient) if row.coefficient is not None else None,
             "teacher_count": row.teacher_count,
             "class_count": row.class_count,
@@ -70,7 +72,7 @@ def get_subject_detail(db: Session, subject_id: str) -> dict | None:
     subject = db.execute(
         text(
             """
-            SELECT id, name, description, is_active, created_at, updated_at
+            SELECT id, name, description, is_active, is_specialty, created_at, updated_at
             FROM subjects
             WHERE id = :subject_id
             """
@@ -213,6 +215,7 @@ def get_subject_detail(db: Session, subject_id: str) -> dict | None:
         "name": subject.name,
         "description": subject.description,
         "is_active": subject.is_active,
+        "is_specialty": subject.is_specialty,
         "created_at": subject.created_at,
         "updated_at": subject.updated_at,
         "class_count": len(classes),
@@ -235,6 +238,7 @@ def create_subject(db: Session, data: SubjectCreate) -> Subject:
     subject = Subject(
         name=data.name,
         description=data.description,
+        is_specialty=data.is_specialty,
     )
     db.add(subject)
     db.commit()

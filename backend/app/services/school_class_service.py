@@ -112,6 +112,7 @@ def list_school_classes_overview(
             c.created_at,
             c.updated_at,
             cl.name AS level_name,
+            cl.code AS level_code,
             cl.display_order AS level_display_order,
             cl.education_stage,
             sy.name AS school_year_name,
@@ -175,6 +176,7 @@ def list_school_classes_overview(
             "created_at": row.created_at,
             "updated_at": row.updated_at,
             "level_name": row.level_name,
+            "level_code": row.level_code,
             "school_year_name": row.school_year_name,
             "teacher_name": f"{('M. ' if row.teacher_gender in ('MALE', 'M') else 'Mme ' if row.teacher_gender in ('FEMALE', 'F') else '')}{row.teacher_first_name} {row.teacher_last_name}",
             "status": row.status,
@@ -287,6 +289,7 @@ def list_school_class_subjects(
             s.name,
             cs.coefficient,
             s.is_active,
+            s.is_specialty,
             (
                 SELECT assignment.teacher_id
                 FROM teacher_assignments AS assignment

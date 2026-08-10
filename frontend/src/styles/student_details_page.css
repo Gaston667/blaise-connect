@@ -588,18 +588,74 @@
   font-size: var(--font-size-sm);
 }
 
-.sdp-documents-header button {
+.sdp-documents .sdp-documents-header__action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   height: var(--button-height-md);
   padding: 0 var(--space-4);
-  color: var(--button-disabled-text);
-  background: var(--button-disabled-bg);
-  border: var(--border-default);
+  color: var(--color-surface);
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.sdp-documents .sdp-documents-header__action:hover {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  box-shadow: var(--shadow-md);
+}
+
+.sdp-documents .sdp-documents-header__action:active {
+  transform: translateY(1px);
+}
+
+.sdp-document-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sdp-document-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  min-height: 2.25rem;
+  color: var(--color-primary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.sdp-document-actions button:hover {
+  background: var(--color-surface-alt);
+  border-color: var(--color-primary);
+}
+
+.sdp-document-actions button:disabled {
+  opacity: 0.65;
   cursor: not-allowed;
+}
+
+.sdp-document-action-btn--danger {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 22%, var(--color-border));
+}
+
+.sdp-document-action-btn--danger:hover {
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+  border-color: var(--color-danger);
 }
 
 .sdp-document-filters {

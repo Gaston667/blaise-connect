@@ -34,7 +34,7 @@ function formatCoefficient(coefficient) {
   return coefficient === null || coefficient === undefined ? '—' : coefficient.toFixed(2)
 }
 
-const EMPTY_SUBJECT_FORM = { name: '', description: '' }
+const EMPTY_SUBJECT_FORM = { name: '', description: '', is_specialty: false }
 
 export default function SubjectsPage({ account, onNavigate }) {
   const canEdit = account?.role === 'ADMIN'
@@ -134,6 +134,7 @@ export default function SubjectsPage({ account, onNavigate }) {
       const payload = {
         name: subjectForm.name,
         description: subjectForm.description || null,
+        is_specialty: subjectForm.is_specialty,
       }
       await createSubject(payload)
       setConfirmationMessage('La matière a été créée avec succès.')
@@ -312,6 +313,16 @@ export default function SubjectsPage({ account, onNavigate }) {
               <label className="sjp-modal__wide-field">
                 Description
                 <textarea name="description" value={subjectForm.description} onChange={updateFormField} rows="3" />
+              </label>
+
+              <label className="sjp-modal__checkbox sjp-modal__wide-field">
+                <input
+                  type="checkbox"
+                  name="is_specialty"
+                  checked={subjectForm.is_specialty}
+                  onChange={updateFormField}
+                />
+                Matiere de specialite
               </label>
 
               <p className="sjp-modal__hint">

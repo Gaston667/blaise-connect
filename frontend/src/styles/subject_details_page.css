@@ -27,6 +27,8 @@
 .sdt-edit-form input,
 .sdt-edit-form select { height: var(--input-height-md); }
 .sdt-edit-form textarea { resize: vertical; }
+.sdt-edit-form__checkbox { display: flex !important; flex-direction: row; align-items: center; gap: var(--space-2); }
+.sdt-edit-form__checkbox input { width: auto; height: auto; }
 .sdt-edit-form__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
 .sdt-edit-form__actions button { min-height: var(--button-height-sm); padding: var(--button-padding-md); border: var(--border-default); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; }
 .sdt-edit-form__actions .sdt-primary-button { border-color: var(--color-primary); background: var(--color-primary); color: var(--color-text-on-primary); }

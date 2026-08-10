@@ -14,6 +14,7 @@ class SchoolClassOverview(BaseModel):
     created_at: datetime
     updated_at: datetime
     level_name: str
+    level_code: str
     school_year_name: str
     teacher_name: str
     status: str

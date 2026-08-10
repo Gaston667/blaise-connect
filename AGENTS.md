@@ -119,11 +119,17 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - `grade_documents` relie les justificatifs aux absences d'évaluation et
   `attendance_record_documents` les relie aux absences ou retards de cours.
 
-## 3.6 bis — Emploi du temps et cours particuliers (ajout du 05/08/2026)
-- Deux nouvelles tables : `rooms`, `timetable_slots` (cours réguliers, liés à
-  `teacher_assignments`) et `special_courses` (cours individuels/rattrapage,
-  liés à `student_enrollments` + `subject_id`, `teacher_id` optionnel connu
-  à l'avance, `room_id` optionnel — pas de matière/classe imposée).
+## 3.6 bis — Emploi du temps et cours particuliers
+- Les horaires et pauses sont configurés, pour chaque année et jour ouvré,
+  par cycle (`PRESCHOOL`, `PRIMARY`, `MIDDLE_SCHOOL`, `HIGH_SCHOOL`) dans
+  `school_day_schedules` et `break_schedules`.
+- `level_subject_requirements` définit le volume hebdomadaire d'une matière
+  pour un niveau et une année. Il ne dépend pas d'une classe particulière.
+- `timetables` versionne une proposition par classe : `DRAFT`, puis
+  `VALIDATED`; l'ancienne version validée devient `ARCHIVED` lors d'un remplacement.
+- `timetable_slots` contient les cours réguliers liés à une `teacher_assignment`.
+- `special_courses` conserve les cours individuels/rattrapage, liés à une
+  inscription élève et une matière ; l'enseignant et la salle sont facultatifs.
 - Règle stricte : aucun chevauchement horaire n'est toléré, quel que soit
   le type de cours (régulier ou particulier), pour : un même élève, un même
   enseignant (si renseigné), une même salle (si renseignée).
@@ -163,9 +169,8 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - Trois conflits sont interdits par trigger (`check_timetable_slot_conflicts`) :
   un même enseignant, une même classe ou une même salle ne peuvent pas avoir
   deux créneaux qui se chevauchent le même jour.
-- Contrairement aux notes/absences, l'emploi du temps ne conserve pas de piste
-  d'audit : un planning se corrige, il ne se justifie pas. `DELETE` reste donc
-  autorisé pour `blaise_app`.
+- L'algorithme ne publie jamais directement : il crée un brouillon que
+  l'administrateur valide après contrôle. Les brouillons peuvent être supprimés.
 - Un emploi du temps d'une année clôturée est immuable, comme le reste de
   l'activité pédagogique.
 

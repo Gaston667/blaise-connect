@@ -85,6 +85,7 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
   const [enrollableStudents, setEnrollableStudents] = useState([])
   const [enrollPickerLoading, setEnrollPickerLoading] = useState(false)
   const [enrollSearch, setEnrollSearch] = useState('')
+  const [enrollmentStartDate, setEnrollmentStartDate] = useState('')
   const [enrolling, setEnrolling] = useState(false)
   const [enrollError, setEnrollError] = useState('')
   const [subjects, setSubjects] = useState([])
@@ -357,6 +358,7 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
   async function openEnrollPicker() {
     setEnrollSearch('')
     setEnrollError('')
+    setEnrollmentStartDate(computeAssignmentStartDate())
     setEnrollPickerOpen(true)
     setEnrollPickerLoading(true)
     try {
@@ -382,7 +384,7 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
     try {
       await enrollStudent(student.id, {
         class_id: schoolClass.id,
-        start_date: computeAssignmentStartDate(),
+        start_date: enrollmentStartDate || computeAssignmentStartDate(),
       })
       setEnrollPickerOpen(false)
       loadClassStudents()
@@ -1052,6 +1054,7 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                   <span>
                     <strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong>
                     <small>Matricule : {teacher.registration_number}</small>
+                    <small>Competence : {teacher.qualification || 'Non renseignee'}</small>
                   </span>
                 </button>
               ))}
@@ -1237,6 +1240,17 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                 placeholder="Nom ou matricule…"
                 value={enrollSearch}
                 onChange={(event) => setEnrollSearch(event.target.value)}
+              />
+            </label>
+
+            <label className="scd-enrollment-date">
+              Date d'inscription ou de changement
+              <input
+                type="date"
+                value={enrollmentStartDate}
+                min={details.school_year_start || undefined}
+                max={details.school_year_end || undefined}
+                onChange={(event) => setEnrollmentStartDate(event.target.value)}
               />
             </label>
 

@@ -30,6 +30,25 @@ def _request_actor_scope(actor: Account) -> tuple[str, dict]:
     return "", {"actor_account_id": actor.id, "actor_role": actor.role}
 
 
+def _create_request_actor_scope(actor: Account) -> tuple[str, dict]:
+    """Limite la création aux notes enseignées ou à la classe principale du professeur."""
+
+    if actor.role == "TEACHER":
+        return """
+            AND (
+                teacher.account_id = :actor_account_id
+                OR EXISTS (
+                    SELECT 1
+                    FROM teachers AS main_teacher
+                    WHERE main_teacher.account_id = :actor_account_id
+                      AND main_teacher.id = school_class.main_teacher_id
+                )
+            )
+        """, {"actor_account_id": actor.id}
+
+    return "", {}
+
+
 def can_review_grade_change(
     reviewer: Account,
     reviewer_teacher_id: UUID | None,
@@ -38,15 +57,53 @@ def can_review_grade_change(
 ) -> bool:
     """Applique la règle de validation sans permettre l'auto-validation."""
 
-    if reviewer.role == "ADMIN":
-        return True
     if reviewer.id == requested_by_account_id:
         return False
+    if reviewer.role == "ADMIN":
+        return True
     return (
         reviewer.role == "TEACHER"
         and reviewer_teacher_id is not None
         and reviewer_teacher_id == main_teacher_id
     )
+
+
+def get_grade_change_review_refusal_reason(
+    reviewer: Account,
+    reviewer_teacher_id: UUID | None,
+    main_teacher_id: UUID,
+    requested_by_account_id: UUID,
+) -> str | None:
+    """Retourne la raison métier qui empêche la validation d'une correction."""
+
+    if reviewer.id == requested_by_account_id:
+        return (
+            "Vous ne pouvez pas valider votre propre demande de correction. "
+            "Un autre responsable doit la vérifier."
+        )
+
+    if reviewer.role == "ADMIN":
+        return None
+
+    if reviewer.role != "TEACHER":
+        return (
+            "Seul un administrateur ou le professeur principal de la classe "
+            "peut valider cette demande de correction."
+        )
+
+    if reviewer_teacher_id is None:
+        return (
+            "Votre compte enseignant n'est pas relié à un dossier enseignant. "
+            "La validation est donc impossible."
+        )
+
+    if reviewer_teacher_id != main_teacher_id:
+        return (
+            "Seul le professeur principal de cette classe peut valider "
+            "la demande d'un autre enseignant."
+        )
+
+    return None
 
 
 def list_grade_change_requests(
@@ -142,7 +199,7 @@ def create_grade_change_request(
 ) -> dict:
     """Mémorise l'ancienne valeur et crée une demande atomique."""
 
-    scope_sql, params = _request_actor_scope(actor)
+    scope_sql, params = _create_request_actor_scope(actor)
     params["grade_id"] = request_data.grade_id
     grade = db.execute(
         text(
@@ -158,6 +215,10 @@ def create_grade_change_request(
             JOIN teacher_assignments AS assignment
               ON assignment.id = assessment.teacher_assignment_id
             JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+            JOIN class_subjects AS class_subject
+              ON class_subject.id = assignment.class_subject_id
+            JOIN classes AS school_class
+              ON school_class.id = class_subject.class_id
             WHERE grade.id = :grade_id
             """
             + scope_sql
@@ -223,6 +284,101 @@ def create_grade_change_request(
     return created[0]
 
 
+def apply_grade_correction_directly(
+    db: Session,
+    admin: Account,
+    request_data: GradeChangeRequestCreate,
+) -> dict:
+    """Corrige une note directement lorsqu'un administrateur agit."""
+
+    if admin.role != "ADMIN":
+        raise PermissionError("Seul un administrateur peut appliquer directement une correction.")
+
+    grade = db.execute(
+        text(
+            """
+            SELECT
+                grade.id,
+                assessment.maximum_score
+            FROM grades AS grade
+            JOIN assessments AS assessment
+              ON assessment.id = grade.assessment_id
+            WHERE grade.id = :grade_id
+            FOR UPDATE OF grade
+            """
+        ),
+        {"grade_id": request_data.grade_id},
+    ).first()
+    if grade is None:
+        raise LookupError("Note introuvable.")
+
+    validate_score_against_scale(
+        result_type=request_data.proposed_result_type,
+        score=request_data.proposed_score,
+        maximum_score=grade.maximum_score,
+    )
+
+    final_absence = (
+        request_data.proposed_result_type == "ABSENT"
+        and request_data.proposed_justification_status in {"JUSTIFIED", "REJECTED"}
+    )
+
+    db.execute(
+        text(
+            """
+            UPDATE grades
+               SET result_type = :result_type,
+                   score = :score,
+                   justification_status = :justification_status,
+                   reviewed_by_account_id =
+                       CAST(:reviewed_by_account_id AS uuid),
+                   reviewed_at = CASE
+                       WHEN CAST(:reviewed_by_account_id AS uuid) IS NULL
+                           THEN NULL
+                       ELSE now()
+                   END
+             WHERE id = :grade_id
+            """
+        ),
+        {
+            "result_type": request_data.proposed_result_type,
+            "score": request_data.proposed_score,
+            "justification_status": request_data.proposed_justification_status,
+            "reviewed_by_account_id": admin.id if final_absence else None,
+            "grade_id": request_data.grade_id,
+        },
+    )
+
+    db.execute(
+        text(
+            """
+            UPDATE grade_change_requests
+               SET status = 'REJECTED',
+                   reviewed_by_account_id = :admin_id,
+                   reviewed_at = now(),
+                   decision_comment = :decision_comment
+             WHERE grade_id = :grade_id
+               AND status = 'PENDING'
+            """
+        ),
+        {
+            "admin_id": admin.id,
+            "decision_comment": (
+                "Demande fermée automatiquement : correction appliquée directement "
+                "par un administrateur."
+            ),
+            "grade_id": request_data.grade_id,
+        },
+    )
+
+    db.commit()
+
+    return {
+        "grade_id": request_data.grade_id,
+        "status": "APPLIED",
+    }
+
+
 def review_grade_change_request(
     db: Session,
     reviewer: Account,
@@ -271,13 +427,14 @@ def review_grade_change_request(
             text("SELECT id FROM teachers WHERE account_id = :account_id"),
             {"account_id": reviewer.id},
         ).scalar_one_or_none()
-    if not can_review_grade_change(
+    refusal_reason = get_grade_change_review_refusal_reason(
         reviewer=reviewer,
         reviewer_teacher_id=reviewer_teacher_id,
         main_teacher_id=change_request.main_teacher_id,
         requested_by_account_id=change_request.requested_by_account_id,
-    ):
-        raise PermissionError("Vous ne pouvez pas valider cette demande de correction.")
+    )
+    if refusal_reason is not None:
+        raise PermissionError(refusal_reason)
 
     grade = db.execute(
         text(
@@ -319,15 +476,17 @@ def review_grade_change_request(
             text(
                 """
                 UPDATE grades
-                   SET result_type = :result_type,
-                       score = :score,
-                       justification_status = :justification_status,
-                       reviewed_by_account_id = :reviewed_by_account_id,
-                       reviewed_at = CASE
-                           WHEN :reviewed_by_account_id IS NULL THEN NULL
-                           ELSE now()
-                       END
-                 WHERE id = :grade_id
+                SET result_type = :result_type,
+                    score = :score,
+                    justification_status = :justification_status,
+                    reviewed_by_account_id =
+                        CAST(:reviewed_by_account_id AS uuid),
+                    reviewed_at = CASE
+                        WHEN CAST(:reviewed_by_account_id AS uuid) IS NULL
+                            THEN NULL
+                        ELSE now()
+                    END
+                WHERE id = :grade_id
                 """
             ),
             {

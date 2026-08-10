@@ -25,7 +25,12 @@ export default function SubjectDetailsPage({ account, subject, onNavigate }) {
   const [errorMessage, setErrorMessage] = useState('')
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', is_active: true })
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    is_active: true,
+    is_specialty: false,
+  })
   const toast = useToast()
   const subjectId = subject?.id
 
@@ -49,6 +54,7 @@ export default function SubjectDetailsPage({ account, subject, onNavigate }) {
         name: loadedDetails.name,
         description: loadedDetails.description || '',
         is_active: loadedDetails.is_active,
+        is_specialty: loadedDetails.is_specialty,
       })
     } catch (error) {
       setErrorMessage(error.message)
@@ -62,6 +68,7 @@ export default function SubjectDetailsPage({ account, subject, onNavigate }) {
       name: details.name,
       description: details.description || '',
       is_active: details.is_active,
+      is_specialty: details.is_specialty,
     })
     setEditing(true)
   }
@@ -72,8 +79,12 @@ export default function SubjectDetailsPage({ account, subject, onNavigate }) {
   }
 
   function updateForm(event) {
-    const { name, value } = event.target
-    const fieldValue = name === 'is_active' ? value === 'true' : value
+    const { name, value, type, checked } = event.target
+    const fieldValue = type === 'checkbox'
+      ? checked
+      : name === 'is_active'
+        ? value === 'true'
+        : value
     setForm(function updateSubjectForm(current) {
       return { ...current, [name]: fieldValue }
     })
@@ -90,6 +101,7 @@ export default function SubjectDetailsPage({ account, subject, onNavigate }) {
         name: form.name.trim(),
         description: form.description.trim() || null,
         is_active: form.is_active,
+        is_specialty: form.is_specialty,
       })
       await loadSubject()
       setEditing(false)
@@ -174,6 +186,15 @@ export default function SubjectDetailsPage({ account, subject, onNavigate }) {
               Description
               <textarea name="description" value={form.description} onChange={updateForm} rows="3" />
             </label>
+            <label className="sdt-edit-form__checkbox sdt-edit-form__wide">
+              <input
+                type="checkbox"
+                name="is_specialty"
+                checked={form.is_specialty}
+                onChange={updateForm}
+              />
+              Matiere de specialite
+            </label>
             <div className="sdt-edit-form__actions">
               <button type="button" onClick={cancelEditing} disabled={saving}>Annuler</button>
               <button type="submit" className="sdt-primary-button" disabled={saving}>
@@ -183,6 +204,7 @@ export default function SubjectDetailsPage({ account, subject, onNavigate }) {
           </form>
         ) : (
           <div className="sdt-information-grid">
+            <div><span>Specialite</span><strong>{details.is_specialty ? 'Oui' : 'Non'}</strong></div>
             <div><span>Description</span><strong>{details.description || 'Non renseignée'}</strong></div>
             <div><span>Date de création</span><strong>{formatDate(details.created_at)}</strong></div>
             <div><span>Dernière modification</span><strong>{formatDate(details.updated_at)}</strong></div>

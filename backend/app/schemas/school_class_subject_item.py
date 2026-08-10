@@ -14,5 +14,6 @@ class SchoolClassSubjectItem(BaseModel):
     name: str
     coefficient: Decimal
     is_active: bool
+    is_specialty: bool
     teacher_id: UUID | None = None
     teacher_name: str | None = None

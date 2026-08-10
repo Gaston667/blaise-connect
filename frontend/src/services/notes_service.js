@@ -126,6 +126,15 @@ export function createGradeChangeRequest(payload) {
   })
 }
 
+export function applyGradeCorrectionDirectly(payload) {
+  return apiRequestJson('/api/grade-change-requests/direct-application', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    fallbackMessage: 'Impossible d’appliquer la correction.',
+  })
+}
+
 export function decideGradeChangeRequest(requestId, payload) {
   return apiRequestJson(`/api/grade-change-requests/${requestId}/decision`, {
     method: 'PATCH',

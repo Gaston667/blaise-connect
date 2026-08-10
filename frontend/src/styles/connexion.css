@@ -1,0 +1,334 @@
+/* =========================================================
+   PAGE DE CONNEXION — MOBILE FIRST
+   ========================================================= */
+
+/* 1. Structure générale */
+
+.connexion-page {
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: var(--space-4);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}
+
+/* 2. Sélection de la langue */
+
+.connexion-header {
+  display: flex;
+  justify-content: center;
+}
+
+.connexion-language-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.connexion-language-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 150px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.connexion-language-icon {
+  flex: 0 0 auto;
+  color: var(--color-secondary);
+}
+
+.connexion-language-select {
+  width: 100%;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+/* 3. Contenu principal */
+
+.connexion-main {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.connexion-container {
+  width: 100%;
+  max-width: 630px;
+  padding-block: var(--space-8);
+}
+
+.connexion-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--space-8);
+}
+
+.connexion-logo {
+  display: block;
+  width: min(100%, 300px);
+  height: auto;
+  object-fit: contain;
+}
+
+/* 4. Introduction */
+
+.connexion-introduction {
+  margin-bottom: var(--space-8);
+  text-align: center;
+}
+
+.connexion-title {
+  margin: 0 0 var(--space-2);
+  color: var(--color-secondary);
+  font-family: var(--font-family-heading);
+  font-size: clamp(var(--font-size-2xl), 5vw, var(--font-size-3xl));
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+}
+
+.connexion-description {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* 5. Formulaire */
+
+.connexion-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.connexion-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.connexion-label {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.connexion-input-wrapper {
+  min-height: var(--input-height-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-inline: var(--space-4);
+  background: var(--input-bg);
+  border: var(--border-default);
+  border-color: var(--input-border);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.connexion-input-wrapper:hover {
+  border-color: var(--input-border-hover);
+}
+
+.connexion-input-wrapper:focus-within {
+  border-color: var(--input-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.connexion-input-icon {
+  flex: 0 0 auto;
+  color: var(--color-secondary);
+}
+
+.connexion-input {
+  width: 100%;
+  min-width: 0;
+  color: var(--input-text);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: var(--font-size-md);
+}
+
+.connexion-input::placeholder {
+  color: var(--input-placeholder);
+}
+
+.connexion-password-toggle {
+  flex: 0 0 auto;
+  padding: var(--space-2);
+  color: var(--color-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.connexion-password-toggle:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-lighter);
+}
+
+.connexion-password-toggle:focus-visible {
+  outline: var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* 6. Messages du formulaire */
+
+.connexion-error,
+.connexion-success {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  text-align: left;
+}
+
+.connexion-error {
+  color: var(--alert-danger-text);
+  background: var(--alert-danger-bg);
+  border: 1px solid var(--alert-danger-border);
+}
+
+.connexion-success {
+  color: var(--alert-success-text);
+  background: var(--alert-success-bg);
+  border: 1px solid var(--alert-success-border);
+}
+
+/* 7. Bouton principal */
+
+.connexion-submit {
+  position: relative;
+  min-height: var(--button-height-lg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--button-padding-lg);
+  color: var(--button-primary-text);
+  background: var(--button-primary-bg);
+  border: 1px solid var(--button-primary-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.connexion-submit:hover:not(:disabled) {
+  background: var(--button-primary-bg-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.connexion-submit:active:not(:disabled) {
+  background: var(--button-primary-bg-active);
+  transform: translateY(0);
+}
+
+.connexion-submit:focus-visible {
+  outline: var(--border-focus);
+  outline-offset: 3px;
+}
+
+.connexion-submit:disabled {
+  color: var(--button-disabled-text);
+  background: var(--button-disabled-bg);
+  border-color: var(--button-disabled-border);
+  cursor: wait;
+}
+
+.connexion-submit-arrow {
+  position: absolute;
+  right: var(--space-4);
+}
+
+/* 8. Pied de page */
+
+.connexion-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-6);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.connexion-footer-security {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.connexion-footer-security svg {
+  flex: 0 0 auto;
+  color: var(--color-primary);
+}
+
+.connexion-copyright {
+  margin: 0;
+}
+
+.connexion-copyright strong {
+  color: var(--color-primary);
+}
+
+/* 9. Tablettes et écrans plus larges */
+
+@media (min-width: 641px) {
+  .connexion-page {
+    padding: var(--space-6) clamp(var(--space-6), 5vw, var(--space-12));
+    background:
+      radial-gradient(
+        circle at top,
+        var(--color-primary-lighter) 0,
+        var(--color-surface) 42%
+      );
+  }
+
+  .connexion-header {
+    justify-content: flex-end;
+  }
+
+  .connexion-language-wrapper {
+    width: 170px;
+  }
+
+  .connexion-container {
+    padding-block: var(--space-6);
+  }
+
+  .connexion-logo {
+    width: min(100%, 360px);
+  }
+
+  .connexion-description {
+    font-size: var(--font-size-md);
+  }
+}
+
+
