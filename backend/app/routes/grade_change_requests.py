@@ -6,13 +6,14 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 
-from app.core.authentication import DatabaseSession
+from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.core.grade_authorization import GradeManagerDependency
 from app.core.postgres_error_message import extract_postgres_error_message
 from app.schemas.grade_change_request_create import GradeChangeRequestCreate
 from app.schemas.grade_change_request_decision import GradeChangeRequestDecision
 from app.schemas.grade_change_request_response import GradeChangeRequestResponse
 from app.services.grade_change_request_service import (
+    apply_grade_correction_directly,
     create_grade_change_request,
     list_grade_change_requests,
     review_grade_change_request,
@@ -70,6 +71,35 @@ def post_grade_change_request(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Une demande de correction est déjà en attente pour cette note.",
+        ) from error
+
+
+@router.post("/direct-application")
+def post_direct_grade_correction(
+    request_data: GradeChangeRequestCreate,
+    db: DatabaseSession,
+    admin: CurrentAdminDependency,
+) -> dict:
+    """Applique directement une correction de note par un administrateur."""
+
+    try:
+        return apply_grade_correction_directly(
+            db=db,
+            admin=admin,
+            request_data=request_data,
+        )
+    except LookupError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except PermissionError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except ValueError as error:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=extract_postgres_error_message(error),
         ) from error
 
 

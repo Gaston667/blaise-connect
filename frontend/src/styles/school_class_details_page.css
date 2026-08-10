@@ -83,6 +83,8 @@
 .scd-teacher-picker__header p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .scd-teacher-search { display: flex; align-items: center; gap: var(--space-2); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); padding: 0 var(--space-3); color: var(--color-text-muted); }
 .scd-teacher-search input { width: 100%; min-height: var(--input-height-sm); border: 0; outline: 0; background: transparent; color: var(--input-text); font: inherit; }
+.scd-enrollment-date { display: grid; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.scd-enrollment-date input { min-height: var(--input-height-sm); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--input-text); padding: 0 var(--space-3); font: inherit; }
 .scd-teacher-results { display: flex; flex-direction: column; gap: var(--space-2); overflow-y: auto; }
 .scd-teacher-result { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3); text-align: left; border: var(--border-default); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); cursor: pointer; }
 .scd-teacher-result:hover, .scd-teacher-result--selected { border-color: var(--color-primary); background: var(--color-primary-light); }

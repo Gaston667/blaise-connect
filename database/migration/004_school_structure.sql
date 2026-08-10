@@ -224,6 +224,7 @@ CREATE TABLE subjects (
     name varchar(100) NOT NULL,
     description text,
     is_active boolean NOT NULL DEFAULT true,
+    is_specialty boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
 
@@ -760,8 +761,10 @@ GRANT INSERT (student_id, class_id, start_date, end_date, end_reason)
 GRANT UPDATE (class_id, start_date, end_date, end_reason)
     ON student_enrollments TO blaise_app;
 
-GRANT INSERT (name, description) ON subjects TO blaise_app;
-GRANT UPDATE (name, description, is_active) ON subjects TO blaise_app;
+GRANT INSERT (name, description, is_active, is_specialty)
+    ON subjects TO blaise_app;
+GRANT UPDATE (name, description, is_active, is_specialty)
+    ON subjects TO blaise_app;
 
 GRANT INSERT (class_id, subject_id, coefficient) ON class_subjects TO blaise_app;
 GRANT UPDATE (class_id, subject_id, coefficient) ON class_subjects TO blaise_app;

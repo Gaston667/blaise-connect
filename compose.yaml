@@ -26,22 +26,32 @@ services:
       - "127.0.0.1:${POSTGRES_PORT}:5432"
     # Conserve les données dans un volume Docker et expose le dossier local des sauvegardes.
     volumes:
-      # Données permanentes de PostgreSQL, conservées lorsque le conteneur est recréé.
+      # Données permanentes de PostgreSQL.
       - postgres_data:/var/lib/postgresql/data
-      # Sauvegardes accessibles dans ./storage/postgres/backups sur Windows.
+
+      # Sauvegardes PostgreSQL accessibles depuis Windows.
       - ./storage/postgres/backups:/backups
-      # Crée le rôle applicatif avant l'exécution des migrations.
+
+      # Crée le rôle applicatif avant les migrations.
       - ./database/init/000_create_application_role.sh:/docker-entrypoint-initdb.d/000_create_application_role.sh:ro
-      # Applique les migrations dans l'ordre lors de la première initialisation.
+
+      # Migrations exécutées dans l'ordre lors de la première initialisation.
       - ./database/migration/001_db_access.sql:/docker-entrypoint-initdb.d/001_db_access.sql:ro
       - ./database/migration/002_accounts_and_profiles.sql:/docker-entrypoint-initdb.d/002_accounts_and_profiles.sql:ro
       - ./database/migration/003_relationships_and_documents.sql:/docker-entrypoint-initdb.d/003_relationships_and_documents.sql:ro
       - ./database/migration/004_school_structure.sql:/docker-entrypoint-initdb.d/004_school_structure.sql:ro
       - ./database/migration/005_academic_activity.sql:/docker-entrypoint-initdb.d/005_academic_activity.sql:ro
-      - ./database/migration/006_report_cards_and_year_deletion.sql:/docker-entrypoint-initdb.d/006_report_cards_and_year_deletion.sql:ro
-      - ./database/migration/007_create_timetable.sql:/docker-entrypoint-initdb.d/007_create_timetable.sql:ro
-      # Ajoute les données fictives après la création complète du schéma.
-      - ./database/init/050_creat_teste_data.sql:/docker-entrypoint-initdb.d/050_creat_teste_data.sql:ro
+      - ./database/migration/006_report_cards_year_deletion.sql:/docker-entrypoint-initdb.d/006_report_cards_year_deletion.sql:ro
+      - ./database/migration/007_timetable.sql:/docker-entrypoint-initdb.d/007_timetable.sql:ro
+
+      # Données fictives exécutées après les migrations, dans leur ordre de dépendance.
+      - ./database/init/020_accounts_and_profiles_test_data.sql:/docker-entrypoint-initdb.d/020_accounts_and_profiles_test_data.sql:ro
+      - ./database/init/030_relationships_and_documents_test_data.sql:/docker-entrypoint-initdb.d/030_relationships_and_documents_test_data.sql:ro
+      - ./database/init/040_school_structure_test_data.sql:/docker-entrypoint-initdb.d/040_school_structure_test_data.sql:ro
+      - ./database/init/050_academic_activity_test_data.sql:/docker-entrypoint-initdb.d/050_academic_activity_test_data.sql:ro
+      - ./database/init/060_report_cards_year_deletion_test_data.sql:/docker-entrypoint-initdb.d/060_report_cards_year_deletion_test_data.sql:ro
+      - ./database/init/070_timetable_test_data.sql:/docker-entrypoint-initdb.d/070_timetable_test_data.sql:ro
+      
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
     healthcheck:
       # pg_isready utilise l'utilisateur et la base définis dans .env.

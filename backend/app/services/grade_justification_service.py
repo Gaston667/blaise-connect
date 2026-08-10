@@ -78,9 +78,10 @@ def list_grade_documents(
                 document.sha256,
                 document.uploaded_by_account_id,
                 document.created_at
-            FROM grade_documents AS link
+            FROM document_links AS link
             JOIN documents AS document ON document.id = link.document_id
-            WHERE link.grade_id = :grade_id
+            WHERE link.entity_type = 'ASSESSMENT'
+              AND link.entity_id = :grade_id
               AND document.archived_at IS NULL
             ORDER BY document.created_at DESC
             """
@@ -104,9 +105,10 @@ def get_grade_document_file(
             """
             SELECT document.storage_path, document.mime_type,
                    document.original_filename
-            FROM grade_documents AS link
+            FROM document_links AS link
             JOIN documents AS document ON document.id = link.document_id
-            WHERE link.grade_id = :grade_id
+            WHERE link.entity_type = 'ASSESSMENT'
+              AND link.entity_id = :grade_id
               AND link.document_id = :document_id
               AND document.archived_at IS NULL
             """
@@ -196,8 +198,16 @@ def upload_grade_justification(
         db.execute(
             text(
                 """
-                INSERT INTO grade_documents (grade_id, document_id)
-                VALUES (:grade_id, :document_id)
+                INSERT INTO document_links (
+                    document_id,
+                    entity_type,
+                    entity_id
+                )
+                VALUES (
+                    :document_id,
+                    'ASSESSMENT',
+                    :grade_id
+                )
                 """
             ),
             {"grade_id": grade_id, "document_id": document_id},

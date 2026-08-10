@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import {
   BookOpen,
   CalendarDays,
   CalendarRange,
+  ChevronDown,
   ContactRound,
   GraduationCap,
   House,
@@ -31,6 +33,18 @@ export default function Sidebar({
   const isStudent = account.role === 'STUDENT';
   const isTeacher = account.role === 'TEACHER';
   const isAdmin = account.role === 'ADMIN';
+  const [isAccountsMenuOpen, setIsAccountsMenuOpen] = useState(
+    isAccountManagementPage(currentPage),
+  );
+
+  /** Ouvre automatiquement le groupe lorsqu'une de ses pages est affichée. */
+  function synchronizeAccountsMenu() {
+    if (isAccountManagementPage(currentPage)) {
+      setIsAccountsMenuOpen(true);
+    }
+  }
+
+  useEffect(synchronizeAccountsMenu, [currentPage]);
 
   /**
    * Gère la navigation vers une page et ferme le menu mobile.
@@ -40,13 +54,23 @@ export default function Sidebar({
     onClose();
   }
 
+  /** Affiche ou masque les sous-rubriques de gestion des utilisateurs. */
+  function toggleAccountsMenu() {
+    setIsAccountsMenuOpen((currentValue) => !currentValue);
+  }
+
   return (
     <aside className={isOpen ? 'layout-sidebar layout-sidebar-open' : 'layout-sidebar'}>
       {renderBrand(onClose)}
       <nav className="layout-navigation" aria-label="Navigation principale">
         {renderCommonNavigation(currentPage, handleNavigation)}
-        {isStaff && renderStaffNavigation(currentPage, handleNavigation)}
-        {isAdmin && renderAdminNavigation(currentPage, handleNavigation)}
+        {isStaff && renderStaffNavigation(currentPage, handleNavigation, isAdmin)}
+        {isAdmin && renderAdminNavigation(
+          currentPage,
+          handleNavigation,
+          isAccountsMenuOpen,
+          toggleAccountsMenu,
+        )}
         {isStudent && renderStudentNavigation(currentPage, handleNavigation)}
         {isTeacher && renderTeacherNavigation(currentPage, handleNavigation)}
       </nav>
@@ -101,22 +125,24 @@ function renderCommonNavigation(currentPage, handleNavigation) {
 /**
  * Navigation commune au personnel (ADMIN + TEACHER) : élèves, classes, matières, notes, emploi du temps général.
  */
-function renderStaffNavigation(currentPage, handleNavigation) {
+function renderStaffNavigation(currentPage, handleNavigation, isAdmin) {
   return (
     <>
-      <button
-        className={
-          currentPage === 'students' || currentPage === 'student-details'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="students"
-        onClick={() => handleNavigation('students')}
-      >
-        <GraduationCap aria-hidden="true" size={20} />
-        Élèves
-      </button>
+      {!isAdmin && (
+        <button
+          className={
+            currentPage === 'students' || currentPage === 'student-details'
+              ? 'layout-navigation-item layout-navigation-item-active'
+              : 'layout-navigation-item'
+          }
+          type="button"
+          data-page="students"
+          onClick={() => handleNavigation('students')}
+        >
+          <GraduationCap aria-hidden="true" size={20} />
+          Élèves
+        </button>
+      )}
 
       <button
         className={
@@ -166,38 +192,87 @@ function renderStaffNavigation(currentPage, handleNavigation) {
 /**
  * Navigation spécifique aux administrateurs.
  */
-function renderAdminNavigation(currentPage, handleNavigation) {
+function renderAdminNavigation(
+  currentPage,
+  handleNavigation,
+  isAccountsMenuOpen,
+  toggleAccountsMenu,
+) {
   return (
     <>
-      <button
-        className={
-          currentPage === 'accounts' ||
-          currentPage === 'account-details' ||
-          currentPage === 'account-new'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="accounts"
-        onClick={() => handleNavigation('accounts')}
-      >
-        <ContactRound aria-hidden="true" size={20} />
-        Gestion des comptes
-      </button>
+      <div className="layout-navigation-group">
+        <button
+          className={
+            isAccountManagementPage(currentPage)
+              ? 'layout-navigation-item layout-navigation-item-active layout-navigation-group-toggle'
+              : 'layout-navigation-item layout-navigation-group-toggle'
+          }
+          type="button"
+          aria-expanded={isAccountsMenuOpen}
+          aria-controls="accounts-navigation-submenu"
+          onClick={toggleAccountsMenu}
+        >
+          <ContactRound aria-hidden="true" size={20} />
+          <span>Gestion des comptes</span>
+          <ChevronDown
+            className={
+              isAccountsMenuOpen
+                ? 'layout-navigation-chevron layout-navigation-chevron-open'
+                : 'layout-navigation-chevron'
+            }
+            aria-hidden="true"
+            size={17}
+          />
+        </button>
 
-      <button
-        className={
-          currentPage === 'guardians' || currentPage === 'guardian-details'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="guardians"
-        onClick={() => handleNavigation('guardians')}
-      >
-        <Users aria-hidden="true" size={20} />
-        Responsables légaux
-      </button>
+        {isAccountsMenuOpen && (
+          <div
+            id="accounts-navigation-submenu"
+            className="layout-navigation-submenu"
+          >
+            {renderNavigationSubitem(
+              currentPage,
+              handleNavigation,
+              ['accounts', 'account-details', 'account-new'],
+              'accounts',
+              'Comptes',
+              <ContactRound aria-hidden="true" size={17} />,
+            )}
+            {renderNavigationSubitem(
+              currentPage,
+              handleNavigation,
+              ['students', 'student-details'],
+              'students',
+              'Élèves',
+              <GraduationCap aria-hidden="true" size={17} />,
+            )}
+            {renderNavigationSubitem(
+              currentPage,
+              handleNavigation,
+              ['teachers', 'teacher-details'],
+              'teachers',
+              'Enseignants',
+              <Presentation aria-hidden="true" size={17} />,
+            )}
+            {renderNavigationSubitem(
+              currentPage,
+              handleNavigation,
+              ['administrators', 'administrator-details'],
+              'administrators',
+              'Administrateurs',
+              <ShieldCheck aria-hidden="true" size={17} />,
+            )}
+            {renderNavigationSubitem(
+              currentPage,
+              handleNavigation,
+              ['guardians', 'guardian-details'],
+              'guardians',
+              'Responsables légaux',
+              <Users aria-hidden="true" size={17} />,
+            )}
+          </div>
+        )}
+      </div>
 
       <button
         className={
@@ -227,34 +302,55 @@ function renderAdminNavigation(currentPage, handleNavigation) {
         Années scolaires
       </button>
 
-      <button
-        className={
-          currentPage === 'teachers'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="teachers"
-        onClick={() => handleNavigation('teachers')}
-      >
-        <Presentation aria-hidden="true" size={20} />
-        Enseignants
-      </button>
-
-      <button
-        className={
-          currentPage === 'administrators' || currentPage === 'administrator-details'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="administrators"
-        onClick={() => handleNavigation('administrators')}
-      >
-        <ShieldCheck aria-hidden="true" size={20} />
-        Administrateurs
-      </button>
     </>
+  );
+}
+
+/** Indique si la page courante appartient à la gestion des utilisateurs. */
+function isAccountManagementPage(currentPage) {
+  return [
+    'accounts',
+    'account-details',
+    'account-new',
+    'students',
+    'student-details',
+    'teachers',
+    'teacher-details',
+    'administrators',
+    'administrator-details',
+    'guardians',
+    'guardian-details',
+  ].includes(currentPage);
+}
+
+/** Construit une sous-rubrique sans modifier la route existante. */
+function renderNavigationSubitem(
+  currentPage,
+  handleNavigation,
+  activePages,
+  destination,
+  label,
+  icon,
+) {
+  function navigateToSubitem() {
+    handleNavigation(destination);
+  }
+
+  return (
+    <button
+      key={destination}
+      className={
+        activePages.includes(currentPage)
+          ? 'layout-navigation-subitem layout-navigation-subitem-active'
+          : 'layout-navigation-subitem'
+      }
+      type="button"
+      data-page={destination}
+      onClick={navigateToSubitem}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 

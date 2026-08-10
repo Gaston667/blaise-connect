@@ -116,6 +116,7 @@ def list_teachers_overview(db: Session, q: str | None = None) -> list[dict]:
             t.email,
             t.phone,
             t.hire_date,
+            t.qualification,
             t.photo_path,
             t.archived_at,
             a.is_active
@@ -162,6 +163,7 @@ def list_teachers_overview(db: Session, q: str | None = None) -> list[dict]:
                 "email": teacher.email,
                 "phone": teacher.phone,
                 "hire_date": teacher.hire_date,
+                "qualification": teacher.qualification,
                 "is_main_teacher": is_main_teacher,
                 "subjects": [row.name for row in subject_rows],
                 "photo_path": teacher.photo_path,

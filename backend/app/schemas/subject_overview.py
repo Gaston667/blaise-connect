@@ -9,6 +9,7 @@ class SubjectOverview(BaseModel):
     name: str
     description: str | None
     is_active: bool
+    is_specialty: bool
     coefficient: float | None
     teacher_count: int
     class_count: int

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 
 import { getMyTeacherTimetable } from '../services/teacher_timetable_service.js'
-import { DEFAULT_DAYS, getDayScheduleForStage } from '../utils/timetable_generator.js'
+import { DAY_LABELS, getScheduleRows } from '../utils/timetable_display.js'
 import '../styles/student_timetable_page.css'
 
 const PALETTE = ['violet', 'green', 'blue', 'orange']
@@ -71,16 +71,14 @@ export default function TeacherTimetablePage() {
         timeLabel(slot.end_time) > period.start
     )
   }
-  // Un enseignant peut intervenir sur plusieurs cycles ; la trame collège/lycée
-  // (récréation 9h50-10h10) est utilisée par défaut faute d'un cycle unique.
-  const daySchedule = getDayScheduleForStage(undefined, { fullDay: true })
+  const daySchedule = getScheduleRows(slots)
 
   return (
     <main className="stp-main">
       <header className="stp-header">
         <div>
           <h1><CalendarDays aria-hidden="true" size={22} /> Mon emploi du temps</h1>
-          <p>Toutes vos classes, établissement ouvert de 8h00 à 19h00.</p>
+          <p>Consultez les créneaux validés de toutes vos classes.</p>
         </div>
       </header>
 
@@ -91,7 +89,7 @@ export default function TeacherTimetablePage() {
           <div className="stp-grid-wrapper">
             <div className="stp-grid" style={{ '--stp-period-count': daySchedule.length }}>
               <div className="stp-grid__corner" />
-              {DEFAULT_DAYS.map((day) => (
+              {DAY_LABELS.map((day) => (
                 <div key={day} className="stp-grid__day-head">{day}</div>
               ))}
 
@@ -106,7 +104,7 @@ export default function TeacherTimetablePage() {
                       <strong>{entry.start}</strong>
                       <span>{entry.end}</span>
                     </div>
-                    {DEFAULT_DAYS.map((day, dayIndex) => {
+                    {DAY_LABELS.map((day, dayIndex) => {
                       const slot = findSlotForCell(dayIndex, entry)
                       if (!slot) {
                         return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>

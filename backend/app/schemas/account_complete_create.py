@@ -23,10 +23,12 @@ class AccountCompleteCreate(BaseModel):
 
         required_common_fields = {
             "gender": self.profile.gender,
-            "email": self.profile.email,
-            "phone": self.profile.phone,
             "address": self.profile.address,
         }
+        if self.role not in {"STUDENT", "GUARDIAN"}:
+            required_common_fields["email"] = self.profile.email
+        if self.role != "STUDENT":
+            required_common_fields["phone"] = self.profile.phone
         missing_common_fields = [
             field_name
             for field_name, field_value in required_common_fields.items()
@@ -34,7 +36,7 @@ class AccountCompleteCreate(BaseModel):
         ]
         if missing_common_fields:
             raise ValueError(
-                "Le sexe, l'email, le téléphone et l'adresse sont obligatoires."
+                "Le sexe, l'adresse et les coordonnées requises pour ce rôle sont obligatoires."
             )
         if self.role in {"STUDENT", "TEACHER"} and self.profile.birth_date is None:
             raise ValueError("La date de naissance est obligatoire pour ce rôle.")

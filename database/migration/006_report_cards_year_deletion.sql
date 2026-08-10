@@ -1,7 +1,7 @@
 -- =========================================================
--- MIGRATION 006 : Bulletins scolaires
+-- MIGRATION 006 : Bulletins scolaires et suppression d'année
 -- =========================================================
--- Tables : report_cards, report_card_subjects, report_card_grades
+-- Tables : bulletins et audit de suppression
 -- Immuabilité : un bulletin validé ne peut plus être modifié.
 -- Suppression contrôlée : réservée aux années OUVERTES et NON clôturées.
 -- D-025 à D-027 intégrées.
@@ -19,6 +19,7 @@ CREATE TABLE report_cards (
         DEFAULT gen_random_uuid(),
     student_enrollment_id uuid NOT NULL,
     reporting_period_id uuid NOT NULL,
+    version smallint NOT NULL DEFAULT 1,
     general_average numeric(6, 2) NOT NULL,
     overall_comment text,
     generated_by_account_id uuid NOT NULL,
@@ -54,14 +55,17 @@ CREATE TABLE report_cards (
         REFERENCES documents(id)
         ON DELETE RESTRICT,
 
-    CONSTRAINT uq_report_cards_enrollment_period
-        UNIQUE (student_enrollment_id, reporting_period_id),
+    CONSTRAINT uq_report_cards_enrollment_period_version
+        UNIQUE (student_enrollment_id, reporting_period_id, version),
 
     CONSTRAINT uq_report_cards_pdf_document
         UNIQUE (pdf_document_id),
 
     CONSTRAINT ck_report_cards_general_average
         CHECK (general_average >= 0 AND general_average <= 20),
+
+    CONSTRAINT ck_report_cards_version
+        CHECK (version > 0),
 
     CONSTRAINT ck_report_cards_validation_pair
         CHECK (
@@ -383,7 +387,96 @@ CREATE INDEX idx_school_year_deletion_audits_deleted_at
     ON school_year_deletion_audits (deleted_at);
 
 -- =========================================================
--- 5. DROITS APPLICATIFS
+-- 5. SUPPRESSION CONTROLEE D'UNE ANNEE OUVERTE
+-- =========================================================
+-- blaise_app ne reçoit jamais DELETE directement sur school_years.
+-- La suppression passe obligatoirement par cette fonction :
+--   - compte administrateur actif ;
+--   - année existante et non clôturée ;
+--   - les clés étrangères existantes continuent de protéger
+--     une année qui contient encore des données dépendantes ;
+--   - l'audit n'est écrit que si la suppression réussit.
+--
+-- L'UUID de l'année est conservé dans l'audit sans clé étrangère,
+-- afin que l'historique survive à la suppression.
+
+CREATE OR REPLACE FUNCTION delete_open_school_year(
+    p_school_year_id uuid,
+    p_deleted_by_account_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+    v_school_year_name varchar(20);
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM public.accounts AS account
+         WHERE account.id = p_deleted_by_account_id
+           AND account.role = 'ADMIN'
+           AND account.is_active = true
+           AND account.archived_at IS NULL
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+            MESSAGE = 'La suppression d''une année scolaire nécessite un compte administrateur actif.';
+    END IF;
+
+    SELECT school_year.name
+      INTO v_school_year_name
+      FROM public.school_years AS school_year
+     WHERE school_year.id = p_school_year_id
+     FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE = 'P0002',
+            MESSAGE = 'L''année scolaire est introuvable.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM public.school_years AS school_year
+         WHERE school_year.id = p_school_year_id
+           AND school_year.closed_at IS NOT NULL
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'Une année scolaire clôturée ne peut pas être supprimée.';
+    END IF;
+
+    -- Les FK ON DELETE RESTRICT des tables dépendantes restent la
+    -- dernière protection. Si l'année contient encore des données,
+    -- le DELETE échoue et toute la fonction est annulée.
+    DELETE FROM public.school_years
+     WHERE id = p_school_year_id;
+
+    INSERT INTO public.school_year_deletion_audits (
+        school_year_id,
+        school_year_name,
+        deleted_by_account_id,
+        deleted_at
+    )
+    VALUES (
+        p_school_year_id,
+        v_school_year_name,
+        p_deleted_by_account_id,
+        now()
+    );
+END;
+$$;
+
+REVOKE ALL
+ON FUNCTION delete_open_school_year(uuid, uuid)
+FROM PUBLIC;
+
+GRANT EXECUTE
+ON FUNCTION delete_open_school_year(uuid, uuid)
+TO blaise_app;
+
+
+-- =========================================================
+-- 6. DROITS APPLICATIFS
 -- =========================================================
 
 GRANT SELECT ON TABLE
@@ -396,6 +489,7 @@ TO blaise_app;
 GRANT INSERT (
     student_enrollment_id,
     reporting_period_id,
+    version,
     general_average,
     overall_comment,
     generated_by_account_id,
@@ -434,5 +528,6 @@ REVOKE DELETE ON TABLE
     report_card_subjects,
     report_card_grades
 FROM blaise_app;
+
 
 COMMIT;

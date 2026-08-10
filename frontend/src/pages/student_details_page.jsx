@@ -8,6 +8,8 @@ import {
   Clock3,
   FileText,
   FolderOpen,
+  Download,
+  Eye,
   GraduationCap,
   Info,
   ImagePlus,
@@ -27,6 +29,13 @@ import {
   reactivateStudent,
   enrollStudent,
   getStudentAcademicSummary,
+  getStudentDocuments,
+  getStudentDocumentFile,
+  uploadStudentDocument,
+  archiveStudentDocument,
+  getStudentSpecialties,
+  getAvailableStudentSpecialties,
+  updateStudentSpecialties,
 } from '../services/students_service.js'
 import {
   linkGuardianToStudent,
@@ -37,6 +46,7 @@ import '../styles/student_details_page.css'
 import NotificationPopup from '../components/notification_popup.jsx'
 import { formatProfileName } from '../utils/profileDisplay.js'
 import { uploadAccountPhoto } from '../services/account_service.js'
+import { getSchoolClassesOverview } from '../services/school_classes_overview_service.js'
 import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 const RELATIONSHIP_ICON_CLASS = {
   FATHER: 'sdp-guardian-icon--pere',
@@ -55,7 +65,6 @@ function StatusBadge({ status }) {
     </span>
   )
 }
-
 function initials(first, last) {
   return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase()
 }
@@ -74,6 +83,13 @@ function formatDate(dateValue) {
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return '—'
   return new Intl.DateTimeFormat('fr-FR').format(date)
+}
+
+function formatFileSize(sizeBytes) {
+  if (sizeBytes == null) return '—'
+  if (sizeBytes < 1024) return `${sizeBytes} o`
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} Ko`
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} Mo`
 }
 
 export default function StudentDetailsPage({ student, onNavigate, account }) {
@@ -108,6 +124,26 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
   const [editPhoto, setEditPhoto] = useState(null)
   const [editPhotoPreview, setEditPhotoPreview] = useState('')
   const [academicSummary, setAcademicSummary] = useState(null)
+  const [studentDocuments, setStudentDocuments] = useState([])
+  const [documentFilter, setDocumentFilter] = useState('ALL')
+  const [documentModalOpen, setDocumentModalOpen] = useState(false)
+  const [documentTitle, setDocumentTitle] = useState('')
+  const [documentTypeCode, setDocumentTypeCode] = useState('ADMINISTRATIVE')
+  const [documentFile, setDocumentFile] = useState(null)
+  const [documentSaving, setDocumentSaving] = useState(false)
+  const [documentToArchive, setDocumentToArchive] = useState(null)
+  const [documentArchiveModalOpen, setDocumentArchiveModalOpen] = useState(false)
+  const [documentArchiving, setDocumentArchiving] = useState(false)
+  const [documentOpeningId, setDocumentOpeningId] = useState(null)
+  const [documentDownloadingId, setDocumentDownloadingId] = useState(null)
+
+  const [studentSpecialties, setStudentSpecialties] = useState(null)
+  const [availableSpecialties, setAvailableSpecialties] = useState([])
+  const [specialtyModalOpen, setSpecialtyModalOpen] = useState(false)
+  const [selectedSpecialtyIds, setSelectedSpecialtyIds] = useState([])
+  const [specialtyLoading, setSpecialtyLoading] = useState(false)
+  const [specialtySaving, setSpecialtySaving] = useState(false)
+
   const debouncedGuardianQuery = useDebouncedValue(guardianQuery)
 
   function handleHomeNavigation() {
@@ -130,12 +166,269 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     setActiveTab('school')
   }
 
+  async function openSpecialtyModal() {
+    if (!details?.id) return
+
+    setSpecialtyLoading(true)
+    setError('')
+
+    try {
+      const available = await getAvailableStudentSpecialties(details.id)
+
+      setAvailableSpecialties(available.items ?? [])
+      setSelectedSpecialtyIds(
+        (studentSpecialties?.items ?? []).map(
+          (specialty) => String(specialty.subject_id),
+        ),
+      )
+      setSpecialtyModalOpen(true)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSpecialtyLoading(false)
+    }
+  }
+
+  function closeSpecialtyModal() {
+    if (specialtySaving) return
+
+    setSpecialtyModalOpen(false)
+    setAvailableSpecialties([])
+    setSelectedSpecialtyIds([])
+    setError('')
+  }
+
+  function toggleSpecialty(subjectId) {
+    const id = String(subjectId)
+
+    setSelectedSpecialtyIds((currentIds) => {
+      if (currentIds.includes(id)) {
+        return currentIds.filter((currentId) => currentId !== id)
+      }
+
+      const requiredCount = studentSpecialties?.required_count ?? 0
+
+      if (requiredCount > 0 && currentIds.length >= requiredCount) {
+        return currentIds
+      }
+
+      return [...currentIds, id]
+    })
+  }
+
+  async function saveStudentSpecialties() {
+    if (!details?.id) return
+
+    const requiredCount = studentSpecialties?.required_count ?? 0
+
+    if (selectedSpecialtyIds.length !== requiredCount) {
+      setError(
+        `Vous devez sélectionner exactement ${requiredCount} spécialité${
+          requiredCount > 1 ? 's' : ''
+        }.`,
+      )
+      return
+    }
+
+    setSpecialtySaving(true)
+    setError('')
+
+    try {
+      const updated = await updateStudentSpecialties(
+        details.id,
+        selectedSpecialtyIds,
+      )
+
+      setStudentSpecialties(updated)
+      setSpecialtyModalOpen(false)
+      setAvailableSpecialties([])
+      setSelectedSpecialtyIds([])
+      setInformationMessage(
+        'Les spécialités de l’élève ont été enregistrées.',
+      )
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSpecialtySaving(false)
+    }
+  }
+
   function showGuardians() {
     setActiveTab('guardians')
   }
 
   function showDocuments() {
     setActiveTab('documents')
+  }
+
+  function openDocumentModal() {
+    setDocumentTitle('')
+    setDocumentTypeCode('ADMINISTRATIVE')
+    setDocumentFile(null)
+    setError('')
+    setDocumentModalOpen(true)
+  }
+
+  function closeDocumentModal() {
+    if (documentSaving) return
+    setDocumentModalOpen(false)
+    setDocumentTitle('')
+    setDocumentTypeCode('ADMINISTRATIVE')
+    setDocumentFile(null)
+  }
+
+  function selectDocumentFile(event) {
+    const selectedFile = event.target.files?.[0] || null
+
+    if (!selectedFile) {
+      setDocumentFile(null)
+      return
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ]
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      setError('Le document doit être au format PDF, JPEG, PNG ou WebP.')
+      event.target.value = ''
+      setDocumentFile(null)
+      return
+    }
+
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      setError('Le document ne doit pas dépasser 5 Mo.')
+      event.target.value = ''
+      setDocumentFile(null)
+      return
+    }
+
+    setError('')
+    setDocumentFile(selectedFile)
+  }
+
+  async function submitDocumentUpload(event) {
+    event.preventDefault()
+
+    if (!documentTitle.trim()) {
+      setError('Le titre du document est obligatoire.')
+      return
+    }
+
+    if (!documentFile) {
+      setError('Veuillez sélectionner un fichier.')
+      return
+    }
+
+    setDocumentSaving(true)
+    setError('')
+
+    try {
+      await uploadStudentDocument(details.id, {
+        title: documentTitle.trim(),
+        documentTypeCode,
+        file: documentFile,
+      })
+
+      const documents = await getStudentDocuments(details.id)
+      setStudentDocuments(documents)
+      setDocumentModalOpen(false)
+      setDocumentTitle('')
+      setDocumentTypeCode('ADMINISTRATIVE')
+      setDocumentFile(null)
+      setInformationMessage('Le document a été téléversé avec succès.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setDocumentSaving(false)
+    }
+  }
+
+  function openDocumentArchiveModal(document) {
+    setDocumentToArchive(document)
+    setDocumentArchiveModalOpen(true)
+    setError('')
+  }
+
+  function closeDocumentArchiveModal() {
+    if (documentArchiving) return
+    setDocumentArchiveModalOpen(false)
+    setDocumentToArchive(null)
+  }
+
+  async function confirmDocumentArchive() {
+    if (!documentToArchive) return
+
+    setDocumentArchiving(true)
+    setError('')
+
+    try {
+      await archiveStudentDocument(details.id, documentToArchive.id)
+      const documents = await getStudentDocuments(details.id)
+      setStudentDocuments(documents)
+      setDocumentArchiveModalOpen(false)
+      setDocumentToArchive(null)
+      setInformationMessage('Le document a été archivé.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setDocumentArchiving(false)
+    }
+  }
+
+  const administrativeDocumentCount = studentDocuments.filter(
+    (document) => document.document_type_code === 'ADMINISTRATIVE',
+  ).length
+
+  const otherDocumentCount = studentDocuments.filter(
+    (document) => document.document_type_code === 'OTHER',
+  ).length
+
+  const filteredStudentDocuments = studentDocuments.filter((document) => {
+    if (documentFilter === 'ALL') return true
+    return document.document_type_code === documentFilter
+  })
+
+  async function viewStudentDocument(document) {
+    setDocumentOpeningId(document.id)
+    setError('')
+
+    try {
+      const { blob } = await getStudentDocumentFile(details.id, document.id)
+      const fileUrl = window.URL.createObjectURL(blob)
+      window.open(fileUrl, '_blank', 'noopener,noreferrer')
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(fileUrl)
+      }, 60000)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setDocumentOpeningId(null)
+    }
+  }
+
+  async function downloadStudentDocument(document) {
+    setDocumentDownloadingId(document.id)
+    setError('')
+
+    try {
+      const { blob, filename } = await getStudentDocumentFile(details.id, document.id)
+      const fileUrl = window.URL.createObjectURL(blob)
+      const link = window.document.createElement('a')
+      link.href = fileUrl
+      link.download = filename || document.original_filename || 'document'
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(fileUrl)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setDocumentDownloadingId(null)
+    }
   }
 
   function openEnrollmentModal() {
@@ -284,20 +577,40 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
       const [full, yearsRes, classesRes] = await Promise.all([
         getStudent(student.id),
         import('../services/school_year_service.js').then((m) => m.getSchoolYears()),
-        import('../services/school_class_service.js').then((m) => m.getSchoolClasses()),
+        getSchoolClassesOverview({ status: 'ACTIVE' }),
       ])
       setDetails(full)
       setSchoolYears(yearsRes)
       setClasses(classesRes)
       resetForm(full)
+      if (account?.role === 'ADMIN') {
+        try {
+          const documents = await getStudentDocuments(student.id)
+          setStudentDocuments(documents)
+        } catch (documentError) {
+          console.error(documentError)
+          setStudentDocuments([])
+        }
+      } else {
+        setStudentDocuments([])
+      }
 
-      // Isolé du reste : un enseignant qui n'est pas professeur principal
-      // reçoit un 403 ici, ça ne doit pas empêcher le reste du dossier
-      // (responsables légaux, infos personnelles) de s'afficher.
       try {
         setAcademicSummary(await getStudentAcademicSummary(student.id))
       } catch (summaryError) {
         setAcademicSummary(null)
+      }
+
+      if (account?.role === 'ADMIN' || full.viewer_is_main_teacher) {
+        try {
+          const specialties = await getStudentSpecialties(student.id)
+          setStudentSpecialties(specialties)
+        } catch (specialtyError) {
+          // Cas normal pour un élève qui n'est ni en Première ni en Terminale.
+          setStudentSpecialties(null)
+        }
+      } else {
+        setStudentSpecialties(null)
       }
     } catch (e) {
       console.error(e)
@@ -456,13 +769,13 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
               {menuOpen && (
                 <div className="sdp-menu">
                   <button onClick={() => handleAction(archiveStudent)} disabled={details.status === 'ARCHIVED'}>
-                    🗄 Archiver l'élève
+                    Archiver l’élève
                   </button>
                   <button onClick={() => handleAction(deactivateStudent)} disabled={details.status !== 'ACTIVE'}>
-                    ⏸ Désactiver l'élève
+                    Désactiver l’élève
                   </button>
                   <button onClick={() => handleAction(reactivateStudent)} disabled={details.status === 'ACTIVE'}>
-                    ↻ Réactiver l'élève
+                    Réactiver l’élève
                   </button>
                 </div>
               )}
@@ -504,7 +817,10 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                   {classes.map(function renderEnrollmentClass(schoolClass) {
                     return (
                       <option key={schoolClass.id} value={schoolClass.id}>
-                        {schoolClass.name} — {schoolClass.school_year_name || ''}
+                        {schoolClass.level_name}
+                        {schoolClass.group_label ? ` ${schoolClass.group_label}` : ''}
+                        {' — '}
+                        {schoolClass.school_year_name}
                       </option>
                     )
                   })}
@@ -698,6 +1014,59 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                   </div>
                 </article>
               </div>
+
+              {studentSpecialties && (
+                <section className="sdp-specialties-section">
+                  <div className="sdp-section-heading">
+                    <div>
+                      <h3>Spécialités</h3>
+                      <p>
+                        {studentSpecialties.level_name}
+                        {' — '}
+                        {studentSpecialties.school_year_name}
+                      </p>
+                    </div>
+
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="sdp-btn-outline"
+                        onClick={openSpecialtyModal}
+                        disabled={specialtyLoading}
+                      >
+                        <Pencil aria-hidden="true" size={16} />
+                        {specialtyLoading
+                          ? 'Chargement…'
+                          : 'Modifier les spécialités'}
+                      </button>
+                    )}
+                  </div>
+
+                  {(studentSpecialties.items ?? []).length === 0 ? (
+                    <p className="sdp-placeholder">
+                      Aucune spécialité n’est actuellement sélectionnée.
+                    </p>
+                  ) : (
+                    <div className="sdp-specialties-list">
+                      {studentSpecialties.items.map((specialty) => (
+                        <span
+                          key={specialty.subject_id}
+                          className="sdp-specialty-badge"
+                        >
+                          {specialty.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <small>
+                    {studentSpecialties.required_count} spécialité
+                    {studentSpecialties.required_count > 1 ? 's' : ''}
+                    {' '}requise
+                    {studentSpecialties.required_count > 1 ? 's' : ''}.
+                  </small>
+                </section>
+              )}
 
               <div className="sdp-school-tables">
                 <section>
@@ -981,18 +1350,38 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                   <h2>Documents</h2>
                   <p>Liste des documents associés à cet élève.</p>
                 </div>
-                <button type="button" disabled title="Fonctionnalité à venir">
+                <button
+                  type="button"
+                  className="sdp-documents-header__action"
+                  onClick={openDocumentModal}
+                >
                   <Upload aria-hidden="true" size={16} />
                   Téléverser un document
                 </button>
               </div>
 
               <div className="sdp-document-filters">
-                <button type="button" className="sdp-document-filter-active">
-                  Tous ({(details.documents ?? []).length})
+                <button
+                  type="button"
+                  className={documentFilter === 'ALL' ? 'sdp-document-filter-active' : ''}
+                  onClick={() => setDocumentFilter('ALL')}
+                >
+                  Tous ({studentDocuments.length})
                 </button>
-                <button type="button">Administratifs (0)</button>
-                <button type="button">Scolaires (0)</button>
+                <button
+                  type="button"
+                  className={documentFilter === 'ADMINISTRATIVE' ? 'sdp-document-filter-active' : ''}
+                  onClick={() => setDocumentFilter('ADMINISTRATIVE')}
+                >
+                  Administratifs ({administrativeDocumentCount})
+                </button>
+                <button
+                  type="button"
+                  className={documentFilter === 'OTHER' ? 'sdp-document-filter-active' : ''}
+                  onClick={() => setDocumentFilter('OTHER')}
+                >
+                  Autres ({otherDocumentCount})
+                </button>
               </div>
 
               <div className="sdp-documents-table-wrapper">
@@ -1004,24 +1393,56 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                       <th>Date d’ajout</th>
                       <th>Taille</th>
                       <th>Téléversé par</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(details.documents ?? []).length === 0 ? (
+                    {filteredStudentDocuments.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="sdp-documents-empty">
+                        <td colSpan={6} className="sdp-documents-empty">
                           <FileText aria-hidden="true" size={24} />
-                          Aucun document associé à cet élève.
+                          Aucun document dans cette catégorie.
                         </td>
                       </tr>
                     ) : (
-                      details.documents.map((document) => (
+                      filteredStudentDocuments.map((document) => (
                         <tr key={document.id}>
-                          <td>{document.name}</td>
-                          <td>{document.category ?? '—'}</td>
+                          <td>{document.title || document.original_filename}</td>
+                          <td>{document.document_type_label || document.document_type_code || '—'}</td>
                           <td>{formatDate(document.created_at)}</td>
-                          <td>{document.size_label ?? '—'}</td>
-                          <td>{document.uploaded_by_name ?? '—'}</td>
+                          <td>{formatFileSize(document.size_bytes)}</td>
+                          <td>{document.uploaded_by_registration_number || '—'}</td>
+                          <td>
+                            <div className="sdp-document-actions">
+                              <button
+                                type="button"
+                                onClick={() => viewStudentDocument(document)}
+                                disabled={documentOpeningId === document.id}
+                                title="Voir le document"
+                                className="sdp-document-action-btn"
+                              >
+                                <Eye aria-hidden="true" size={16} />
+                                {documentOpeningId === document.id ? 'Ouverture…' : 'Voir'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => downloadStudentDocument(document)}
+                                disabled={documentDownloadingId === document.id}
+                                title="Télécharger le document"
+                                className="sdp-document-action-btn"
+                              >
+                                <Download aria-hidden="true" size={16} />
+                                Télécharger
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openDocumentArchiveModal(document)}
+                                className="sdp-document-action-btn sdp-document-action-btn--danger"
+                              >
+                                Archiver
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -1029,10 +1450,265 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                 </table>
               </div>
 
-              <p className="sdp-documents-note">
-                <Info aria-hidden="true" size={16} />
-                Les documents téléversés devront rester lisibles et à jour.
-              </p>
+                <p className="sdp-documents-note">
+                  <Info aria-hidden="true" size={16} />
+                  Les documents téléversés devront rester lisibles et à jour.
+                </p>
+              </div>
+            )}
+
+          {specialtyModalOpen && (
+            <div
+              className="sdp-guardian-modal-backdrop"
+              role="presentation"
+            >
+              <section
+                className="sdp-guardian-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="sdp-specialty-modal-title"
+              >
+                <header>
+                  <div>
+                    <h2 id="sdp-specialty-modal-title">
+                      Modifier les spécialités
+                    </h2>
+                    <p>
+                      Sélectionnez exactement{' '}
+                      <strong>
+                        {studentSpecialties?.required_count ?? 0}
+                      </strong>{' '}
+                      spécialité
+                      {(studentSpecialties?.required_count ?? 0) > 1
+                        ? 's'
+                        : ''}
+                      .
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closeSpecialtyModal}
+                    disabled={specialtySaving}
+                    aria-label="Fermer"
+                  >
+                    <X aria-hidden="true" size={20} />
+                  </button>
+                </header>
+
+                <div className="sdp-specialty-options">
+                  {availableSpecialties.length === 0 ? (
+                    <p className="sdp-placeholder">
+                      Aucune spécialité n’est proposée dans cette classe.
+                    </p>
+                  ) : (
+                    availableSpecialties.map((specialty) => {
+                      const specialtyId = String(specialty.id)
+                      const checked =
+                        selectedSpecialtyIds.includes(specialtyId)
+
+                      return (
+                        <label
+                          key={specialty.id}
+                          className="sdp-specialty-option"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              toggleSpecialty(specialty.id)
+                            }
+                          />
+
+                          <span>
+                            <strong>{specialty.name}</strong>
+
+                            {specialty.description && (
+                              <small>{specialty.description}</small>
+                            )}
+                          </span>
+                        </label>
+                      )
+                    })
+                  )}
+                </div>
+
+                <p>
+                  {selectedSpecialtyIds.length}
+                  {' / '}
+                  {studentSpecialties?.required_count ?? 0}
+                  {' '}sélectionnée
+                  {selectedSpecialtyIds.length > 1 ? 's' : ''}
+                </p>
+
+                <footer>
+                  <button
+                    type="button"
+                    onClick={closeSpecialtyModal}
+                    disabled={specialtySaving}
+                  >
+                    Annuler
+                  </button>
+
+                  <button
+                    type="button"
+                    className="sdp-btn-primary"
+                    onClick={saveStudentSpecialties}
+                    disabled={
+                      specialtySaving
+                      || selectedSpecialtyIds.length
+                        !== studentSpecialties?.required_count
+                    }
+                  >
+                    {specialtySaving
+                      ? 'Enregistrement…'
+                      : 'Enregistrer'}
+                  </button>
+                </footer>
+              </section>
+            </div>
+          )}
+
+          {documentModalOpen && (
+            <div className="sdp-guardian-modal-backdrop" role="presentation">
+              <section
+                className="sdp-guardian-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="sdp-document-modal-title"
+              >
+                <header>
+                  <div>
+                    <h2 id="sdp-document-modal-title">Téléverser un document</h2>
+                    <p>Ajoutez un document au dossier de cet élève.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeDocumentModal}
+                    aria-label="Fermer"
+                    disabled={documentSaving}
+                  >
+                    <X aria-hidden="true" size={20} />
+                  </button>
+                </header>
+
+                <form onSubmit={submitDocumentUpload}>
+                  <div className="sdp-guardian-link-fields">
+                    <label>
+                      Titre du document *
+                      <input
+                        type="text"
+                        maxLength="150"
+                        value={documentTitle}
+                        onChange={(event) => setDocumentTitle(event.target.value)}
+                        placeholder="Exemple : Certificat de scolarité"
+                        required
+                      />
+                    </label>
+
+                    <label>
+                      Type de document *
+                      <select
+                        value={documentTypeCode}
+                        onChange={(event) => setDocumentTypeCode(event.target.value)}
+                      >
+                        <option value="ADMINISTRATIVE">Document administratif</option>
+                        <option value="OTHER">Autre document</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      Fichier *
+                      <input
+                        type="file"
+                        accept=".pdf,image/jpeg,image/png,image/webp"
+                        onChange={selectDocumentFile}
+                        required
+                      />
+                    </label>
+
+                    <small>
+                      Formats acceptés : PDF, JPEG, PNG et WebP. Taille maximale : 5 Mo.
+                    </small>
+
+                    {documentFile && (
+                      <p>
+                        Fichier sélectionné : <strong>{documentFile.name}</strong>
+                      </p>
+                    )}
+                  </div>
+
+                  <footer>
+                    <button
+                      type="button"
+                      onClick={closeDocumentModal}
+                      disabled={documentSaving}
+                    >
+                      Annuler
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={
+                        documentSaving
+                        || !documentTitle.trim()
+                        || !documentFile
+                      }
+                    >
+                      {documentSaving ? 'Téléversement…' : 'Téléverser'}
+                    </button>
+                  </footer>
+                </form>
+              </section>
+            </div>
+          )}
+
+          {documentArchiveModalOpen && (
+            <div className="sdp-guardian-modal-backdrop" role="presentation">
+              <section
+                className="sdp-guardian-modal"
+                role="dialog"
+                aria-modal="true"
+              >
+                <header>
+                  <div>
+                    <h2>Archiver ce document ?</h2>
+                    <p>
+                      Le document{' '}
+                      <strong>
+                        {documentToArchive?.title || documentToArchive?.original_filename}
+                      </strong>{' '}
+                      ne sera plus affiché dans le dossier de l’élève.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeDocumentArchiveModal}
+                    disabled={documentArchiving}
+                    aria-label="Fermer"
+                  >
+                    <X aria-hidden="true" size={20} />
+                  </button>
+                </header>
+
+                <footer>
+                  <button
+                    type="button"
+                    onClick={closeDocumentArchiveModal}
+                    disabled={documentArchiving}
+                  >
+                    Annuler
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={confirmDocumentArchive}
+                    disabled={documentArchiving}
+                  >
+                    {documentArchiving ? 'Archivage…' : 'Confirmer l’archivage'}
+                  </button>
+                </footer>
+              </section>
             </div>
           )}
         </section>
@@ -1041,3 +1717,5 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     </main>
   )
 }
+
+

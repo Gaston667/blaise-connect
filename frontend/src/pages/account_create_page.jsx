@@ -204,10 +204,6 @@ export default function AccountCreatePage({ onNavigate }) {
       setErrorMessage('Les deux mots de passe ne correspondent pas.')
       return
     }
-    if (!photo) {
-      setErrorMessage('La photo du profil est obligatoire.')
-      return
-    }
     setConfirmationOpen(true)
   }
 
@@ -271,6 +267,8 @@ export default function AccountCreatePage({ onNavigate }) {
   const isTeacher = form.role === 'TEACHER'
   const isAdministrator = form.role === 'ADMIN'
   const isGuardian = form.role === 'GUARDIAN'
+  const isEmailRequired = !isStudent && !isGuardian
+  const isPhoneRequired = !isStudent
   const registrationPreview = generateRegistrationPreview(form.role)
 
   if (creationSummary) {
@@ -418,7 +416,7 @@ export default function AccountCreatePage({ onNavigate }) {
           <h2><IdCard size={19} aria-hidden="true" /> Informations d’identité</h2>
           <div className="creation-compte-grid">
             <label className="creation-compte-photo-field">
-              Photo *
+              Photo (facultative)
               <span className="creation-compte-photo-picker">
                 {photoPreview ? (
                   <img
@@ -440,7 +438,6 @@ export default function AccountCreatePage({ onNavigate }) {
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={selectPhoto}
-                  required
                 />
               </span>
               {photoPreview && (
@@ -497,8 +494,8 @@ export default function AccountCreatePage({ onNavigate }) {
               </select>
             </label>
 
-            <label>Email *<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" autoComplete="off" required /></label>
-            <label>Téléphone *<input name="phone" value={form.phone} onChange={updateField} maxLength="30" autoComplete="off" required /></label>
+            <label>Email {isEmailRequired ? '*' : '(facultatif)'}<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" autoComplete="off" required={isEmailRequired} /></label>
+            <label>Téléphone {isPhoneRequired ? '*' : '(facultatif)'}<input name="phone" value={form.phone} onChange={updateField} maxLength="30" autoComplete="off" required={isPhoneRequired} /></label>
             <label className="creation-compte-wide">Adresse *<input name="address" value={form.address} onChange={updateField} autoComplete="off" required /></label>
           </div>
         </section>

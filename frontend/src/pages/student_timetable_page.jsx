@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 
 import { getMyTimetable } from '../services/student_timetable_service.js'
-import { DEFAULT_DAYS, getDayScheduleForStage } from '../utils/timetable_generator.js'
+import { DAY_LABELS, getScheduleRows } from '../utils/timetable_display.js'
 import '../styles/student_timetable_page.css'
 
 const PALETTE = ['violet', 'green', 'blue', 'orange']
@@ -71,14 +71,14 @@ export default function StudentTimetablePage() {
         timeLabel(slot.end_time) > period.start
     )
   }
-  const daySchedule = getDayScheduleForStage(slots[0]?.education_stage, { fullDay: true })
+  const daySchedule = getScheduleRows(slots)
 
   return (
     <main className="stp-main">
       <header className="stp-header">
         <div>
           <h1><CalendarDays aria-hidden="true" size={22} /> Emploi du temps</h1>
-          <p>Établissement ouvert de 8h00 à 19h00.</p>
+          <p>Consultez les créneaux validés de votre classe.</p>
         </div>
       </header>
 
@@ -89,7 +89,7 @@ export default function StudentTimetablePage() {
           <div className="stp-grid-wrapper">
             <div className="stp-grid" style={{ '--stp-period-count': daySchedule.length }}>
               <div className="stp-grid__corner" />
-              {DEFAULT_DAYS.map((day) => (
+              {DAY_LABELS.map((day) => (
                 <div key={day} className="stp-grid__day-head">{day}</div>
               ))}
 
@@ -104,7 +104,7 @@ export default function StudentTimetablePage() {
                       <strong>{entry.start}</strong>
                       <span>{entry.end}</span>
                     </div>
-                    {DEFAULT_DAYS.map((day, dayIndex) => {
+                    {DAY_LABELS.map((day, dayIndex) => {
                       const slot = findSlotForCell(dayIndex, entry)
                       if (!slot) {
                         return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>

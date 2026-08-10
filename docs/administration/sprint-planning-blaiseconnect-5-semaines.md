@@ -60,6 +60,8 @@
 | US-011 | 07/08/2026 | Inscription des élèves | En tant qu’administrateur, je veux inscrire un élève dans une classe pour une année scolaire afin de conserver son parcours scolaire. | 🟩 Terminé | `backend/app/schemas/student_enrollment_create.py`, `backend/app/routes/students.py`, `backend/app/services/student_service.py`, `frontend/src/pages/student_details_page.jsx`, `frontend/src/services/students_service.js` |
 | US-012 | 07/08/2026 | Consultation des élèves | En tant qu’utilisateur autorisé, je veux rechercher et consulter un élève afin d’accéder aux informations nécessaires à mon travail. | 🟩 Terminé | `backend/app/routes/students.py`, `backend/app/services/student_service.py`, `frontend/src/pages/students_page.jsx`, `frontend/src/pages/student_details_page.jsx`, `frontend/src/services/students_service.js` |
 
+**Tâche complémentaire du Sprint 3 :** implémenter la suppression contrôlée d’une année scolaire dans un service FastAPI transactionnel : vérifier que l’année est ouverte et non clôturée, demander une confirmation exacte, créer `school_year_deletion_audits`, supprimer l’année et ses dépendances atomiquement, puis verrouiller la ligne pour éviter les suppressions concurrentes.
+
 ---
 
 ## Semaine 4 — Du 10 au 14 août 2026

@@ -15,6 +15,7 @@ import {
 import { useToast } from '../components/feedback/ToastProvider.jsx'
 import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import {
+  applyGradeCorrectionDirectly,
   createAssessment,
   createGradeChangeRequest,
   decideGradeChangeRequest,
@@ -517,7 +518,7 @@ export default function NotesPage({ account, onNavigate }) {
     event.preventDefault()
     setCorrectionSaving(true)
     try {
-      const createdRequest = await createGradeChangeRequest({
+      const correctionPayload = {
         ...correctionForm,
         proposed_score: correctionForm.proposed_result_type === 'SCORED'
           ? Number(correctionForm.proposed_score)
@@ -525,13 +526,12 @@ export default function NotesPage({ account, onNavigate }) {
         proposed_justification_status: correctionForm.proposed_result_type === 'ABSENT'
           ? correctionForm.proposed_justification_status
           : null,
-      })
+      }
 
-      if (isAdmin && createdRequest?.id) {
-        await decideGradeChangeRequest(createdRequest.id, {
-          status: 'APPROVED',
-          decision_comment: 'Correction validée directement par un administrateur.',
-        })
+      if (isAdmin) {
+        await applyGradeCorrectionDirectly(correctionPayload)
+      } else {
+        await createGradeChangeRequest(correctionPayload)
       }
 
       setShowCorrectionModal(false)

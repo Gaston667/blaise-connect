@@ -77,10 +77,18 @@ def list_school_day_schedules(db: Session, school_year_id: UUID) -> list[dict]:
     rows = db.execute(
         text(
             """
+            WITH profile_stages AS (
+                SELECT DISTINCT
+                    profile_level.schedule_profile_id,
+                    level.education_stage
+                FROM schedule_profile_levels AS profile_level
+                JOIN class_levels AS level
+                  ON level.id = profile_level.class_level_id
+            )
             SELECT
                 schedule.id,
-                schedule.school_year_id,
-                schedule.education_stage,
+                profile.school_year_id,
+                profile_stage.education_stage,
                 schedule.day_of_week,
                 schedule.course_start_time,
                 schedule.course_end_time,
@@ -97,16 +105,101 @@ def list_school_day_schedules(db: Session, school_year_id: UUID) -> list[dict]:
                     '[]'::jsonb
                 ) AS breaks
             FROM school_day_schedules AS schedule
+            JOIN schedule_profiles AS profile
+              ON profile.id = schedule.schedule_profile_id
+            JOIN profile_stages AS profile_stage
+              ON profile_stage.schedule_profile_id = profile.id
             LEFT JOIN break_schedules AS break
-                ON break.school_day_schedule_id = schedule.id
-            WHERE schedule.school_year_id = :school_year_id
-            GROUP BY schedule.id
-            ORDER BY schedule.education_stage, schedule.day_of_week
+              ON break.school_day_schedule_id = schedule.id
+            WHERE profile.school_year_id = :school_year_id
+              AND profile.is_active = true
+            GROUP BY
+                schedule.id,
+                profile.school_year_id,
+                profile_stage.education_stage
+            ORDER BY profile_stage.education_stage, schedule.day_of_week
             """
         ),
         {"school_year_id": school_year_id},
     ).mappings().all()
     return [dict(row) for row in rows]
+
+
+def _get_or_create_schedule_profile_for_stage(
+    db: Session,
+    school_year_id: UUID,
+    education_stage: str,
+) -> UUID:
+    """Résout le profil horaire relié aux niveaux d'un cycle scolaire."""
+
+    profile_id = db.execute(
+        text(
+            """
+            SELECT profile.id
+            FROM schedule_profiles AS profile
+            JOIN schedule_profile_levels AS profile_level
+              ON profile_level.schedule_profile_id = profile.id
+            JOIN class_levels AS level
+              ON level.id = profile_level.class_level_id
+            WHERE profile.school_year_id = :school_year_id
+              AND level.education_stage = :education_stage
+            ORDER BY profile.is_active DESC, profile.name, profile.id
+            LIMIT 1
+            """
+        ),
+        {
+            "school_year_id": school_year_id,
+            "education_stage": education_stage,
+        },
+    ).scalar_one_or_none()
+
+    if profile_id is None:
+        profile_id = db.execute(
+            text(
+                """
+                INSERT INTO schedule_profiles (school_year_id, name, is_active)
+                VALUES (:school_year_id, :profile_name, true)
+                RETURNING id
+                """
+            ),
+            {
+                "school_year_id": school_year_id,
+                "profile_name": f"Cycle {education_stage}",
+            },
+        ).scalar_one()
+
+        db.execute(
+            text(
+                """
+                INSERT INTO schedule_profile_levels (
+                    schedule_profile_id,
+                    class_level_id
+                )
+                SELECT :profile_id, level.id
+                FROM class_levels AS level
+                WHERE level.education_stage = :education_stage
+                  AND level.is_active = true
+                ON CONFLICT (schedule_profile_id, class_level_id) DO NOTHING
+                """
+            ),
+            {
+                "profile_id": profile_id,
+                "education_stage": education_stage,
+            },
+        )
+    else:
+        db.execute(
+            text(
+                """
+                UPDATE schedule_profiles
+                SET is_active = true
+                WHERE id = :profile_id
+                """
+            ),
+            {"profile_id": profile_id},
+        )
+
+    return profile_id
 
 
 def upsert_school_day_schedule(
@@ -116,29 +209,46 @@ def upsert_school_day_schedule(
 ) -> dict:
     """Crée ou remplace l'horaire d'un cycle pour un jour."""
 
+    education_stage = payload.education_stage.value
+    profile_id = _get_or_create_schedule_profile_for_stage(
+        db=db,
+        school_year_id=school_year_id,
+        education_stage=education_stage,
+    )
+
     row = db.execute(
         text(
             """
             INSERT INTO school_day_schedules (
-                school_year_id, education_stage, day_of_week,
+                schedule_profile_id, day_of_week,
                 course_start_time, course_end_time, lesson_duration_minutes
             ) VALUES (
-                :school_year_id, :education_stage, :day_of_week,
+                :schedule_profile_id, :day_of_week,
                 :course_start_time, :course_end_time, :lesson_duration_minutes
             )
-            ON CONFLICT (school_year_id, education_stage, day_of_week)
+            ON CONFLICT (schedule_profile_id, day_of_week)
             DO UPDATE SET
                 course_start_time = EXCLUDED.course_start_time,
                 course_end_time = EXCLUDED.course_end_time,
                 lesson_duration_minutes = EXCLUDED.lesson_duration_minutes
-            RETURNING id, school_year_id, education_stage, day_of_week,
+            RETURNING id, day_of_week,
                       course_start_time, course_end_time, lesson_duration_minutes
             """
         ),
-        {"school_year_id": school_year_id, **payload.model_dump()},
+        {
+            "schedule_profile_id": profile_id,
+            "day_of_week": payload.day_of_week,
+            "course_start_time": payload.course_start_time,
+            "course_end_time": payload.course_end_time,
+            "lesson_duration_minutes": payload.lesson_duration_minutes,
+        },
     ).mappings().one()
     db.commit()
-    return dict(row)
+    return {
+        **dict(row),
+        "school_year_id": school_year_id,
+        "education_stage": education_stage,
+    }
 
 
 def create_break(db: Session, payload: BreakScheduleCreate) -> dict:
@@ -517,10 +627,8 @@ def validate_timetable(
         text(
             """
             UPDATE timetables
-            SET status = 'ARCHIVED',
-                validated_by_account_id = NULL,
-                validated_at = NULL
-            WHERE class_id = :class_id AND status = 'VALIDATED'
+            SET status = 'ARCHIVED'
+            WHERE class_id = :class_id AND status = 'PUBLISHED'
             """
         ),
         {"class_id": class_id},
@@ -529,11 +637,11 @@ def validate_timetable(
         text(
             """
             UPDATE timetables
-            SET status = 'VALIDATED',
-                validated_by_account_id = :account_id,
-                validated_at = now()
+            SET status = 'PUBLISHED',
+                published_by_account_id = :account_id,
+                published_at = now()
             WHERE id = :timetable_id
-            RETURNING id, class_id, version, status, validated_at
+            RETURNING id, class_id, version, status, published_at
             """
         ),
         {"account_id": validated_by_account_id, "timetable_id": draft["id"]},
@@ -558,7 +666,7 @@ def get_teacher_busy_slots(db: Session, exclude_class_id: str | None) -> list[di
             JOIN timetables AS timetable ON timetable.id = slot.timetable_id
             JOIN teacher_assignments AS assignment
               ON assignment.id = slot.teacher_assignment_id
-            WHERE timetable.status = 'VALIDATED'
+            WHERE timetable.status = 'PUBLISHED'
               AND (
                   CAST(:exclude_class_id AS uuid) IS NULL
                   OR timetable.class_id <> CAST(:exclude_class_id AS uuid)
@@ -573,7 +681,7 @@ def get_teacher_busy_slots(db: Session, exclude_class_id: str | None) -> list[di
 def get_class_timetable(db: Session, class_id: str, published_only: bool = False) -> list[dict]:
     """Retourne le planning publié, ou le brouillon prioritaire pour l'admin."""
 
-    status_filter = "timetable.status = 'VALIDATED'" if published_only else "timetable.status IN ('DRAFT', 'VALIDATED')"
+    status_filter = "timetable.status = 'PUBLISHED'" if published_only else "timetable.status IN ('DRAFT', 'PUBLISHED')"
     rows = db.execute(
         text(
             f"""
@@ -590,12 +698,12 @@ def get_class_timetable(db: Session, class_id: str, published_only: bool = False
               AND {status_filter}
               AND timetable.status = (
                   SELECT CASE
-                      WHEN :published_only THEN 'VALIDATED'::timetable_status_enum
+                      WHEN :published_only THEN 'PUBLISHED'::timetable_status_enum
                       WHEN EXISTS (
                           SELECT 1 FROM timetables AS draft
                           WHERE draft.class_id = :class_id AND draft.status = 'DRAFT'
                       ) THEN 'DRAFT'::timetable_status_enum
-                      ELSE 'VALIDATED'::timetable_status_enum
+                      ELSE 'PUBLISHED'::timetable_status_enum
                   END
               )
             ORDER BY detail.day_of_week, detail.start_time
@@ -722,7 +830,7 @@ def delete_timetable_slot(db: Session, slot_id: str) -> bool:
     return result.rowcount > 0
 
 
-def _get_open_enrollment(db: Session, student_id: str):
+def _get_open_enrollment(db: Session, student_id: str, class_id: UUID | None = None):
     """Retourne l'inscription ouverte d'un élève."""
 
     return db.execute(
@@ -732,14 +840,16 @@ def _get_open_enrollment(db: Session, student_id: str):
             FROM student_enrollments AS enrollment
             WHERE enrollment.student_id = :student_id
               AND enrollment.end_date IS NULL
+              AND (:class_id IS NULL OR enrollment.class_id = :class_id)
             """
         ),
-        {"student_id": student_id},
+        {"student_id": student_id, "class_id": class_id},
     ).first()
 
 
 def create_special_course(
     db: Session,
+    class_id: UUID,
     student_id: UUID,
     subject_id: UUID,
     title: str,
@@ -750,9 +860,9 @@ def create_special_course(
 ) -> dict:
     """Crée un cours individuel sans plage horaire codée en dur."""
 
-    enrollment = _get_open_enrollment(db, str(student_id))
+    enrollment = _get_open_enrollment(db, str(student_id), class_id=class_id)
     if enrollment is None:
-        raise ValueError("Cet élève n'a pas d'inscription active.")
+        raise ValueError("Cet élève n'a pas d'inscription active dans cette classe.")
     row = db.execute(
         text(
             """
@@ -832,7 +942,7 @@ def get_teacher_timetable(db: Session, teacher_id: str) -> list[dict]:
             JOIN classes AS class ON class.id = detail.class_id
             JOIN class_levels AS level ON level.id = class.class_level_id
             WHERE detail.teacher_id = :teacher_id
-              AND detail.status = 'VALIDATED'
+              AND detail.status = 'PUBLISHED'
             ORDER BY detail.day_of_week, detail.start_time
             """
         ),

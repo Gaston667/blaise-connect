@@ -15,6 +15,7 @@ class SubjectDetail(BaseModel):
     name: str
     description: str | None
     is_active: bool
+    is_specialty: bool
     created_at: datetime
     updated_at: datetime
     class_count: int

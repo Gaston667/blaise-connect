@@ -127,6 +127,51 @@ def list_students(
     return results
 
 
+def count_students(
+    db: Session,
+    q: str | None = None,
+    status: str | None = None,
+    class_id: str | None = None,
+    school_year_id: str | None = None,
+) -> int:
+    """Compte les élèves correspondant aux mêmes filtres que la liste paginée."""
+
+    where_clauses: list[str] = ["1 = 1"]
+    params: dict = {}
+
+    if q:
+        params["q"] = f"%{q}%"
+        where_clauses.append(
+            "(s.first_name ILIKE :q OR s.last_name ILIKE :q OR a.registration_number ILIKE :q)"
+        )
+    if status:
+        params["status"] = status
+        where_clauses.append("s.status = :status")
+    if class_id:
+        params["class_id"] = class_id
+        where_clauses.append("se.class_id = :class_id")
+    if school_year_id:
+        params["school_year_id"] = school_year_id
+        where_clauses.append("c.school_year_id = :school_year_id")
+
+    query = text(
+        """
+        SELECT COUNT(*)
+        FROM students AS s
+        LEFT JOIN accounts AS a ON a.id = s.account_id
+        LEFT JOIN LATERAL (
+            SELECT class_id
+            FROM student_enrollments
+            WHERE student_id = s.id AND end_date IS NULL
+            LIMIT 1
+        ) AS se ON true
+        LEFT JOIN classes AS c ON c.id = se.class_id
+        WHERE """
+        + " AND ".join(where_clauses)
+    )
+    return db.execute(query, params).scalar_one()
+
+
 def get_student(db: Session, student_id):
     """Renvoie un étudiant par `id` ou `None` si absent. Retourne un dict
     contenant les mêmes champs que `list_students` fournit.
@@ -228,9 +273,6 @@ def enroll_student(
         ),
         {"student_id": student_id},
     ).first()
-    if open_enrollment is not None:
-        raise ValueError("Cet élève possède déjà une inscription en cours.")
-
     school_class = db.execute(
         text(
             """

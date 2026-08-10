@@ -33,3 +33,10 @@ class StudentResponse(BaseModel):
     nationality: str | None
     previous_level: str | None
     guardians: list[dict] = Field(default_factory=list)
+
+
+class StudentListResponse(BaseModel):
+    """Page d'élèves accompagnée du total correspondant aux filtres."""
+
+    items: list[StudentResponse]
+    total: int = Field(ge=0)
