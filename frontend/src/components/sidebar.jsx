@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Users,
   Presentation,
+  UserRoundX,
   X,
 } from 'lucide-react';
 import logo from '../assets/logo-blaise-connect.png.png';
@@ -184,6 +185,20 @@ function renderStaffNavigation(currentPage, handleNavigation, isAdmin) {
       >
         <NotebookPen aria-hidden="true" size={20} />
         Notes
+      </button>
+
+      <button
+        className={
+          currentPage === 'attendance'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="attendance"
+        onClick={() => handleNavigation('attendance')}
+      >
+        <UserRoundX aria-hidden="true" size={20} />
+        Absences et retards
       </button>
     </>
   );
@@ -386,6 +401,20 @@ function renderStudentNavigation(currentPage, handleNavigation) {
       >
         <CalendarDays aria-hidden="true" size={20} />
         Mon emploi du temps
+      </button>
+
+      <button
+        className={
+          currentPage === 'attendance'
+            ? 'layout-navigation-item layout-navigation-item-active'
+            : 'layout-navigation-item'
+        }
+        type="button"
+        data-page="attendance"
+        onClick={() => handleNavigation('attendance')}
+      >
+        <UserRoundX aria-hidden="true" size={20} />
+        Mes absences
       </button>
     </>
   );

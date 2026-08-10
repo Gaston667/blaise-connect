@@ -94,7 +94,7 @@
 |---|---|---|
 | US-009 | Cycle de vie complet des élèves | 🟥 À faire |
 | US-016 | Validation des modifications de notes | 🟩 Terminé |
-| US-018 et US-019 | Gestion complète des absences de cours | 🟥 À faire |
+| US-018 et US-019 | Gestion complète des absences de cours | 🟨 En cours — migration 008, API et interfaces créées ; tests réels restant à faire |
 | US-020 | Absences aux évaluations | 🟩 Terminé |
 | US-022 | Versionnement des bulletins | 🟥 À faire |
 | US-023 et US-024 | Tableaux de bord | 🟥 À faire |

@@ -57,8 +57,8 @@ Les estimations comprennent le développement, les tests et la documentation.
 | US-015 | Moyennes | Calculer les moyennes automatiquement | Indispensable pour le MVP | L | 🟨 En cours — arrondi à valider |
 | US-016 | Notes | Demander et valider la modification d’une note | Important | L | 🟩 Terminé |
 | US-017 | Appréciations | Saisir les appréciations des élèves | Important | M | 🟥 À faire |
-| US-018 | Absences | Enregistrer et consulter une absence | Indispensable pour le MVP | L | 🟥 À faire |
-| US-019 | Absences | Justifier, corriger et historiser une absence | Important | L | 🟥 À faire |
+| US-018 | Absences | Enregistrer et consulter une absence | Indispensable pour le MVP | L | 🟨 En cours — migration à appliquer et tests réels à faire |
+| US-019 | Absences | Justifier, corriger et historiser une absence | Important | L | 🟨 En cours — migration à appliquer et tests réels à faire |
 | US-020 | Absence à une évaluation | Appliquer ABS, rattrapage ou zéro | Important | L | 🟩 Terminé |
 | US-021 | Bulletins | Préparer, valider et générer un bulletin PDF | Indispensable pour le MVP | XL | 🟥 À faire |
 | US-022 | Bulletins | Conserver les versions successives d’un bulletin | Important | M | 🟥 À faire |

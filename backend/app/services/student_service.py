@@ -276,9 +276,11 @@ def enroll_student(
     school_class = db.execute(
         text(
             """
-            SELECT c.id, sy.start_date, sy.end_date, sy.closed_at
+            SELECT c.id, sy.start_date, sy.end_date, sy.closed_at,
+                   cl.code AS level_code
             FROM classes AS c
             JOIN school_years AS sy ON sy.id = c.school_year_id
+            JOIN class_levels AS cl ON cl.id = c.class_level_id
             WHERE c.id = :class_id
             """
         ),
@@ -290,6 +292,17 @@ def enroll_student(
         raise ValueError("L'année scolaire de cette classe est clôturée.")
     if not school_class.start_date <= enrollment_data.start_date <= school_class.end_date:
         raise ValueError("La date d'inscription doit appartenir à l'année scolaire.")
+
+    from app.services.student_specialty_service import (
+        validate_specialty_selection_for_class,
+    )
+
+    validate_specialty_selection_for_class(
+        db=db,
+        class_id=enrollment_data.class_id,
+        level_code=school_class.level_code,
+        subject_ids=enrollment_data.specialty_subject_ids,
+    )
 
     if open_enrollment is not None:
         if str(open_enrollment.class_id) == str(enrollment_data.class_id):
@@ -314,11 +327,12 @@ def enroll_student(
             },
         )
 
-    db.execute(
+    enrollment_id = db.execute(
         text(
             """
             INSERT INTO student_enrollments (student_id, class_id, start_date)
             VALUES (:student_id, :class_id, :start_date)
+            RETURNING id
             """
         ),
         {
@@ -326,7 +340,18 @@ def enroll_student(
             "class_id": str(enrollment_data.class_id),
             "start_date": enrollment_data.start_date,
         },
-    )
+    ).scalar_one()
+
+    for subject_id in enrollment_data.specialty_subject_ids:
+        db.execute(
+            text(
+                """
+                INSERT INTO student_specialties (student_enrollment_id, subject_id)
+                VALUES (:enrollment_id, :subject_id)
+                """
+            ),
+            {"enrollment_id": enrollment_id, "subject_id": subject_id},
+        )
     db.commit()
     return get_student(db=db, student_id=student_id)
 

@@ -86,3 +86,4 @@ Amélioration de la fiche compte : actions d’état compactes et réinitialisat
 03/08/2026 — Schéma des évaluations, notes, appels, documents et bulletins consolidé en six migrations avec données fictives et diagrammes dédiés.
 03/08/2026 — L’écran des notes est relié à FastAPI et aux évaluations, inscriptions et notes PostgreSQL ; le service simulé a été retiré.
 03/08/2026 — Évaluations, feuille collective, corrections, justificatifs et moyennes backend reliés aux fiches métier et couverts par des tests ciblés.
+10/08/2026 — Module d’assiduité créé pour les administrateurs, enseignants et élèves, avec justificatifs et historique des corrections.

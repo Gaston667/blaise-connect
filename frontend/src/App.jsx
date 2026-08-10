@@ -26,6 +26,8 @@ import StudentGradesPage from './pages/student_grades_page.jsx'
 import StudentTimetablePage from './pages/student_timetable_page.jsx'
 import TeacherTimetablePage from './pages/teacher_timetable_page.jsx'
 import TimetableManagementPage from './pages/timetable_management_page.jsx'
+import AttendancePage from './pages/attendance_page.jsx'
+import AttendanceRecordDetailsPage from './pages/attendance_record_details_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
 
 const PAGE_PATHS = {
@@ -44,12 +46,14 @@ const PAGE_PATHS = {
   'student-timetable': '/my-timetable',
   'teacher-timetable': '/my-teaching-schedule',
   timetables: '/timetables',
+  attendance: '/attendance',
 }
 
 /**
  * Déduit la section active à partir de l'URL affichée par le navigateur.
  */
 function getCurrentPage(pathname) {
+  if (/^\/attendance\/records\/[^/]+$/.test(pathname)) return 'attendance-record-details'
   if (pathname === '/accounts/new') return 'account-new'
   if (/^\/accounts\/[^/]+$/.test(pathname)) return 'account-details'
   if (/^\/students\/[^/]+$/.test(pathname)) return 'student-details'
@@ -72,6 +76,7 @@ function getCurrentPage(pathname) {
   if (pathname === '/my-timetable') return 'student-timetable'
   if (pathname === '/my-teaching-schedule') return 'teacher-timetable'
   if (pathname === '/timetables') return 'timetables'
+  if (pathname === '/attendance') return 'attendance'
   return 'home'
 }
 
@@ -88,6 +93,7 @@ function getNavigationPath(page, entity) {
   if (page === 'teacher-details' && entityId) return `/teachers/${entityId}`
   if (page === 'subject-details' && entityId) return `/subjects/${entityId}`
   if (page === 'administrator-details' && entityId) return `/administrators/${entityId}`
+  if (page === 'attendance-record-details' && entityId) return `/attendance/records/${entityId}`
   return PAGE_PATHS[page] || '/'
 }
 
@@ -282,6 +288,23 @@ export default function App() {
   }
   else if (currentPage === 'timetables' && canManageSchool) {
     pageContent = <TimetableManagementPage />
+  }
+  else if (
+    currentPage === 'attendance'
+    && ['ADMIN', 'TEACHER', 'STUDENT'].includes(currentAccount.role)
+  ) {
+    pageContent = <AttendancePage account={currentAccount} onNavigate={handleNavigate} />
+  }
+  else if (
+    currentPage === 'attendance-record-details'
+    && ['ADMIN', 'TEACHER', 'STUDENT'].includes(currentAccount.role)
+  ) {
+    pageContent = (
+      <AttendanceRecordDetailsPage
+        recordId={pathId}
+        onNavigate={handleNavigate}
+      />
+    )
   }
   return (
     <MainLayout

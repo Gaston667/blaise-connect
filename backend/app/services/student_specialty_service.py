@@ -218,6 +218,33 @@ def _validate_specialty_compatibility(
         )
 
 
+def validate_specialty_selection_for_class(
+    db: Session,
+    class_id: UUID,
+    level_code: str,
+    subject_ids: list[UUID],
+) -> None:
+    """Valide les spécialités avant de créer une inscription annuelle."""
+
+    required_count = SPECIALTY_COUNT_BY_LEVEL.get(level_code, 0)
+    if required_count == 0:
+        if subject_ids:
+            raise ValueError(
+                "Les spécialités sont réservées aux classes de Première et Terminale."
+            )
+        return
+
+    if len(set(subject_ids)) != required_count:
+        level_name = "Première" if level_code == "PREMIERE" else "Terminale"
+        raise ValueError(
+            f"Un élève de {level_name} doit sélectionner exactement "
+            f"{required_count} spécialités."
+        )
+
+    _validate_specialties_belong_to_class(db, class_id, subject_ids)
+    _validate_specialty_compatibility(db, subject_ids)
+
+
 def update_student_specialties(
     db: Session,
     student_id: UUID,

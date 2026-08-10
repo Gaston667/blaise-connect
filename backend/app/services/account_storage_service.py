@@ -31,3 +31,9 @@ def get_account_document_directory(registration_number: str) -> Path:
     """Retourne le dossier des documents généraux du compte."""
 
     return create_account_storage_directories(registration_number) / "documents"
+
+
+def get_account_justification_directory(registration_number: str) -> Path:
+    """Retourne le dossier prive des justificatifs du compte."""
+
+    return create_account_storage_directories(registration_number) / "justificatifs"

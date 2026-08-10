@@ -304,15 +304,23 @@ Ce document indique, pour chaque rubrique de BlaiseConnect, les principaux fichi
 
 ### Frontend
 
-- Les absences d’évaluation sont actuellement intégrées dans `frontend/src/pages/notes_page.jsx`.
-- Les documents élèves sont intégrés dans `frontend/src/pages/student_details_page.jsx`.
-- Les appels/absences de cours n’ont pas encore une rubrique frontend complète séparée.
+- `frontend/src/pages/attendance_page.jsx` : interface selon le rôle ADMIN, TEACHER ou STUDENT.
+- `frontend/src/services/attendance_service.js` : appels HTTP des appels, incidents, corrections et justificatifs.
+- `frontend/src/styles/attendance_page.css` : styles mobile-first de la rubrique.
+- `frontend/src/App.jsx` et `frontend/src/components/sidebar.jsx` : route et navigation.
+- Les absences d’évaluation restent dans `frontend/src/pages/notes_page.jsx`.
+- Les documents généraux des élèves restent dans `frontend/src/pages/student_details_page.jsx`.
 
 ### Backend
 
+- `backend/app/routes/attendance.py`
+- `backend/app/services/attendance_service.py`
+- `backend/app/services/attendance_document_service.py`
+- `backend/app/schemas/attendance_*.py`
 - `backend/app/services/grade_justification_service.py`
 - `backend/app/routes/grades.py`
-- Les tables d’assiduité sont dans `database/migration/005_academic_activity.sql`.
+- `database/migration/008_attendance.sql` contient les tables d’assiduité de cours.
+- `compose.yaml` monte la migration 008 lors de l’initialisation d’une base neuve.
 
 ## Emploi du temps
 
