@@ -46,7 +46,10 @@ import '../styles/student_details_page.css'
 import NotificationPopup from '../components/notification_popup.jsx'
 import { formatProfileName } from '../utils/profileDisplay.js'
 import { uploadAccountPhoto } from '../services/account_service.js'
-import { getSchoolClassesOverview } from '../services/school_classes_overview_service.js'
+import {
+  getSchoolClassesOverview,
+  getSchoolClassSubjects,
+} from '../services/school_classes_overview_service.js'
 import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 const RELATIONSHIP_ICON_CLASS = {
   FATHER: 'sdp-guardian-icon--pere',
@@ -120,6 +123,8 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
   const [enrollmentClassId, setEnrollmentClassId] = useState('')
   const [enrollmentStartDate, setEnrollmentStartDate] = useState('')
   const [enrollmentSaving, setEnrollmentSaving] = useState(false)
+  const [enrollmentSpecialties, setEnrollmentSpecialties] = useState([])
+  const [enrollmentSpecialtyIds, setEnrollmentSpecialtyIds] = useState([])
   const [informationMessage, setInformationMessage] = useState('')
   const [editPhoto, setEditPhoto] = useState(null)
   const [editPhotoPreview, setEditPhotoPreview] = useState('')
@@ -434,6 +439,8 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
   function openEnrollmentModal() {
     setEnrollmentClassId('')
     setEnrollmentStartDate(new Date().toISOString().slice(0, 10))
+    setEnrollmentSpecialties([])
+    setEnrollmentSpecialtyIds([])
     setEnrollmentModalOpen(true)
     setError('')
   }
@@ -442,14 +449,51 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     setEnrollmentModalOpen(false)
   }
 
+  async function updateEnrollmentClass(event) {
+    const classId = event.target.value
+    setEnrollmentClassId(classId)
+    setEnrollmentSpecialties([])
+    setEnrollmentSpecialtyIds([])
+    const selectedClass = classes.find(function findClass(item) {
+      return String(item.id) === String(classId)
+    })
+    if (!['PREMIERE', 'TERMINALE'].includes(selectedClass?.level_code)) return
+    try {
+      const subjects = await getSchoolClassSubjects(classId, { isActive: true })
+      setEnrollmentSpecialties(subjects.filter(function keepSpecialty(subject) {
+        return subject.is_specialty
+      }))
+    } catch (requestError) { setError(requestError.message) }
+  }
+
+  function toggleEnrollmentSpecialty(subjectId) {
+    setEnrollmentSpecialtyIds(function updateSelection(currentIds) {
+      const id = String(subjectId)
+      return currentIds.includes(id)
+        ? currentIds.filter(function removeId(currentId) { return currentId !== id })
+        : [...currentIds, id]
+    })
+  }
+
   async function submitEnrollment(event) {
     event.preventDefault()
+    const selectedClass = classes.find(function findClass(item) {
+      return String(item.id) === String(enrollmentClassId)
+    })
+    const requiredCount = selectedClass?.level_code === 'PREMIERE'
+      ? 3
+      : selectedClass?.level_code === 'TERMINALE' ? 2 : 0
+    if (enrollmentSpecialtyIds.length !== requiredCount) {
+      setError(`Sélectionnez exactement ${requiredCount} spécialité${requiredCount > 1 ? 's' : ''}.`)
+      return
+    }
     setEnrollmentSaving(true)
     setError('')
     try {
       const updatedStudent = await enrollStudent(details.id, {
         class_id: enrollmentClassId,
         start_date: enrollmentStartDate,
+        specialty_subject_ids: enrollmentSpecialtyIds,
       })
       setDetails(updatedStudent)
       closeEnrollmentModal()
@@ -808,9 +852,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                 Classe *
                 <select
                   value={enrollmentClassId}
-                  onChange={function updateEnrollmentClass(event) {
-                    setEnrollmentClassId(event.target.value)
-                  }}
+                  onChange={updateEnrollmentClass}
                   required
                 >
                   <option value="">Sélectionner une classe</option>
@@ -826,6 +868,31 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                   })}
                 </select>
               </label>
+              {['PREMIERE', 'TERMINALE'].includes(
+                classes.find(function findClass(item) {
+                  return String(item.id) === String(enrollmentClassId)
+                })?.level_code,
+              ) && (
+                <fieldset className="sdp-enrollment-specialties">
+                  <legend>Spécialités de l’élève *</legend>
+                  <p>
+                    Choisissez {classes.find(function findClass(item) {
+                      return String(item.id) === String(enrollmentClassId)
+                    })?.level_code === 'PREMIERE' ? '3' : '2'} spécialités proposées dans cette classe.
+                  </p>
+                  {enrollmentSpecialties.length === 0 ? (
+                    <span>Aucune spécialité active n’est associée à cette classe.</span>
+                  ) : enrollmentSpecialties.map(function renderSpecialty(subject) {
+                    const checked = enrollmentSpecialtyIds.includes(String(subject.subject_id))
+                    return (
+                      <label key={subject.subject_id} className="sdp-enrollment-specialty">
+                        <input type="checkbox" checked={checked} onChange={function selectSpecialty() { toggleEnrollmentSpecialty(subject.subject_id) }} />
+                        <span>{subject.name}</span>
+                      </label>
+                    )
+                  })}
+                </fieldset>
+              )}
               <label>
                 Date d’inscription *
                 <input
@@ -1717,5 +1784,4 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     </main>
   )
 }
-
 

@@ -974,6 +974,12 @@
   gap: var(--space-2);
 }
 
+.sdp-enrollment-specialties { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-3); border: var(--border-default); border-radius: var(--radius-md); }
+.sdp-enrollment-specialties legend { padding: 0 var(--space-1); font-weight: var(--font-weight-semibold); }
+.sdp-enrollment-specialties p { font-size: var(--font-size-sm); }
+.sdp-enrollment-specialty { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-2); min-height: 42px; padding: var(--space-2); border-radius: var(--radius-md); background: var(--color-background-alt); cursor: pointer; }
+.sdp-enrollment-specialty input { min-height: auto; width: 1rem; height: 1rem; }
+
 @media (max-width: 900px) {
   .sdp-body { grid-template-columns: 1fr; }
   .sdp-header { flex-direction: column; gap: var(--space-4); }
