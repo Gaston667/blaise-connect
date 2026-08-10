@@ -717,7 +717,7 @@ def get_class_timetable(db: Session, class_id: str, published_only: bool = False
 def _get_or_create_draft(
     db: Session,
     class_id: UUID,
-    generated_by_account_id: UUID,
+    created_by_account_id: UUID,
 ) -> UUID:
     """Retourne le brouillon courant ou en crée un."""
 
@@ -735,13 +735,33 @@ def _get_or_create_draft(
     return db.execute(
         text(
             """
-            INSERT INTO timetables (class_id, version, generated_by_account_id)
-            SELECT :class_id, COALESCE(MAX(version), 0) + 1, :account_id
-            FROM timetables WHERE class_id = :class_id
+            INSERT INTO timetables (
+                class_id,
+                version,
+                effective_start_date,
+                effective_end_date,
+                creation_mode,
+                created_by_account_id
+            )
+            SELECT
+                school_class.id,
+                (
+                    SELECT COALESCE(MAX(existing.version), 0) + 1
+                    FROM timetables AS existing
+                    WHERE existing.class_id = school_class.id
+                ),
+                school_year.start_date,
+                school_year.end_date,
+                'MANUAL',
+                :account_id
+            FROM classes AS school_class
+            JOIN school_years AS school_year
+              ON school_year.id = school_class.school_year_id
+            WHERE school_class.id = :class_id
             RETURNING id
             """
         ),
-        {"class_id": class_id, "account_id": generated_by_account_id},
+        {"class_id": class_id, "account_id": created_by_account_id},
     ).scalar_one()
 
 
@@ -753,7 +773,7 @@ def create_timetable_slot(
     start_time: time,
     end_time: time,
     room_id: UUID | None,
-    generated_by_account_id: UUID,
+    created_by_account_id: UUID,
 ) -> dict:
     """Ajoute manuellement un créneau au brouillon de la classe."""
 
@@ -774,30 +794,40 @@ def create_timetable_slot(
     if assignment_id is None:
         raise ValueError("Aucun enseignant actif n'est affecté à cette matière de classe.")
 
-    timetable_id = _get_or_create_draft(db, class_id, generated_by_account_id)
-    row = db.execute(
-        text(
-            """
-            INSERT INTO timetable_slots (
-                timetable_id, teacher_assignment_id, room_id,
-                day_of_week, start_time, end_time
-            ) VALUES (
-                :timetable_id, :teacher_assignment_id, :room_id,
-                :day_of_week, :start_time, :end_time
-            )
-            RETURNING id
-            """
-        ),
-        {
-            "timetable_id": timetable_id,
-            "teacher_assignment_id": assignment_id,
-            "room_id": room_id,
-            "day_of_week": day_of_week,
-            "start_time": start_time,
-            "end_time": end_time,
-        },
-    ).mappings().one()
-    db.commit()
+    try:
+        timetable_id = _get_or_create_draft(
+            db=db,
+            class_id=class_id,
+            created_by_account_id=created_by_account_id,
+        )
+        row = db.execute(
+            text(
+                """
+                INSERT INTO timetable_slots (
+                    timetable_id, teacher_assignment_id, room_id,
+                    day_of_week, start_time, end_time
+                ) VALUES (
+                    :timetable_id, :teacher_assignment_id, :room_id,
+                    :day_of_week, :start_time, :end_time
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "timetable_id": timetable_id,
+                "teacher_assignment_id": assignment_id,
+                "room_id": room_id,
+                "day_of_week": day_of_week,
+                "start_time": start_time,
+                "end_time": end_time,
+            },
+        ).mappings().one()
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise ValueError(
+            "Ce créneau entre en conflit avec une classe, un enseignant ou une salle."
+        ) from error
     return dict(row)
 
 

@@ -93,8 +93,9 @@
 | US | Nom | Statut |
 |---|---|---|
 | US-009 | Cycle de vie complet des élèves | 🟥 À faire |
-| US-016 | Validation des modifications de notes | 🟥 À faire |
-| US-018 à US-020 | Gestion complète des absences | 🟥 À faire |
+| US-016 | Validation des modifications de notes | 🟩 Terminé |
+| US-018 et US-019 | Gestion complète des absences de cours | 🟥 À faire |
+| US-020 | Absences aux évaluations | 🟩 Terminé |
 | US-022 | Versionnement des bulletins | 🟥 À faire |
 | US-023 et US-024 | Tableaux de bord | 🟥 À faire |
 | US-026 | Historique général des actions | 🟥 À faire |

@@ -1,6 +1,6 @@
 """Routes HTTP pour la gestion de l'emploi du temps (admin)."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
 from app.schemas.room_create import RoomCreate
@@ -107,16 +107,22 @@ def post_class_timetable_slot(
     current_admin: CurrentAdminDependency,
 ):
     """Ajoute un créneau régulier à l'emploi du temps de la classe."""
-    return timetable_service.create_timetable_slot(
-        db=db,
-        class_id=class_id,
-        class_subject_id=payload.class_subject_id,
-        day_of_week=payload.day_of_week,
-        start_time=payload.start_time,
-        end_time=payload.end_time,
-        room_id=payload.room_id,
-        generated_by_account_id=current_admin.id,
-    )
+    try:
+        return timetable_service.create_timetable_slot(
+            db=db,
+            class_id=class_id,
+            class_subject_id=payload.class_subject_id,
+            day_of_week=payload.day_of_week,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            room_id=payload.room_id,
+            created_by_account_id=current_admin.id,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
 
 
 @router.delete("/school-classes/{class_id}/timetable", status_code=204)

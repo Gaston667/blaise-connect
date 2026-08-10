@@ -45,13 +45,13 @@ Les estimations comprennent le développement, les tests et la documentation.
 | US-003 | Années scolaires | Gérer les années et périodes scolaires | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-004 | Classes | Gérer les classes du lycée | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-005 | Matières | Gérer les matières et coefficients | Indispensable pour le MVP | M | 🟩 Terminé |
-| US-006 | Enseignants | Gérer les enseignants | Indispensable pour le MVP | M | 🟨 En cours |
+| US-006 | Enseignants | Gérer les enseignants | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-007 | Affectations | Affecter enseignants, classes et matières | Indispensable pour le MVP | L | 🟨 En cours |
-| US-008 | Élèves | Gérer les fiches des élèves | Indispensable pour le MVP | L | 🟥 À faire |
+| US-008 | Élèves | Gérer les fiches des élèves | Indispensable pour le MVP | L | 🟩 Terminé |
 | US-009 | Cycle de vie élève | Activer, désactiver, archiver et réactiver un élève | Important | M | 🟥 À faire |
-| US-010 | Responsables légaux | Gérer et associer les responsables légaux | Indispensable pour le MVP | L | 🟥 À faire |
-| US-011 | Inscriptions | Inscrire un élève dans une classe et une année | Indispensable pour le MVP | M | 🟥 À faire |
-| US-012 | Consultation | Rechercher et consulter les élèves autorisés | Indispensable pour le MVP | M | 🟥 À faire |
+| US-010 | Responsables légaux | Gérer et associer les responsables légaux | Indispensable pour le MVP | L | 🟩 Terminé |
+| US-011 | Inscriptions | Inscrire un élève dans une classe et une année | Indispensable pour le MVP | M | 🟩 Terminé |
+| US-012 | Consultation | Rechercher et consulter les élèves autorisés | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-013 | Évaluations | Créer et gérer une évaluation | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-014 | Notes | Saisir les notes d’une évaluation | Indispensable pour le MVP | L | 🟩 Terminé |
 | US-015 | Moyennes | Calculer les moyennes automatiquement | Indispensable pour le MVP | L | 🟨 En cours — arrondi à valider |
@@ -162,7 +162,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** ajouter, consulter, modifier, rechercher et désactiver un enseignant.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** En cours.
+- **Statut :** Terminé.
 - **Règles de gestion :** chaque enseignant possède un compte de rôle `TEACHER`. Son matricule unique et immuable est stocké dans `accounts`, tandis que son identité, ses coordonnées et sa photo éventuelle sont stockées dans `teachers`.
 - **Critères d’acceptation :** l’administrateur peut créer, consulter, modifier, rechercher, désactiver et archiver un enseignant ; la fiche affiche ses classes, ses matières et ses évaluations.
 - **Dépendances :** US-002.
@@ -222,7 +222,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** créer, modifier, rechercher et associer les responsables.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** un élève peut avoir plusieurs responsables ; un responsable peut être lié à plusieurs élèves ; le lien avec chaque élève est enregistré.
 - **Critères d’acceptation :** un responsable peut être créé et modifié ; il peut être lié à plusieurs élèves ; la fiche d’un élève affiche ses responsables ; un lien peut être retiré sans supprimer les autres.
 - **Dépendances :** US-008.
@@ -237,7 +237,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** rattacher un élève, une classe et une année scolaire.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** une inscription correspond à une année scolaire ; une ancienne inscription n’est pas supprimée ; un élève ne peut pas avoir deux classes actives pour la même période sauf règle contraire validée.
 - **Critères d’acceptation :** l’administrateur peut inscrire un élève ; consulter son historique ; changer sa classe avec une trace ; la liste de classe est mise à jour.
 - **Dépendances :** US-003, US-004, US-008.
@@ -252,7 +252,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** consultation des élèves avec filtrage selon le rôle.
 - **Utilisateur concerné :** administrateur, enseignant.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** l’administrateur voit tous les élèves ; l’enseignant voit seulement les élèves de ses classes.
 - **Critères d’acceptation :** la recherche fonctionne par numéro, nom, classe et statut ; un enseignant ne peut ni afficher ni récupérer les données d’une autre classe ; l’administrateur peut consulter toutes les fiches.
 - **Dépendances :** US-007, US-008, US-011, US-025.

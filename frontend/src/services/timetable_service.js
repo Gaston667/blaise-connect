@@ -1,4 +1,4 @@
-import { apiRequestJson } from '../utils/apiErrorHandler.js'
+import { apiRequest, apiRequestJson } from '../utils/apiErrorHandler.js'
 
 /** Salles actives. */
 export function getRooms() {
@@ -104,6 +104,15 @@ export function createTimetableSlot(classId, payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
     fallbackMessage: 'Échec de la création du créneau',
+  })
+}
+
+/** Supprime un créneau précis appartenant au brouillon courant. */
+export function deleteTimetableSlot(slotId) {
+  return apiRequest(`/api/timetable-slots/${slotId}`, {
+    method: 'DELETE',
+    expectJson: false,
+    fallbackMessage: 'Échec de la suppression du créneau',
   })
 }
 
