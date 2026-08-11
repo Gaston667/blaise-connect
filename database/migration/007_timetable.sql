@@ -1207,6 +1207,11 @@ BEGIN
      WHERE timetable.id = target_timetable_id;
 
     IF NOT FOUND THEN
+        -- Le planning parent est déjà supprimé : ce créneau est retiré par la
+        -- cascade de sa propre suppression, pas par une mutation isolée.
+        IF TG_OP = 'DELETE' THEN
+            RETURN OLD;
+        END IF;
         RAISE EXCEPTION USING ERRCODE = '23503',
             MESSAGE = 'L''emploi du temps est introuvable.';
     END IF;
@@ -2292,6 +2297,10 @@ GRANT UPDATE (
     published_at
 )
 ON timetables TO blaise_app;
+
+GRANT DELETE
+ON TABLE timetables
+TO blaise_app;
 
 
 -- Créneaux.

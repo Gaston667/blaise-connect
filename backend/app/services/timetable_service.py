@@ -504,18 +504,50 @@ def generate_timetable(
     if not subjects:
         raise ValueError("Aucune matière avec enseignant et volume horaire n'est disponible.")
 
+    school_year_id = configuration["school_year_id"]
+    school_year = db.execute(
+        text("SELECT start_date, end_date FROM school_years WHERE id = :school_year_id"),
+        {"school_year_id": school_year_id},
+    ).mappings().one()
+
     db.execute(
         text("DELETE FROM timetables WHERE class_id = :class_id AND status = 'DRAFT'"),
         {"class_id": class_id},
     )
+
+    generation_run = db.execute(
+        text(
+            """
+            INSERT INTO timetable_generation_runs (
+                school_year_id, requested_by_account_id, status,
+                target_start_date, target_end_date,
+                started_at, completed_at
+            ) VALUES (
+                :school_year_id, :requested_by_account_id, 'COMPLETED',
+                :target_start_date, :target_end_date,
+                now(), now()
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "school_year_id": school_year_id,
+            "requested_by_account_id": generated_by_account_id,
+            "target_start_date": school_year["start_date"],
+            "target_end_date": school_year["end_date"],
+        },
+    ).mappings().one()
+
     timetable = db.execute(
         text(
             """
             INSERT INTO timetables (
-                class_id, version, status, generated_by_account_id
+                class_id, version, effective_start_date, effective_end_date,
+                creation_mode, created_by_account_id, generation_run_id
             )
             SELECT :class_id, COALESCE(MAX(version), 0) + 1,
-                   'DRAFT', :generated_by_account_id
+                   :effective_start_date, :effective_end_date,
+                   'AUTOMATIC', :created_by_account_id, :generation_run_id
             FROM timetables
             WHERE class_id = :class_id
             RETURNING id, version, status
@@ -523,7 +555,10 @@ def generate_timetable(
         ),
         {
             "class_id": class_id,
-            "generated_by_account_id": generated_by_account_id,
+            "effective_start_date": school_year["start_date"],
+            "effective_end_date": school_year["end_date"],
+            "created_by_account_id": generated_by_account_id,
+            "generation_run_id": generation_run["id"],
         },
     ).mappings().one()
 
@@ -870,7 +905,7 @@ def _get_open_enrollment(db: Session, student_id: str, class_id: UUID | None = N
             FROM student_enrollments AS enrollment
             WHERE enrollment.student_id = :student_id
               AND enrollment.end_date IS NULL
-              AND (:class_id IS NULL OR enrollment.class_id = :class_id)
+              AND (CAST(:class_id AS uuid) IS NULL OR enrollment.class_id = CAST(:class_id AS uuid))
             """
         ),
         {"student_id": student_id, "class_id": class_id},
@@ -887,21 +922,37 @@ def create_special_course(
     start_time: time,
     end_time: time,
     note: str | None,
+    created_by_account_id: UUID,
 ) -> dict:
     """Crée un cours individuel sans plage horaire codée en dur."""
 
     enrollment = _get_open_enrollment(db, str(student_id), class_id=class_id)
     if enrollment is None:
         raise ValueError("Cet élève n'a pas d'inscription active dans cette classe.")
+
+    school_year = db.execute(
+        text(
+            """
+            SELECT sy.start_date, sy.end_date
+            FROM classes AS c
+            JOIN school_years AS sy ON sy.id = c.school_year_id
+            WHERE c.id = :class_id
+            """
+        ),
+        {"class_id": class_id},
+    ).mappings().one()
+
     row = db.execute(
         text(
             """
             INSERT INTO special_courses (
                 student_enrollment_id, subject_id, title,
-                day_of_week, start_time, end_time, note
+                day_of_week, start_time, end_time, note,
+                valid_from, valid_until, created_by_account_id
             ) VALUES (
                 :student_enrollment_id, :subject_id, :title,
-                :day_of_week, :start_time, :end_time, :note
+                :day_of_week, :start_time, :end_time, :note,
+                :valid_from, :valid_until, :created_by_account_id
             )
             RETURNING id
             """
@@ -914,6 +965,9 @@ def create_special_course(
             "start_time": start_time,
             "end_time": end_time,
             "note": note.strip() if note else None,
+            "valid_from": school_year["start_date"],
+            "valid_until": school_year["end_date"],
+            "created_by_account_id": created_by_account_id,
         },
     ).mappings().one()
     db.commit()
@@ -957,7 +1011,35 @@ def delete_special_course(db: Session, special_course_id: str) -> bool:
     return result.rowcount > 0
 
 
-def get_teacher_timetable(db: Session, teacher_id: str) -> list[dict]:
+def _get_breaks_for_class(db: Session, class_id: UUID | str) -> list[dict]:
+    """Retourne les pauses (récréation, déjeuner…) applicables à une classe."""
+
+    context = db.execute(
+        text(
+            """
+            SELECT class.school_year_id, level.education_stage
+            FROM classes AS class
+            JOIN class_levels AS level ON level.id = class.class_level_id
+            WHERE class.id = :class_id
+            """
+        ),
+        {"class_id": class_id},
+    ).mappings().first()
+    if context is None:
+        return []
+
+    schedules = list_school_day_schedules(db, context["school_year_id"])
+    breaks_by_key: dict[tuple, dict] = {}
+    for schedule in schedules:
+        if schedule["education_stage"] != context["education_stage"]:
+            continue
+        for school_break in schedule["breaks"]:
+            key = (str(school_break["start_time"]), str(school_break["end_time"]), school_break["label"])
+            breaks_by_key[key] = school_break
+    return sorted(breaks_by_key.values(), key=lambda item: str(item["start_time"]))
+
+
+def get_teacher_timetable(db: Session, teacher_id: str) -> dict:
     """Retourne uniquement le planning publié d'un enseignant."""
 
     rows = db.execute(
@@ -966,6 +1048,7 @@ def get_teacher_timetable(db: Session, teacher_id: str) -> list[dict]:
             SELECT detail.slot_id AS id, detail.day_of_week,
                    detail.start_time, detail.end_time,
                    detail.class_subject_id, detail.subject_name,
+                   detail.class_id,
                    level.name || ' ' || class.group_label AS class_name,
                    detail.room_name
             FROM v_timetable_slots_detailed AS detail
@@ -978,15 +1061,24 @@ def get_teacher_timetable(db: Session, teacher_id: str) -> list[dict]:
         ),
         {"teacher_id": teacher_id},
     ).mappings().all()
-    return [dict(row) for row in rows]
+    slots = [dict(row) for row in rows]
+
+    breaks: list[dict] = []
+    first_class_id = next((slot["class_id"] for slot in slots if slot["class_id"]), None)
+    if first_class_id is not None:
+        breaks = _get_breaks_for_class(db, first_class_id)
+    for slot in slots:
+        slot.pop("class_id", None)
+
+    return {"slots": slots, "breaks": breaks}
 
 
-def get_student_timetable(db: Session, student_id: str) -> list[dict]:
+def get_student_timetable(db: Session, student_id: str) -> dict:
     """Retourne le planning publié de la classe et les cours individuels."""
 
     enrollment = _get_open_enrollment(db, student_id)
     if enrollment is None:
-        return []
+        return {"slots": [], "breaks": []}
     regular_slots = get_class_timetable(db, str(enrollment.class_id), published_only=True)
     for slot in regular_slots:
         slot["is_special"] = False
@@ -1017,4 +1109,6 @@ def get_student_timetable(db: Session, student_id: str) -> list[dict]:
             }
         )
         special_slots.append(entry)
-    return regular_slots + special_slots
+
+    breaks = _get_breaks_for_class(db, enrollment.class_id)
+    return {"slots": regular_slots + special_slots, "breaks": breaks}

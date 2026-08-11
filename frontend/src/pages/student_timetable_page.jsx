@@ -37,13 +37,16 @@ function timeLabel(value) {
 
 export default function StudentTimetablePage() {
   const [slots, setSlots] = useState([])
+  const [breaks, setBreaks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(function loadTimetableEffect() {
     async function load() {
       try {
-        setSlots(await getMyTimetable())
+        const timetable = await getMyTimetable()
+        setSlots(timetable.slots ?? [])
+        setBreaks(timetable.breaks ?? [])
       } catch (e) {
         setError(e.message)
       } finally {
@@ -71,7 +74,7 @@ export default function StudentTimetablePage() {
         timeLabel(slot.end_time) > period.start
     )
   }
-  const daySchedule = getScheduleRows(slots)
+  const daySchedule = getScheduleRows(slots, breaks)
 
   return (
     <main className="stp-main">

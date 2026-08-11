@@ -161,6 +161,7 @@ def post_special_course(
         start_time=payload.start_time,
         end_time=payload.end_time,
         note=payload.note,
+        created_by_account_id=current_admin.id,
     )
 
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   BookOpen,
   CalendarDays,
@@ -25,12 +25,20 @@ import {
   getSchoolClassSubjects,
 } from '../services/school_classes_overview_service.js'
 import {
+  createSpecialCourse,
   createTimetableSlot,
+  deleteSpecialCourse,
   deleteTimetableSlot,
+  generateTimetable,
+  getClassSpecialCourses,
   getClassTimetable,
   getRooms,
+  getTimetableConfiguration,
 } from '../services/timetable_service.js'
+import { listStudents } from '../services/students_service.js'
+import { getScheduleRows } from '../utils/timetable_display.js'
 import '../styles/timetable_management_page.css'
+import '../styles/student_timetable_page.css'
 
 const DAY_LABELS = {
   1: 'Lundi',
@@ -45,10 +53,10 @@ const DAY_LABELS = {
 const TABS = [
   { key: 'overview', label: 'Accueil', icon: LayoutDashboard },
   { key: 'manual', label: 'Création manuelle', icon: PencilRuler },
+  { key: 'generate', label: 'Génération automatique', icon: Sparkles },
   { key: 'schedule', label: 'Emploi du temps', icon: CalendarDays },
+  { key: 'special', label: 'Cours particuliers', icon: Users },
   { key: 'configuration', label: 'Configuration', icon: Settings, disabled: true },
-  { key: 'special', label: 'Cours particuliers', icon: Users, disabled: true },
-  { key: 'generate', label: 'Génération automatique', icon: Sparkles, disabled: true },
   { key: 'history', label: 'Historique', icon: History, disabled: true },
 ]
 
@@ -58,6 +66,16 @@ const EMPTY_SLOT_FORM = {
   startTime: '',
   endTime: '',
   roomId: '',
+}
+
+const EMPTY_SPECIAL_COURSE_FORM = {
+  studentId: '',
+  subjectId: '',
+  title: '',
+  dayOfWeek: '1',
+  startTime: '17:30',
+  endTime: '19:00',
+  note: '',
 }
 
 function formatTime(value) {
@@ -76,6 +94,17 @@ function sortTimetableSlots(firstSlot, secondSlot) {
   return String(firstSlot.start_time).localeCompare(String(secondSlot.start_time))
 }
 
+/** Fusionne les pauses de chaque jour configuré en une seule liste, sans doublons. */
+function flattenBreaks(days) {
+  const breaksByKey = new Map()
+  for (const day of days ?? []) {
+    for (const schoolBreak of day.breaks ?? []) {
+      breaksByKey.set(`${schoolBreak.start_time}-${schoolBreak.end_time}-${schoolBreak.label}`, schoolBreak)
+    }
+  }
+  return [...breaksByKey.values()]
+}
+
 export default function TimetableManagementPage() {
   const toast = useToast()
   const [classes, setClasses] = useState([])
@@ -87,11 +116,24 @@ export default function TimetableManagementPage() {
   const [subjects, setSubjects] = useState([])
   const [rooms, setRooms] = useState([])
   const [savedSlots, setSavedSlots] = useState([])
+  const [scheduleBreaks, setScheduleBreaks] = useState([])
   const [classDataLoading, setClassDataLoading] = useState(false)
   const [savingSlot, setSavingSlot] = useState(false)
   const [deletingSlotId, setDeletingSlotId] = useState('')
   const [error, setError] = useState('')
   const [slotForm, setSlotForm] = useState(EMPTY_SLOT_FORM)
+
+  const [requirements, setRequirements] = useState([])
+  const [configLoading, setConfigLoading] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [unplacedRequirements, setUnplacedRequirements] = useState([])
+
+  const [specialCourses, setSpecialCourses] = useState([])
+  const [classStudents, setClassStudents] = useState([])
+  const [specialCoursesLoading, setSpecialCoursesLoading] = useState(false)
+  const [specialCourseForm, setSpecialCourseForm] = useState(EMPTY_SPECIAL_COURSE_FORM)
+  const [savingSpecialCourse, setSavingSpecialCourse] = useState(false)
+  const [deletingSpecialCourseId, setDeletingSpecialCourseId] = useState('')
 
   useEffect(function loadClassesEffect() {
     async function loadClasses() {
@@ -115,14 +157,16 @@ export default function TimetableManagementPage() {
       setClassDataLoading(true)
       setError('')
       try {
-        const [classSubjects, classTimetable, availableRooms] = await Promise.all([
+        const [classSubjects, classTimetable, availableRooms, configuration] = await Promise.all([
           getSchoolClassSubjects(selectedClassId, { isActive: true }),
           getClassTimetable(selectedClassId),
           getRooms(),
+          getTimetableConfiguration(selectedClassId),
         ])
         setSubjects(classSubjects)
         setSavedSlots([...classTimetable].sort(sortTimetableSlots))
         setRooms(availableRooms)
+        setScheduleBreaks(flattenBreaks(configuration.days))
       } catch (loadError) {
         setError(loadError.message)
       } finally {
@@ -132,6 +176,50 @@ export default function TimetableManagementPage() {
 
     loadSelectedClass()
   }, [selectedClassId])
+
+  useEffect(function loadGenerateTabEffect() {
+    if (!selectedClassId || activeTab !== 'generate') return
+
+    async function loadConfiguration() {
+      setConfigLoading(true)
+      setError('')
+      try {
+        const configuration = await getTimetableConfiguration(selectedClassId)
+        setRequirements(configuration.requirements.map(function toFormRow(requirement) {
+          return { ...requirement, weekly_minutes: requirement.weekly_minutes ?? 60 }
+        }))
+      } catch (loadError) {
+        setError(loadError.message)
+      } finally {
+        setConfigLoading(false)
+      }
+    }
+
+    loadConfiguration()
+  }, [selectedClassId, activeTab])
+
+  useEffect(function loadSpecialCoursesTabEffect() {
+    if (!selectedClassId || activeTab !== 'special') return
+
+    async function loadSpecialCourses() {
+      setSpecialCoursesLoading(true)
+      setError('')
+      try {
+        const [courses, studentsResponse] = await Promise.all([
+          getClassSpecialCourses(selectedClassId),
+          listStudents({ class_id: selectedClassId, limit: 200 }),
+        ])
+        setSpecialCourses(courses)
+        setClassStudents(studentsResponse.items ?? studentsResponse ?? [])
+      } catch (loadError) {
+        setError(loadError.message)
+      } finally {
+        setSpecialCoursesLoading(false)
+      }
+    }
+
+    loadSpecialCourses()
+  }, [selectedClassId, activeTab])
 
   const selectedClass = classes.find(function findSelectedClass(schoolClass) {
     return schoolClass.id === selectedClassId
@@ -220,6 +308,98 @@ export default function TimetableManagementPage() {
       setError(deleteError.message)
     } finally {
       setDeletingSlotId('')
+    }
+  }
+
+  function handleRequirementChange(classSubjectId, value) {
+    setRequirements(function updateRequirements(currentRequirements) {
+      return currentRequirements.map(function updateRow(row) {
+        return row.class_subject_id === classSubjectId
+          ? { ...row, weekly_minutes: value }
+          : row
+      })
+    })
+  }
+
+  async function handleGenerateTimetable(event) {
+    event.preventDefault()
+    setError('')
+    setUnplacedRequirements([])
+    setGenerating(true)
+    try {
+      const result = await generateTimetable(
+        selectedClassId,
+        requirements.map(function toPayload(row) {
+          return {
+            class_subject_id: row.class_subject_id,
+            weekly_minutes: Number(row.weekly_minutes),
+          }
+        }),
+      )
+      await refreshTimetable()
+      setUnplacedRequirements(result.unplaced_requirements ?? [])
+      setActiveTab('schedule')
+      toast.success('Un nouveau brouillon d’emploi du temps a été généré.')
+    } catch (generateError) {
+      setError(generateError.message)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function refreshSpecialCourses() {
+    const courses = await getClassSpecialCourses(selectedClassId)
+    setSpecialCourses(courses)
+  }
+
+  function handleSpecialCourseFieldChange(event) {
+    const { name, value } = event.target
+    setSpecialCourseForm(function updateForm(currentForm) {
+      return { ...currentForm, [name]: value }
+    })
+  }
+
+  async function handleCreateSpecialCourse(event) {
+    event.preventDefault()
+    setError('')
+
+    if (specialCourseForm.endTime <= specialCourseForm.startTime) {
+      setError('L’heure de fin doit être postérieure à l’heure de début.')
+      return
+    }
+
+    setSavingSpecialCourse(true)
+    try {
+      await createSpecialCourse(selectedClassId, {
+        student_id: specialCourseForm.studentId,
+        subject_id: specialCourseForm.subjectId,
+        title: specialCourseForm.title,
+        day_of_week: Number(specialCourseForm.dayOfWeek),
+        start_time: specialCourseForm.startTime,
+        end_time: specialCourseForm.endTime,
+        note: specialCourseForm.note || null,
+      })
+      await refreshSpecialCourses()
+      setSpecialCourseForm(EMPTY_SPECIAL_COURSE_FORM)
+      toast.success('Le cours particulier a été ajouté.')
+    } catch (saveError) {
+      setError(saveError.message)
+    } finally {
+      setSavingSpecialCourse(false)
+    }
+  }
+
+  async function handleDeleteSpecialCourse(specialCourseId) {
+    setDeletingSpecialCourseId(specialCourseId)
+    setError('')
+    try {
+      await deleteSpecialCourse(specialCourseId)
+      await refreshSpecialCourses()
+      toast.success('Le cours particulier a été retiré.')
+    } catch (deleteError) {
+      setError(deleteError.message)
+    } finally {
+      setDeletingSpecialCourseId('')
     }
   }
 
@@ -395,6 +575,191 @@ export default function TimetableManagementPage() {
             </section>
           )}
 
+          {activeTab === 'generate' && (
+            <section className="tmp-panel">
+              <div className="tmp-panel__heading">
+                <div>
+                  <h2>Génération automatique</h2>
+                  <p>Renseignez le volume horaire hebdomadaire de chaque matière, puis générez un brouillon sans conflit.</p>
+                </div>
+              </div>
+
+              {configLoading ? (
+                <p className="tmp-empty">Chargement de la configuration…</p>
+              ) : requirements.length === 0 ? (
+                <div className="tmp-empty-state">
+                  <Sparkles aria-hidden="true" size={38} />
+                  <strong>Aucune matière disponible</strong>
+                  <p>Ajoutez des matières à cette classe avant de générer un emploi du temps.</p>
+                </div>
+              ) : (
+                <form className="tmp-manual-form" onSubmit={handleGenerateTimetable}>
+                  {requirements.map(function renderRequirementField(requirement) {
+                    const totalMinutes = Number(requirement.weekly_minutes) || 0
+                    const hours = Math.floor(totalMinutes / 60)
+                    const remainingMinutes = totalMinutes % 60
+                    const hoursLabel = remainingMinutes > 0
+                      ? `${hours} h ${remainingMinutes} min`
+                      : `${hours} h`
+                    return (
+                      <label className="tmp-field" key={requirement.class_subject_id}>
+                        <span>{requirement.subject_name} — volume hebdomadaire (en minutes)</span>
+                        <div className="tmp-field-with-suffix">
+                          <input
+                            type="number"
+                            min="15"
+                            max="2400"
+                            step="15"
+                            value={requirement.weekly_minutes}
+                            onChange={function updateRequirement(event) {
+                              handleRequirementChange(requirement.class_subject_id, event.target.value)
+                            }}
+                          />
+                          <span className="tmp-field-suffix">min/semaine</span>
+                        </div>
+                        <small className="tmp-field-hint">Soit environ {hoursLabel} par semaine.</small>
+                      </label>
+                    )
+                  })}
+
+                  <div className="tmp-manual-form__summary">
+                    <Sparkles aria-hidden="true" size={19} />
+                    <div>
+                      <strong>Génération sans conflit</strong>
+                      <span>Les enseignants déjà occupés sur un créneau, dans une autre classe, sont automatiquement évités.</span>
+                    </div>
+                  </div>
+
+                  {unplacedRequirements.length > 0 && (
+                    <p className="tmp-error" role="alert">
+                      Volume incomplet pour : {unplacedRequirements.map(function renderUnplaced(item) { return item.subject_name }).join(', ')}.
+                    </p>
+                  )}
+
+                  <div className="tmp-manual-form__actions">
+                    <button type="submit" className="tmp-btn-primary" disabled={generating}>
+                      <Sparkles aria-hidden="true" size={17} /> {generating ? 'Génération…' : 'Générer l’emploi du temps'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </section>
+          )}
+
+          {activeTab === 'special' && (
+            <section className="tmp-panel">
+              <div className="tmp-panel__heading">
+                <div>
+                  <h2>Cours particuliers</h2>
+                  <p>Cours individuels de soutien ou de rattrapage, en dehors de l’emploi du temps commun.</p>
+                </div>
+              </div>
+
+              <form className="tmp-manual-form" onSubmit={handleCreateSpecialCourse}>
+                <label className="tmp-field">
+                  <span>Élève *</span>
+                  <select name="studentId" value={specialCourseForm.studentId} onChange={handleSpecialCourseFieldChange} required>
+                    <option value="">Sélectionner un élève</option>
+                    {classStudents.map(function renderStudentOption(student) {
+                      return (
+                        <option key={student.id} value={student.id}>
+                          {student.first_name} {student.last_name}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </label>
+
+                <label className="tmp-field">
+                  <span>Matière *</span>
+                  <select name="subjectId" value={specialCourseForm.subjectId} onChange={handleSpecialCourseFieldChange} required>
+                    <option value="">Sélectionner une matière</option>
+                    {subjects.map(function renderSpecialSubjectOption(subject) {
+                      return <option key={subject.id} value={subject.subject_id ?? subject.id}>{subject.name}</option>
+                    })}
+                  </select>
+                </label>
+
+                <label className="tmp-field tmp-field--wide">
+                  <span>Titre *</span>
+                  <input name="title" type="text" value={specialCourseForm.title} onChange={handleSpecialCourseFieldChange} placeholder="Ex. Soutien en mathématiques" required />
+                </label>
+
+                <label className="tmp-field">
+                  <span>Jour *</span>
+                  <select name="dayOfWeek" value={specialCourseForm.dayOfWeek} onChange={handleSpecialCourseFieldChange} required>
+                    {Object.entries(DAY_LABELS).map(function renderSpecialDayOption([dayNumber, dayLabel]) {
+                      return <option key={dayNumber} value={dayNumber}>{dayLabel}</option>
+                    })}
+                  </select>
+                </label>
+
+                <label className="tmp-field">
+                  <span>Heure de début *</span>
+                  <input name="startTime" type="time" value={specialCourseForm.startTime} onChange={handleSpecialCourseFieldChange} required />
+                </label>
+
+                <label className="tmp-field">
+                  <span>Heure de fin *</span>
+                  <input name="endTime" type="time" value={specialCourseForm.endTime} onChange={handleSpecialCourseFieldChange} required />
+                </label>
+
+                <div className="tmp-manual-form__actions">
+                  <button type="submit" className="tmp-btn-primary" disabled={savingSpecialCourse}>
+                    <Plus aria-hidden="true" size={17} /> {savingSpecialCourse ? 'Enregistrement…' : 'Ajouter le cours particulier'}
+                  </button>
+                </div>
+              </form>
+
+              {specialCoursesLoading ? (
+                <p className="tmp-empty">Chargement des cours particuliers…</p>
+              ) : specialCourses.length === 0 ? (
+                <div className="tmp-empty-state">
+                  <Users aria-hidden="true" size={38} />
+                  <strong>Aucun cours particulier</strong>
+                  <p>Utilisez le formulaire ci-dessus pour en ajouter un.</p>
+                </div>
+              ) : (
+                <div className="tmp-table-wrapper">
+                  <table className="tmp-schedule-table">
+                    <thead>
+                      <tr>
+                        <th>Élève</th>
+                        <th>Titre</th>
+                        <th>Jour</th>
+                        <th>Horaire</th>
+                        <th aria-label="Actions" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {specialCourses.map(function renderSpecialCourse(course) {
+                        return (
+                          <tr key={course.id}>
+                            <td data-label="Élève">{course.student_first_name} {course.student_last_name}</td>
+                            <td data-label="Titre">{course.title}</td>
+                            <td data-label="Jour"><strong>{DAY_LABELS[course.day_of_week]}</strong></td>
+                            <td data-label="Horaire">{formatTime(course.start_time)} – {formatTime(course.end_time)}</td>
+                            <td className="tmp-schedule-table__action">
+                              <button
+                                type="button"
+                                className="tmp-icon-button"
+                                disabled={deletingSpecialCourseId === course.id}
+                                title="Retirer ce cours particulier"
+                                onClick={function deleteSelectedSpecialCourse() { handleDeleteSpecialCourse(course.id) }}
+                              >
+                                <Trash2 aria-hidden="true" size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
           {activeTab === 'schedule' && (
             <section className="tmp-panel">
               <div className="tmp-panel__heading">
@@ -416,47 +781,71 @@ export default function TimetableManagementPage() {
                   <p>Utilisez la création manuelle pour construire le premier brouillon.</p>
                 </div>
               ) : (
-                <div className="tmp-table-wrapper">
-                  <table className="tmp-schedule-table">
-                    <thead>
-                      <tr>
-                        <th>Jour</th>
-                        <th>Horaire</th>
-                        <th>Matière</th>
-                        <th>Enseignant</th>
-                        <th>Salle</th>
-                        <th>État</th>
-                        <th aria-label="Actions" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {savedSlots.map(function renderSlot(slot) {
-                        const canDelete = slot.status === 'DRAFT'
-                        return (
-                          <tr key={slot.id}>
-                            <td data-label="Jour"><strong>{DAY_LABELS[slot.day_of_week]}</strong></td>
-                            <td data-label="Horaire">{formatTime(slot.start_time)} – {formatTime(slot.end_time)}</td>
-                            <td data-label="Matière"><BookOpen size={15} /> {slot.subject_name}</td>
-                            <td data-label="Enseignant">{slot.teacher_name}</td>
-                            <td data-label="Salle"><MapPin size={14} /> {slot.room_name || '—'}</td>
-                            <td data-label="État"><span className="tmp-status tmp-status--ready">{slot.status === 'PUBLISHED' ? 'Publié' : 'Brouillon'}</span></td>
-                            <td className="tmp-schedule-table__action">
-                              <button
-                                type="button"
-                                className="tmp-icon-button"
-                                disabled={!canDelete || deletingSlotId === slot.id}
-                                title={canDelete ? 'Retirer ce créneau' : 'Un planning publié ne peut pas être modifié ici'}
-                                onClick={function deleteSelectedSlot() { handleDeleteSlot(slot.id) }}
-                              >
-                                <Trash2 aria-hidden="true" size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                (function renderScheduleGrid() {
+                  const gridDayLabels = [1, 2, 3, 4, 5, 6, 7].map(function toLabel(dayNumber) { return DAY_LABELS[dayNumber] })
+                  const daySchedule = getScheduleRows(savedSlots, scheduleBreaks)
+
+                  function findSlotForCell(dayIndex, period) {
+                    return savedSlots.find(
+                      (slot) =>
+                        slot.day_of_week === dayIndex + 1 &&
+                        formatTime(slot.start_time) < period.end &&
+                        formatTime(slot.end_time) > period.start
+                    )
+                  }
+
+                  return (
+                    <div className="stp-grid-wrapper">
+                      <div className="stp-grid">
+                        <div className="stp-grid__corner" />
+                        {gridDayLabels.map((day) => (
+                          <div key={day} className="stp-grid__day-head">{day}</div>
+                        ))}
+
+                        {daySchedule.map((entry) => (
+                          entry.type === 'break' ? (
+                            <div key={`break-${entry.start}`} className="stp-break-row">
+                              {entry.label} ({entry.start}-{entry.end})
+                            </div>
+                          ) : (
+                            <Fragment key={`period-${entry.start}`}>
+                              <div className="stp-grid__time">
+                                <strong>{entry.start}</strong>
+                                <span>{entry.end}</span>
+                              </div>
+                              {gridDayLabels.map((day, dayIndex) => {
+                                const slot = findSlotForCell(dayIndex, entry)
+                                if (!slot) {
+                                  return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
+                                }
+                                const canDelete = slot.status === 'DRAFT'
+                                return (
+                                  <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--violet">
+                                    <span className="stp-cell__title"><BookOpen aria-hidden="true" size={14} /> {slot.subject_name}</span>
+                                    <span className="stp-cell__meta">
+                                      {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
+                                    </span>
+                                    {canDelete && (
+                                      <button
+                                        type="button"
+                                        className="tmp-icon-button stp-cell__delete"
+                                        disabled={deletingSlotId === slot.id}
+                                        title="Retirer ce créneau"
+                                        onClick={function deleteSelectedSlot() { handleDeleteSlot(slot.id) }}
+                                      >
+                                        <Trash2 aria-hidden="true" size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </Fragment>
+                          )
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()
               )}
             </section>
           )}

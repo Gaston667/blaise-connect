@@ -14,9 +14,9 @@
 
 .stp-grid {
   display: grid;
-  grid-template-columns: 64px repeat(5, minmax(120px, 1fr));
+  grid-template-columns: 64px repeat(7, minmax(120px, 1fr));
   gap: 6px;
-  min-width: 680px;
+  min-width: 940px;
 }
 
 .stp-grid__corner { }
