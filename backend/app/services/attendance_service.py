@@ -688,8 +688,10 @@ def review_attendance_justification(
     """Valide ou rejette un justificatif en conservant l'historique."""
 
     record = _lock_record(db, record_id)
-    if record["justification_status"] != "PENDING":
-        raise ValueError("Aucun justificatif n'est en attente pour cet incident.")
+    if record["justification_status"] not in ("PENDING", "REJECTED"):
+        raise ValueError(
+            "Seul un justificatif en attente ou deja refuse peut etre traite."
+        )
     reason = comment.strip() if comment else "Traitement du justificatif"
     _insert_history(db, record, admin.id, "UPDATE", reason,
                     record["incident_type"], record["late_minutes"],

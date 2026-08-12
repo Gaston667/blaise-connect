@@ -91,6 +91,7 @@
 .attendance-badge--danger { color: #b3261e; background: #ffebee; }
 .attendance-badge--neutral { color: var(--color-text-secondary); background: var(--color-background-alt); }
 .attendance-link-button { padding: .35rem .55rem; color: var(--color-primary); border: 0; background: transparent; font-weight: 700; cursor: pointer; }
+.attendance-muted { color: var(--color-text-muted); font-size: var(--font-size-xs); }
 .attendance-inline-actions { display: flex; gap: .4rem; }
 .attendance-inline-actions button { display: grid; place-items: center; width: 2rem; height: 2rem; color: var(--color-primary); border: 1px solid var(--color-border-strong); border-radius: .45rem; background: #fff; cursor: pointer; }
 .attendance-inline-actions button:last-child { color: #c62828; }

@@ -76,6 +76,14 @@ def upload_attendance_justification(
     owner = _get_record_owner(db, record_id)
     if owner["account_id"] != student_account.id:
         raise PermissionError("Cet incident n'appartient pas a cet eleve.")
+    if owner["justification_status"] == "REJECTED":
+        raise ValueError(
+            "Ce justificatif a ete refuse par l'administration et ne peut plus etre soumis a nouveau."
+        )
+    if owner["justification_status"] == "PENDING":
+        raise ValueError("Un justificatif est deja en attente de traitement pour cet incident.")
+    if owner["justification_status"] == "JUSTIFIED":
+        raise ValueError("Cet incident est deja justifie.")
     cleaned_reason = reason.strip()
     if len(cleaned_reason) < 3:
         raise ValueError("Le motif doit contenir au moins 3 caracteres.")
