@@ -227,11 +227,24 @@
 
 /* Frais de scolarité */
 
+.tuition-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.tuition-contact svg { color: var(--color-primary); }
+
 .tuition-fee-groups {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--space-5);
-  margin-bottom: var(--space-9);
+  margin-bottom: var(--space-6);
 }
 
 .tuition-fee-group {
@@ -242,11 +255,63 @@
   box-shadow: var(--shadow-xs);
 }
 
+.tuition-fee-group--wide {
+  grid-column: 1 / -1;
+}
+
+.tuition-table-scroll {
+  overflow-x: auto;
+}
+
 .tuition-fee-group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: 1rem;
   font-weight: 700;
   color: var(--color-secondary);
   margin: 0 0 var(--space-3);
+}
+
+.tuition-fee-group-note {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.tuition-info-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-9);
+}
+
+.tuition-info-card {
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-xs);
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.tuition-info-card--warning {
+  background: var(--color-danger-light, #fff2f2);
+  border-color: var(--color-danger-border, #f3c5c5);
+}
+
+.tuition-info-list {
+  margin: 0 0 var(--space-2);
+  padding-left: 1.1rem;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.tuition-info-list strong {
+  color: var(--color-primary);
 }
 
 .tuition-fee-table {

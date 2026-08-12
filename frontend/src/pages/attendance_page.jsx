@@ -18,6 +18,7 @@ import {
   createAttendanceChangeRequest,
   createAttendanceEvent,
   deleteAttendanceRecord,
+  getAbsenceAlerts,
   getAttendanceChangeRequests,
   getAttendanceDocumentFile,
   getAttendanceDocuments,
@@ -86,6 +87,31 @@ function SummaryCards({ absenceCount = 0, lateCount = 0, pendingCount = 0 }) {
       <SummaryCard icon={<UserX />} value={absenceCount} label="Absences" tone="danger" />
       <SummaryCard icon={<Clock3 />} value={lateCount} label="Retards" tone="warning" />
       <SummaryCard icon={<FileUp />} value={pendingCount} label="Justificatifs en attente" tone="primary" />
+    </section>
+  )
+}
+
+function AbsenceAlertsPanel({ alerts, onOpenStudent }) {
+  if (!alerts || alerts.length === 0) return null
+  return (
+    <section className="attendance-panel attendance-alerts" aria-label="Élèves à surveiller">
+      <h2><AlertTriangle aria-hidden="true" /> Élèves à surveiller ({alerts.length})</h2>
+      <p className="attendance-alerts__hint">
+        Absences non justifiées ou refusées, sur l’année scolaire en cours.
+      </p>
+      <ul className="attendance-alerts__list">
+        {alerts.map(function renderAlert(alert) {
+          return (
+            <li key={alert.student_id} className="attendance-alerts__item">
+              <button type="button" onClick={() => onOpenStudent(alert)}>
+                <span className="attendance-alerts__name">{alert.first_name} {alert.last_name}</span>
+                <span className="attendance-alerts__class">{alert.class_name}</span>
+                <span className="attendance-alerts__count">{alert.unjustified_absence_count} absences</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
     </section>
   )
 }
@@ -245,6 +271,7 @@ function AdminAttendanceView({ onNavigate }) {
   const toast = useToast()
   const [records, setRecords] = useState([])
   const [requests, setRequests] = useState([])
+  const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -253,11 +280,12 @@ function AdminAttendanceView({ onNavigate }) {
 
   async function loadAdminData() {
     try {
-      const [recordRows, requestRows] = await Promise.all([
-        getAttendanceRecords(), getAttendanceChangeRequests('PENDING'),
+      const [recordRows, requestRows, alertRows] = await Promise.all([
+        getAttendanceRecords(), getAttendanceChangeRequests('PENDING'), getAbsenceAlerts(),
       ])
       setRecords(recordRows)
       setRequests(requestRows)
+      setAlerts(alertRows)
     } catch (error) {
       toast.error(error.message)
     } finally {
@@ -316,6 +344,7 @@ function AdminAttendanceView({ onNavigate }) {
   return <div className="attendance-page">
     <PageHeader subtitle="Supervisez les incidents, justificatifs et signalements des enseignants." />
     <SummaryCards absenceCount={counts.absences} lateCount={counts.lates} pendingCount={counts.pending} />
+    <AbsenceAlertsPanel alerts={alerts} onOpenStudent={function openStudent(alert) { onNavigate('student-details', { id: alert.student_id }) }} />
     <AdminCallPanel onSaved={loadAdminData} />
     <section className="attendance-panel"><h2>Absences et retards</h2>
       <div className="attendance-filters">
@@ -418,7 +447,7 @@ function IncidentTable({ records, actionLabel, onAction, admin = false, onJustif
   return <div className="attendance-table-wrap"><table className="attendance-table"><thead><tr><th>Date</th><th>Élève</th><th>Classe / matière</th><th>Incident</th><th>Justification</th><th>Action</th></tr></thead><tbody>{records.map((record) => <tr key={record.id} className="attendance-clickable-row" tabIndex="0" onClick={function openRecord() { onOpen?.(record) }} onKeyDown={function openRecordWithKeyboard(event) { if (event.key === 'Enter') onOpen?.(record) }}>
     <td>{formatDate(record.attendance_date)}</td><td>{record.student_name || 'Moi'}<small>{record.registration_number}</small></td><td>{record.class_name}<small>{record.subject_name}</small></td>
     <td>{incidentLabel(record.incident_type)}{record.late_minutes ? ` (${record.late_minutes} min)` : ''}</td><td><span className={`attendance-badge attendance-badge--${statusTone(record.justification_status)}`}>{justificationLabel(record.justification_status)}</span></td>
-    <td onClick={function stopRowNavigation(event) { event.stopPropagation() }}>{admin ? <div className="attendance-inline-actions">{record.has_document && <button type="button" title="Voir le justificatif" onClick={() => onView(record)}><Eye /></button>}{record.justification_status === 'PENDING' && <><button type="button" title="Accepter" onClick={() => onJustification(record, 'JUSTIFIED')}><Check /></button><button type="button" title="Refuser" onClick={() => onJustification(record, 'REJECTED')}><X /></button></>}{record.justification_status === 'REJECTED' && <button type="button" title="Revenir sur le refus et accepter" onClick={() => onJustification(record, 'JUSTIFIED')}><Check /></button>}<button type="button" title="Corriger" onClick={() => onEdit(record)}><Pencil /></button></div> : actionLabel && (actionLabel.includes('correction') || record.justification_status === 'UNJUSTIFIED') ? <button className="attendance-link-button" type="button" onClick={() => onAction(record)}>{actionLabel}</button> : record.justification_status === 'REJECTED' ? <span className="attendance-muted">Refusé — non modifiable</span> : '—'}</td>
+    <td onClick={function stopRowNavigation(event) { event.stopPropagation() }}>{admin ? <div className="attendance-inline-actions">{record.has_document && <button type="button" title="Voir le justificatif" onClick={() => onView(record)}><Eye /></button>}{record.justification_status === 'PENDING' && <><button type="button" title="Accepter" onClick={() => onJustification(record, 'JUSTIFIED')}><Check /></button><button type="button" title="Refuser" onClick={() => onJustification(record, 'REJECTED')}><X /></button></>}{record.justification_status === 'REJECTED' && <button type="button" title="Revenir sur le refus et accepter" onClick={() => onJustification(record, 'JUSTIFIED')}><Check /></button>}<button type="button" title="Corriger" onClick={() => onEdit(record)}><Pencil /></button></div> : actionLabel && actionLabel.includes('correction') ? <button className="attendance-link-button" type="button" onClick={() => onAction(record)}>{actionLabel}</button> : record.justification_status === 'UNJUSTIFIED' ? (record.can_justify === false ? <span className="attendance-muted" title={`Délai dépassé (limite : ${formatDate(record.justification_deadline)})`}>Délai dépassé</span> : <span className="attendance-action-with-hint"><button className="attendance-link-button" type="button" onClick={() => onAction(record)}>{actionLabel}</button>{record.justification_deadline && <small>avant le {formatDate(record.justification_deadline)}</small>}</span>) : record.justification_status === 'REJECTED' ? <span className="attendance-muted">Refusé — non modifiable</span> : '—'}</td>
   </tr>)}</tbody></table></div>
 }
 

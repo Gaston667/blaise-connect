@@ -15,6 +15,11 @@ export function getAttendanceOptions() {
   return apiRequestJson(`${ATTENDANCE_API_URL}/options`)
 }
 
+/** Élèves dont le nombre d'absences non couvertes atteint le seuil de vigilance. */
+export function getAbsenceAlerts() {
+  return apiRequestJson(`${ATTENDANCE_API_URL}/alerts`)
+}
+
 export function getAttendanceRoster(assignmentId, attendanceDate) {
   return apiRequestJson(
     `${ATTENDANCE_API_URL}/roster${buildQuery({

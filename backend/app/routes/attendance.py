@@ -36,6 +36,7 @@ from app.services.attendance_service import (
     list_attendance_options,
     list_attendance_records,
     list_attendance_roster,
+    list_students_over_absence_threshold,
     review_attendance_change_request,
     review_attendance_justification,
     update_attendance_record,
@@ -62,6 +63,13 @@ def get_options(db: DatabaseSession, current_staff: CurrentStaffDependency):
     """Liste les affectations utilisables pour effectuer un appel."""
 
     return list_attendance_options(db, current_staff)
+
+
+@router.get("/alerts")
+def get_absence_alerts(db: DatabaseSession, current_admin: CurrentAdminDependency):
+    """Liste les eleves dont le nombre d'absences non couvertes est preoccupant."""
+
+    return list_students_over_absence_threshold(db)
 
 
 @router.get("/roster")

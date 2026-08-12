@@ -1,5 +1,6 @@
 """Stockage securise des justificatifs d'absence et de retard."""
 
+from datetime import date, timedelta
 from hashlib import sha256
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -23,15 +24,21 @@ ALLOWED_MIME_TYPES = {
     "image/webp": ".webp",
 }
 
+# Nombre de jours, apres la date de l'incident, pendant lesquels l'eleve
+# peut encore soumettre un justificatif.
+JUSTIFICATION_DEADLINE_DAYS = 7
+
 
 def _get_record_owner(db: Session, record_id: UUID):
     """Retourne le compte eleve proprietaire de l'incident."""
 
     row = db.execute(text("""
         SELECT record.id, record.justification_status,
+               event.attendance_date,
                student.id AS student_id, student.account_id,
                account.registration_number
         FROM attendance_records AS record
+        JOIN attendance_events AS event ON event.id = record.attendance_event_id
         JOIN student_enrollments AS enrollment
           ON enrollment.id = record.student_enrollment_id
         JOIN students AS student ON student.id = enrollment.student_id
@@ -84,6 +91,12 @@ def upload_attendance_justification(
         raise ValueError("Un justificatif est deja en attente de traitement pour cet incident.")
     if owner["justification_status"] == "JUSTIFIED":
         raise ValueError("Cet incident est deja justifie.")
+    deadline = owner["attendance_date"] + timedelta(days=JUSTIFICATION_DEADLINE_DAYS)
+    if date.today() > deadline:
+        raise ValueError(
+            f"Le delai de justification ({JUSTIFICATION_DEADLINE_DAYS} jours) est depasse "
+            f"pour cet incident. Il n'est plus possible de le justifier en ligne."
+        )
     cleaned_reason = reason.strip()
     if len(cleaned_reason) < 3:
         raise ValueError("Le motif doit contenir au moins 3 caracteres.")

@@ -1,6 +1,6 @@
 """Regles metier des appels, absences, retards et corrections."""
 
-from datetime import date
+from datetime import date, timedelta
 from uuid import UUID
 
 from sqlalchemy import text
@@ -12,6 +12,12 @@ from app.schemas.attendance_change_request_create import AttendanceChangeRequest
 from app.schemas.attendance_change_request_review import AttendanceChangeRequestReview
 from app.schemas.attendance_event_create import AttendanceEventCreate
 from app.schemas.attendance_record_update import AttendanceRecordUpdate
+from app.services.attendance_document_service import JUSTIFICATION_DEADLINE_DAYS
+
+# Nombre d'absences non couvertes (non justifiees ou refusees) sur l'annee
+# scolaire en cours a partir duquel un eleve remonte dans la liste de
+# vigilance de l'administration.
+ABSENCE_ALERT_THRESHOLD = 3
 
 
 def _teacher_id_for_account(db: Session, account_id: UUID) -> UUID | None:
@@ -734,9 +740,53 @@ def get_student_attendance(db: Session, student_id: UUID) -> dict:
         ORDER BY event.attendance_date DESC, event.course_start_time DESC
     """), {"student_id": student_id}).mappings().all()
     incidents = [dict(row) for row in rows]
+    for incident in incidents:
+        deadline = incident["attendance_date"] + timedelta(days=JUSTIFICATION_DEADLINE_DAYS)
+        incident["justification_deadline"] = deadline
+        incident["can_justify"] = (
+            incident["justification_status"] == "UNJUSTIFIED"
+            and date.today() <= deadline
+        )
     return {
         "absence_count": sum(item["incident_type"] == "ABSENT" for item in incidents),
         "late_count": sum(item["incident_type"] == "LATE" for item in incidents),
         "pending_justification_count": sum(item["justification_status"] == "PENDING" for item in incidents),
         "incidents": incidents,
     }
+
+
+def list_students_over_absence_threshold(
+    db: Session, threshold: int = ABSENCE_ALERT_THRESHOLD
+) -> list[dict]:
+    """Liste, pour l'annee scolaire courante, les eleves dont le nombre
+    d'absences non couvertes (non justifiees ou refusees) atteint le seuil.
+    """
+
+    rows = db.execute(text("""
+        SELECT student.id AS student_id, account.registration_number,
+               student.first_name, student.last_name,
+               concat_ws(' ', class_level.name, school_class.group_label) AS class_name,
+               count(*) FILTER (
+                   WHERE record.incident_type = 'ABSENT'
+                     AND record.justification_status IN ('UNJUSTIFIED', 'REJECTED')
+               ) AS unjustified_absence_count
+        FROM attendance_records AS record
+        JOIN attendance_events AS event ON event.id = record.attendance_event_id
+        JOIN student_enrollments AS enrollment ON enrollment.id = record.student_enrollment_id
+        JOIN students AS student ON student.id = enrollment.student_id
+        JOIN accounts AS account ON account.id = student.account_id
+        JOIN classes AS school_class ON school_class.id = enrollment.class_id
+        JOIN class_levels AS class_level ON class_level.id = school_class.class_level_id
+        JOIN school_years AS school_year ON school_year.id = school_class.school_year_id
+        WHERE record.deleted_at IS NULL
+          AND school_year.is_current = true
+          AND enrollment.end_date IS NULL
+        GROUP BY student.id, account.registration_number, student.first_name,
+                 student.last_name, class_level.name, school_class.group_label
+        HAVING count(*) FILTER (
+            WHERE record.incident_type = 'ABSENT'
+              AND record.justification_status IN ('UNJUSTIFIED', 'REJECTED')
+        ) >= :threshold
+        ORDER BY unjustified_absence_count DESC, student.last_name
+    """), {"threshold": threshold}).mappings().all()
+    return [dict(row) for row in rows]
