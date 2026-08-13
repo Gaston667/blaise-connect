@@ -985,7 +985,7 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                               type="button"
                               className="scd-btn-danger scd-btn-sm"
                               title="Retirer la matière"
-                              onClick={() => setConfirmRemoveSubjectId(subject.id)}
+                              onClick={() => { setError(''); setConfirmRemoveSubjectId(subject.id) }}
                             >
                               Retirer
                             </button>
@@ -1149,6 +1149,7 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
           <div className="scd-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Retirer cette matière ?</h3>
             <p>La matière sera dissociée de la classe. Les évaluations déjà saisies resteront intactes.</p>
+            {error && <p className="scd-error">{error}</p>}
             <div className="scd-confirm-actions">
               <button type="button" className="scd-btn-outline" onClick={() => setConfirmRemoveSubjectId(null)}>Annuler</button>
               <button type="button" className="scd-btn-danger" disabled={removingSubject} onClick={handleRemoveSubject}>

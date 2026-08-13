@@ -698,6 +698,7 @@ TO blaise_app;
 GRANT INSERT (teacher_id, class_subject_id, start_date, end_date)
     ON teacher_assignments TO blaise_app;
 GRANT UPDATE (start_date, end_date) ON teacher_assignments TO blaise_app;
+GRANT DELETE ON TABLE teacher_assignments TO blaise_app;
 
 GRANT INSERT (teacher_assignment_id, title, description, assessment_date, maximum_score, coefficient)
     ON assessments TO blaise_app;

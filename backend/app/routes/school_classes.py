@@ -261,12 +261,17 @@ def post_class_subject(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cette matière est déjà associée à la classe.",
         ) from error
+    is_specialty = db.execute(
+        sql_text("SELECT is_specialty FROM subjects WHERE id = :subject_id"),
+        {"subject_id": cs.subject_id},
+    ).scalar_one()
     return {
         "id": cs.id,
         "subject_id": cs.subject_id,
         "name": "",
         "coefficient": cs.coefficient,
         "is_active": True,
+        "is_specialty": is_specialty,
         "teacher_name": None,
     }
 
@@ -291,12 +296,17 @@ def patch_class_subject(
     except IntegrityError as error:
         db.rollback()
         raise HTTPException(status_code=409, detail=extract_postgres_error_message(error)) from error
+    is_specialty = db.execute(
+        sql_text("SELECT is_specialty FROM subjects WHERE id = :subject_id"),
+        {"subject_id": cs.subject_id},
+    ).scalar_one()
     return {
         "id": cs.id,
         "subject_id": cs.subject_id,
         "name": "",
         "coefficient": cs.coefficient,
         "is_active": True,
+        "is_specialty": is_specialty,
         "teacher_name": None,
     }
 
@@ -313,15 +323,15 @@ def delete_class_subject(
         remove_class_subject(db=db, class_subject_id=class_subject_id)
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    except IntegrityError as error:
+    except DBAPIError as error:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail=(
+        message = extract_postgres_error_message(error)
+        if "constraint" in message.lower() or "permission denied" in message.lower():
+            message = (
                 "Impossible de retirer cette matière : une affectation enseignant "
-                "ou une donnée pédagogique y est rattachée."
-            ),
-        ) from error
+                "ou une donnée pédagogique (notes, planning publié) y est rattachée."
+            )
+        raise HTTPException(status_code=409, detail=message) from error
 
 
 @router.delete("/{school_class_id}", status_code=status.HTTP_204_NO_CONTENT)

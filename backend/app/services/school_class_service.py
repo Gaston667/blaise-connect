@@ -386,10 +386,45 @@ def remove_class_subject(
     db: Session,
     class_subject_id: UUID,
 ) -> None:
-    """Retire une matière d'une classe."""
+    """Retire une matière d'une classe.
+
+    Met fin à l'affectation de l'enseignant pour cette classe précise (ses
+    affectations sur d'autres classes ne sont pas concernées) et retire les
+    créneaux de brouillon associés. Si des notes ou un planning déjà publié
+    existent sur cette matière, l'opération reste bloquée pour protéger ces
+    données.
+    """
 
     cs = db.get(ClassSubject, class_subject_id)
     if cs is None:
         raise ValueError("Association classe-matière introuvable.")
+
+    assignment_ids = db.execute(
+        sql_text(
+            "SELECT id FROM teacher_assignments WHERE class_subject_id = :class_subject_id"
+        ),
+        {"class_subject_id": class_subject_id},
+    ).scalars().all()
+
+    if assignment_ids:
+        db.execute(
+            sql_text(
+                """
+                DELETE FROM timetable_slots AS slot
+                USING timetables AS timetable
+                WHERE slot.teacher_assignment_id = ANY(:assignment_ids)
+                  AND timetable.id = slot.timetable_id
+                  AND timetable.status = 'DRAFT'
+                """
+            ),
+            {"assignment_ids": assignment_ids},
+        )
+        db.execute(
+            sql_text(
+                "DELETE FROM teacher_assignments WHERE id = ANY(:assignment_ids)"
+            ),
+            {"assignment_ids": assignment_ids},
+        )
+
     db.delete(cs)
     db.commit()

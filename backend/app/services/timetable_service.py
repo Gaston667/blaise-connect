@@ -14,6 +14,15 @@ from app.schemas.weekly_subject_requirement_upsert import (
     WeeklySubjectRequirementUpsert,
 )
 
+# Ces matieres sont les seules a pouvoir occuper un creneau d'une heure ;
+# toutes les autres matieres regulieres (college et lycee) se placent en
+# blocs de 2 heures.
+SINGLE_HOUR_SUBJECT_NAMES = {
+    "Enseignement moral et civique (EMC)",
+    "Anglais",
+    "Espagnol",
+}
+
 
 def _time_to_minutes(value: time) -> int:
     """Convertit une heure en nombre de minutes depuis minuit."""
@@ -663,13 +672,52 @@ def generate_timetable(
             if all(subject["remaining_minutes"] < 120 for subject in specialty_subjects):
                 break
 
+    # Seules l'EMC, l'anglais et l'espagnol peuvent occuper une heure isolée ;
+    # toutes les autres matières (collège comme lycée) se placent en blocs
+    # de 2 heures.
+    single_hour_subjects = [
+        subject for subject in regular_subjects
+        if subject["subject_name"] in SINGLE_HOUR_SUBJECT_NAMES
+    ]
+    double_hour_subjects = [
+        subject for subject in regular_subjects
+        if subject["subject_name"] not in SINGLE_HOUR_SUBJECT_NAMES
+    ]
+
+    if double_hour_subjects:
+        for candidate in _build_double_periods(all_periods):
+            period_starts = candidate["covered_period_starts"]
+            keys = [(candidate["day_of_week"], start) for start in period_starts]
+            if any(key in used_period_keys for key in keys):
+                continue
+            day_subjects = used_subjects_by_day.setdefault(candidate["day_of_week"], set())
+            available_subjects = [
+                subject
+                for subject in double_hour_subjects
+                if subject["remaining_minutes"] >= 120
+                and not _teacher_is_busy(busy_slots, subject["teacher_id"], candidate)
+            ]
+            if not available_subjects:
+                continue
+            unused_subjects = [
+                subject
+                for subject in available_subjects
+                if subject["class_subject_id"] not in day_subjects
+            ]
+            candidates = unused_subjects or available_subjects
+            candidates.sort(key=_remaining_minutes_sort_key)
+            selected = candidates[0]
+            _insert_slot(candidate, selected, 120)
+            for key in keys:
+                used_period_keys.add(key)
+
     for candidate in all_periods:
         if (candidate["day_of_week"], candidate["start_time"]) in used_period_keys:
             continue
         day_subjects = used_subjects_by_day.setdefault(candidate["day_of_week"], set())
         available_subjects = [
             subject
-            for subject in regular_subjects
+            for subject in single_hour_subjects
             if subject["remaining_minutes"] > 0
             and not _teacher_is_busy(busy_slots, subject["teacher_id"], candidate)
         ]
