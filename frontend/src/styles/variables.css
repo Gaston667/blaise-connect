@@ -4,6 +4,16 @@
      Palette principale issue du logo BlaiseConnect
      ========================================================= */
 
+  /* 0. Palette des matières / créneaux (emplois du temps, notes) */
+  --sgp-violet-bg: #f1e8ff; --sgp-violet-fg: #7d34f5;
+  --sgp-green-bg: #e4faef; --sgp-green-fg: #1f9d57;
+  --sgp-blue-bg: #e9f1ff; --sgp-blue-fg: #2354ff;
+  --sgp-orange-bg: #fff1e4; --sgp-orange-fg: #f97316;
+  --sgp-pink-bg: #ffe8f3; --sgp-pink-fg: #d6336c;
+  --sgp-teal-bg: #e1f7f5; --sgp-teal-fg: #0f9488;
+  --sgp-yellow-bg: #fff9db; --sgp-yellow-fg: #b8860b;
+  --sgp-red-bg: #ffeaea; --sgp-red-fg: #d92d20;
+
   /* 1. Couleurs officielles du logo */
   --bc-pale-slate: #cfd6e2;
   --bc-cobalt-blue: #0147b6;

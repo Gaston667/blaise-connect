@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.postgres_error_message import extract_postgres_error_message
 from app.schemas.break_schedule_create import BreakScheduleCreate
 from app.schemas.school_day_schedule_upsert import SchoolDayScheduleUpsert
 from app.schemas.weekly_subject_requirement_upsert import (
@@ -398,6 +399,7 @@ def _get_generation_subjects(db: Session, class_id: UUID) -> list[dict]:
             SELECT
                 class_subject.id AS class_subject_id,
                 subject.name AS subject_name,
+                subject.is_specialty,
                 assignment.id AS assignment_id,
                 assignment.teacher_id,
                 requirement.weekly_minutes
@@ -460,6 +462,33 @@ def _build_available_periods(configuration: dict) -> list[dict]:
             )
             cursor = next_end
     return periods
+
+
+def _build_double_periods(periods: list[dict]) -> list[dict]:
+    """Fusionne deux créneaux consécutifs (même jour, sans pause entre eux)
+    en un bloc de 2 heures, utilisé pour les cours de spécialité qui ne se
+    placent jamais sur une heure isolée.
+    """
+
+    double_periods: list[dict] = []
+    for first, second in zip(periods, periods[1:]):
+        if first["day_of_week"] != second["day_of_week"]:
+            continue
+        if first["end_time"] != second["start_time"]:
+            continue
+        total_duration = first["duration"] + second["duration"]
+        if total_duration != 120:
+            continue
+        double_periods.append(
+            {
+                "day_of_week": first["day_of_week"],
+                "start_time": first["start_time"],
+                "end_time": second["end_time"],
+                "duration": total_duration,
+                "covered_period_starts": [first["start_time"], second["start_time"]],
+            }
+        )
+    return double_periods
 
 
 def _teacher_is_busy(
@@ -562,14 +591,85 @@ def generate_timetable(
         },
     ).mappings().one()
 
-    busy_slots = get_teacher_busy_slots(db, str(class_id))
+    busy_slots = get_teacher_busy_slots(db, str(class_id), school_year_id)
+    available_rooms = list_rooms(db)
+    specialty_subjects = [subject for subject in subjects if subject["is_specialty"]]
+    regular_subjects = [subject for subject in subjects if not subject["is_specialty"]]
+    all_periods = _build_available_periods(configuration)
+
     used_subjects_by_day: dict[int, set[UUID]] = {}
     created_slots: list[dict] = []
-    for candidate in _build_available_periods(configuration):
+
+    def _insert_slot(candidate, selected, effective_duration, room_id=None):
+        effective_end = _minutes_to_time(
+            _time_to_minutes(candidate["start_time"]) + effective_duration
+        )
+        row = db.execute(
+            text(
+                """
+                INSERT INTO timetable_slots (
+                    timetable_id, teacher_assignment_id, room_id,
+                    day_of_week, start_time, end_time
+                ) VALUES (
+                    :timetable_id, :teacher_assignment_id, :room_id,
+                    :day_of_week, :start_time, :end_time
+                )
+                RETURNING id, day_of_week, start_time, end_time
+                """
+            ),
+            {
+                "timetable_id": timetable["id"],
+                "teacher_assignment_id": selected["assignment_id"],
+                "room_id": room_id,
+                "day_of_week": candidate["day_of_week"],
+                "start_time": candidate["start_time"],
+                "end_time": effective_end,
+            },
+        ).mappings().one()
+        created_slots.append({**dict(row), "subject_name": selected["subject_name"]})
+        selected["remaining_minutes"] -= effective_duration
+        used_subjects_by_day.setdefault(candidate["day_of_week"], set()).add(
+            selected["class_subject_id"]
+        )
+
+    # Les spécialités d'une même classe se déroulent toutes sur le même
+    # bloc de 2 heures (jamais une heure isolée), chacune dans sa propre
+    # salle, jamais deux fois le même jour pour une spécialité donnée.
+    specialty_days_used: set[int] = set()
+    used_period_keys: set[tuple[int, time]] = set()
+    if specialty_subjects:
+        double_periods = _build_double_periods(all_periods)
+        for candidate in double_periods:
+            if candidate["day_of_week"] in specialty_days_used:
+                continue
+            pending = [
+                subject for subject in specialty_subjects
+                if subject["remaining_minutes"] > 0
+                and subject["remaining_minutes"] >= 120
+                and not _teacher_is_busy(busy_slots, subject["teacher_id"], candidate)
+            ]
+            if not pending:
+                continue
+            for index, selected in enumerate(pending):
+                effective_duration = 120
+                room_id = (
+                    available_rooms[index % len(available_rooms)]["id"]
+                    if available_rooms else None
+                )
+                _insert_slot(candidate, selected, effective_duration, room_id)
+            specialty_days_used.add(candidate["day_of_week"])
+            for period_start in candidate["covered_period_starts"]:
+                used_period_keys.add((candidate["day_of_week"], period_start))
+            if all(subject["remaining_minutes"] < 120 for subject in specialty_subjects):
+                break
+
+    for candidate in all_periods:
+        if (candidate["day_of_week"], candidate["start_time"]) in used_period_keys:
+            continue
         day_subjects = used_subjects_by_day.setdefault(candidate["day_of_week"], set())
         available_subjects = [
             subject
-            for subject in subjects
+            for subject in regular_subjects
             if subject["remaining_minutes"] > 0
             and not _teacher_is_busy(busy_slots, subject["teacher_id"], candidate)
         ]
@@ -584,33 +684,7 @@ def generate_timetable(
         candidates.sort(key=_remaining_minutes_sort_key)
         selected = candidates[0]
         effective_duration = min(candidate["duration"], selected["remaining_minutes"])
-        effective_end = _minutes_to_time(
-            _time_to_minutes(candidate["start_time"]) + effective_duration
-        )
-        row = db.execute(
-            text(
-                """
-                INSERT INTO timetable_slots (
-                    timetable_id, teacher_assignment_id,
-                    day_of_week, start_time, end_time
-                ) VALUES (
-                    :timetable_id, :teacher_assignment_id,
-                    :day_of_week, :start_time, :end_time
-                )
-                RETURNING id, day_of_week, start_time, end_time
-                """
-            ),
-            {
-                "timetable_id": timetable["id"],
-                "teacher_assignment_id": selected["assignment_id"],
-                "day_of_week": candidate["day_of_week"],
-                "start_time": candidate["start_time"],
-                "end_time": effective_end,
-            },
-        ).mappings().one()
-        created_slots.append({**dict(row), "subject_name": selected["subject_name"]})
-        selected["remaining_minutes"] -= effective_duration
-        day_subjects.add(selected["class_subject_id"])
+        _insert_slot(candidate, selected, effective_duration)
 
     unplaced = [
         {
@@ -625,7 +699,7 @@ def generate_timetable(
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        raise ValueError("La proposition contient un conflit de planning.") from exc
+        raise ValueError(extract_postgres_error_message(exc)) from exc
 
     return {
         "timetable_id": timetable["id"],
@@ -668,29 +742,31 @@ def validate_timetable(
         ),
         {"class_id": class_id},
     )
-    row = db.execute(
-        text(
-            """
-            UPDATE timetables
-            SET status = 'PUBLISHED',
-                published_by_account_id = :account_id,
-                published_at = now()
-            WHERE id = :timetable_id
-            RETURNING id, class_id, version, status, published_at
-            """
-        ),
-        {"account_id": validated_by_account_id, "timetable_id": draft["id"]},
-    ).mappings().one()
     try:
+        row = db.execute(
+            text(
+                """
+                UPDATE timetables
+                SET status = 'PUBLISHED',
+                    published_by_account_id = :account_id,
+                    published_at = now()
+                WHERE id = :timetable_id
+                RETURNING id, class_id, version, status, published_at
+                """
+            ),
+            {"account_id": validated_by_account_id, "timetable_id": draft["id"]},
+        ).mappings().one()
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        raise ValueError("Validation impossible : le planning contient un conflit.") from exc
+        raise ValueError(extract_postgres_error_message(exc)) from exc
     return dict(row)
 
 
-def get_teacher_busy_slots(db: Session, exclude_class_id: str | None) -> list[dict]:
-    """Retourne les occupations publiées des enseignants."""
+def get_teacher_busy_slots(
+    db: Session, exclude_class_id: str | None, school_year_id: UUID | str | None = None
+) -> list[dict]:
+    """Retourne les occupations publiées des enseignants, et leurs indisponibilités déclarées."""
 
     rows = db.execute(
         text(
@@ -706,9 +782,17 @@ def get_teacher_busy_slots(db: Session, exclude_class_id: str | None) -> list[di
                   CAST(:exclude_class_id AS uuid) IS NULL
                   OR timetable.class_id <> CAST(:exclude_class_id AS uuid)
               )
+
+            UNION ALL
+
+            SELECT unavailable.teacher_id, unavailable.day_of_week,
+                   unavailable.start_time, unavailable.end_time
+            FROM teacher_unavailabilities AS unavailable
+            WHERE CAST(:school_year_id AS uuid) IS NULL
+               OR unavailable.school_year_id = CAST(:school_year_id AS uuid)
             """
         ),
-        {"exclude_class_id": exclude_class_id},
+        {"exclude_class_id": exclude_class_id, "school_year_id": school_year_id},
     ).mappings().all()
     return [dict(row) for row in rows]
 
@@ -723,12 +807,14 @@ def get_class_timetable(db: Session, class_id: str, published_only: bool = False
             SELECT detail.slot_id AS id, detail.timetable_id, detail.version,
                    detail.status, detail.day_of_week, detail.start_time,
                    detail.end_time, detail.class_subject_id,
+                   detail.subject_id, subject.is_specialty,
                    detail.subject_name, detail.teacher_name, detail.room_name,
                    level.education_stage
             FROM v_timetable_slots_detailed AS detail
             JOIN timetables AS timetable ON timetable.id = detail.timetable_id
             JOIN classes AS class ON class.id = detail.class_id
             JOIN class_levels AS level ON level.id = class.class_level_id
+            JOIN subjects AS subject ON subject.id = detail.subject_id
             WHERE detail.class_id = :class_id
               AND {status_filter}
               AND timetable.status = (
@@ -860,9 +946,7 @@ def create_timetable_slot(
         db.commit()
     except IntegrityError as error:
         db.rollback()
-        raise ValueError(
-            "Ce créneau entre en conflit avec une classe, un enseignant ou une salle."
-        ) from error
+        raise ValueError(extract_postgres_error_message(error)) from error
     return dict(row)
 
 
@@ -1082,6 +1166,21 @@ def get_student_timetable(db: Session, student_id: str) -> dict:
     regular_slots = get_class_timetable(db, str(enrollment.class_id), published_only=True)
     for slot in regular_slots:
         slot["is_special"] = False
+
+    chosen_specialty_subject_ids = {
+        str(row[0])
+        for row in db.execute(
+            text(
+                "SELECT subject_id FROM student_specialties WHERE student_enrollment_id = :enrollment_id"
+            ),
+            {"enrollment_id": enrollment.id},
+        ).all()
+    }
+    regular_slots = [
+        slot for slot in regular_slots
+        if not slot.get("is_specialty")
+        or str(slot.get("subject_id")) in chosen_specialty_subject_ids
+    ]
 
     special_rows = db.execute(
         text(

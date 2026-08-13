@@ -84,4 +84,12 @@
 .stp-cell--blue .stp-cell__title { color: var(--sgp-blue-fg); }
 .stp-cell--orange { background: var(--sgp-orange-bg); }
 .stp-cell--orange .stp-cell__title { color: var(--sgp-orange-fg); }
+.stp-cell--pink { background: var(--sgp-pink-bg); }
+.stp-cell--pink .stp-cell__title { color: var(--sgp-pink-fg); }
+.stp-cell--teal { background: var(--sgp-teal-bg); }
+.stp-cell--teal .stp-cell__title { color: var(--sgp-teal-fg); }
+.stp-cell--yellow { background: var(--sgp-yellow-bg); }
+.stp-cell--yellow .stp-cell__title { color: var(--sgp-yellow-fg); }
+.stp-cell--red { background: var(--sgp-red-bg); }
+.stp-cell--red .stp-cell__title { color: var(--sgp-red-fg); }
 .stp-cell--special { border: 1px dashed currentColor; }

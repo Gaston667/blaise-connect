@@ -14,7 +14,7 @@ import { getMyTimetable } from '../services/student_timetable_service.js'
 import { DAY_LABELS, getScheduleRows } from '../utils/timetable_display.js'
 import '../styles/student_timetable_page.css'
 
-const PALETTE = ['violet', 'green', 'blue', 'orange']
+const PALETTE = ['violet', 'green', 'blue', 'orange', 'pink', 'teal', 'yellow', 'red']
 
 const SUBJECT_ICON_RULES = [
   [/math/i, Calculator],

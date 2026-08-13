@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   BookOpen,
   CalendarDays,
+  CheckCircle2,
   ChevronRight,
   Clock3,
   Eye,
@@ -34,6 +35,7 @@ import {
   getClassTimetable,
   getRooms,
   getTimetableConfiguration,
+  validateTimetable,
 } from '../services/timetable_service.js'
 import { listStudents } from '../services/students_service.js'
 import { getScheduleRows } from '../utils/timetable_display.js'
@@ -59,6 +61,8 @@ const TABS = [
   { key: 'configuration', label: 'Configuration', icon: Settings, disabled: true },
   { key: 'history', label: 'Historique', icon: History, disabled: true },
 ]
+
+const SUBJECT_PALETTE = ['violet', 'green', 'blue', 'orange', 'pink', 'teal', 'yellow', 'red']
 
 const EMPTY_SLOT_FORM = {
   classSubjectId: '',
@@ -120,6 +124,7 @@ export default function TimetableManagementPage() {
   const [classDataLoading, setClassDataLoading] = useState(false)
   const [savingSlot, setSavingSlot] = useState(false)
   const [deletingSlotId, setDeletingSlotId] = useState('')
+  const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
   const [slotForm, setSlotForm] = useState(EMPTY_SLOT_FORM)
 
@@ -262,6 +267,20 @@ export default function TimetableManagementPage() {
   async function refreshTimetable() {
     const classTimetable = await getClassTimetable(selectedClassId)
     setSavedSlots([...classTimetable].sort(sortTimetableSlots))
+  }
+
+  async function handlePublishTimetable() {
+    setPublishing(true)
+    setError('')
+    try {
+      await validateTimetable(selectedClassId)
+      await refreshTimetable()
+      toast.success('Le brouillon est désormais l’emploi du temps courant, visible des élèves et des enseignants.')
+    } catch (publishError) {
+      setError(publishError.message)
+    } finally {
+      setPublishing(false)
+    }
   }
 
   async function handleCreateSlot(event) {
@@ -596,28 +615,30 @@ export default function TimetableManagementPage() {
                 <form className="tmp-manual-form" onSubmit={handleGenerateTimetable}>
                   {requirements.map(function renderRequirementField(requirement) {
                     const totalMinutes = Number(requirement.weekly_minutes) || 0
-                    const hours = Math.floor(totalMinutes / 60)
+                    const hoursValue = Math.round((totalMinutes / 60) * 4) / 4
+                    const wholeHours = Math.floor(totalMinutes / 60)
                     const remainingMinutes = totalMinutes % 60
                     const hoursLabel = remainingMinutes > 0
-                      ? `${hours} h ${remainingMinutes} min`
-                      : `${hours} h`
+                      ? `${wholeHours} h ${remainingMinutes} min`
+                      : `${wholeHours} h`
                     return (
                       <label className="tmp-field" key={requirement.class_subject_id}>
-                        <span>{requirement.subject_name} — volume hebdomadaire (en minutes)</span>
+                        <span>{requirement.subject_name} — volume hebdomadaire</span>
                         <div className="tmp-field-with-suffix">
                           <input
                             type="number"
-                            min="15"
-                            max="2400"
-                            step="15"
-                            value={requirement.weekly_minutes}
+                            min="0.25"
+                            max="40"
+                            step="0.25"
+                            value={hoursValue}
                             onChange={function updateRequirement(event) {
-                              handleRequirementChange(requirement.class_subject_id, event.target.value)
+                              const hours = Number(event.target.value) || 0
+                              handleRequirementChange(requirement.class_subject_id, Math.round(hours * 60))
                             }}
                           />
-                          <span className="tmp-field-suffix">min/semaine</span>
+                          <span className="tmp-field-suffix">h/semaine</span>
                         </div>
-                        <small className="tmp-field-hint">Soit environ {hoursLabel} par semaine.</small>
+                        <small className="tmp-field-hint">Soit {hoursLabel} par semaine.</small>
                       </label>
                     )
                   })}
@@ -767,9 +788,16 @@ export default function TimetableManagementPage() {
                   <h2>Emploi du temps actuel</h2>
                   <p>Créneaux du {timetableStatus === 'PUBLISHED' ? 'planning publié' : 'brouillon en cours'}.</p>
                 </div>
-                <button type="button" className="tmp-btn-primary" onClick={function addAnotherSlot() { setActiveTab('manual') }}>
-                  <Plus aria-hidden="true" size={17} /> Ajouter un créneau
-                </button>
+                <div className="tmp-panel__heading-actions">
+                  {timetableStatus === 'DRAFT' && savedSlots.length > 0 && (
+                    <button type="button" className="tmp-btn-primary" disabled={publishing} onClick={handlePublishTimetable}>
+                      <CheckCircle2 aria-hidden="true" size={17} /> {publishing ? 'Publication…' : 'Publier comme emploi du temps courant'}
+                    </button>
+                  )}
+                  <button type="button" className="tmp-btn-secondary" onClick={function addAnotherSlot() { setActiveTab('manual') }}>
+                    <Plus aria-hidden="true" size={17} /> Ajouter un créneau
+                  </button>
+                </div>
               </div>
 
               {classDataLoading ? (
@@ -784,9 +812,15 @@ export default function TimetableManagementPage() {
                 (function renderScheduleGrid() {
                   const gridDayLabels = [1, 2, 3, 4, 5, 6, 7].map(function toLabel(dayNumber) { return DAY_LABELS[dayNumber] })
                   const daySchedule = getScheduleRows(savedSlots, scheduleBreaks)
+                  const subjectColorByName = new Map()
+                  savedSlots.forEach(function assignSubjectColor(slot) {
+                    if (!subjectColorByName.has(slot.subject_name)) {
+                      subjectColorByName.set(slot.subject_name, SUBJECT_PALETTE[subjectColorByName.size % SUBJECT_PALETTE.length])
+                    }
+                  })
 
-                  function findSlotForCell(dayIndex, period) {
-                    return savedSlots.find(
+                  function findSlotsForCell(dayIndex, period) {
+                    return savedSlots.filter(
                       (slot) =>
                         slot.day_of_week === dayIndex + 1 &&
                         formatTime(slot.start_time) < period.end &&
@@ -814,28 +848,59 @@ export default function TimetableManagementPage() {
                                 <span>{entry.end}</span>
                               </div>
                               {gridDayLabels.map((day, dayIndex) => {
-                                const slot = findSlotForCell(dayIndex, entry)
-                                if (!slot) {
+                                const cellSlots = findSlotsForCell(dayIndex, entry)
+                                if (cellSlots.length === 0) {
                                   return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
                                 }
-                                const canDelete = slot.status === 'DRAFT'
+                                if (cellSlots.length === 1) {
+                                  const slot = cellSlots[0]
+                                  const canDelete = slot.status === 'DRAFT'
+                                  const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
+                                  return (
+                                    <div key={`${day}-${entry.start}`} className={`stp-cell stp-cell--${color}`}>
+                                      <span className="stp-cell__title"><BookOpen aria-hidden="true" size={14} /> {slot.subject_name}</span>
+                                      <span className="stp-cell__meta">
+                                        {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
+                                      </span>
+                                      {canDelete && (
+                                        <button
+                                          type="button"
+                                          className="tmp-icon-button stp-cell__delete"
+                                          disabled={deletingSlotId === slot.id}
+                                          title="Retirer ce créneau"
+                                          onClick={function deleteSelectedSlot() { handleDeleteSlot(slot.id) }}
+                                        >
+                                          <Trash2 aria-hidden="true" size={14} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  )
+                                }
                                 return (
-                                  <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--violet">
-                                    <span className="stp-cell__title"><BookOpen aria-hidden="true" size={14} /> {slot.subject_name}</span>
-                                    <span className="stp-cell__meta">
-                                      {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
-                                    </span>
-                                    {canDelete && (
-                                      <button
-                                        type="button"
-                                        className="tmp-icon-button stp-cell__delete"
-                                        disabled={deletingSlotId === slot.id}
-                                        title="Retirer ce créneau"
-                                        onClick={function deleteSelectedSlot() { handleDeleteSlot(slot.id) }}
-                                      >
-                                        <Trash2 aria-hidden="true" size={14} />
-                                      </button>
-                                    )}
+                                  <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--parallel" title={`${cellSlots.length} cours en parallèle`}>
+                                    {cellSlots.map(function renderParallelSlot(slot) {
+                                      const canDelete = slot.status === 'DRAFT'
+                                      const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
+                                      return (
+                                        <div key={slot.id} className={`stp-cell__sub stp-cell--${color}`}>
+                                          <span className="stp-cell__title"><BookOpen aria-hidden="true" size={12} /> {slot.subject_name}</span>
+                                          <span className="stp-cell__meta">
+                                            {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
+                                          </span>
+                                          {canDelete && (
+                                            <button
+                                              type="button"
+                                              className="tmp-icon-button stp-cell__delete"
+                                              disabled={deletingSlotId === slot.id}
+                                              title="Retirer ce créneau"
+                                              onClick={function deleteSelectedSlot() { handleDeleteSlot(slot.id) }}
+                                            >
+                                              <Trash2 aria-hidden="true" size={12} />
+                                            </button>
+                                          )}
+                                        </div>
+                                      )
+                                    })}
                                   </div>
                                 )
                               })}

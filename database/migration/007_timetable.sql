@@ -1410,12 +1410,10 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
+    -- Un cours spécial peut être supprimé quel que soit son statut : un
+    -- cours particulier n'a pas la même portée qu'un emploi du temps de
+    -- classe et ne nécessite pas de piste d'audit après suppression.
     IF TG_OP = 'DELETE' THEN
-        IF OLD.status <> 'DRAFT' THEN
-            RAISE EXCEPTION USING ERRCODE = '23514',
-                MESSAGE = 'Seul un cours spécial en brouillon peut être supprimé.';
-        END IF;
-
         RETURN OLD;
     END IF;
 
@@ -1692,6 +1690,14 @@ AS $$
 DECLARE
     current_school_year_id uuid;
     current_level_id uuid;
+    conflicting_special_course_title varchar(150);
+    conflicting_special_course_day smallint;
+    conflicting_special_course_start time;
+    conflicting_special_course_end time;
+    conflicting_special_course_teacher_first_name text;
+    conflicting_special_course_teacher_last_name text;
+    conflicting_special_course_room_name varchar(100);
+    conflicting_special_course_reason text;
 BEGIN
     IF NEW.status <> 'PUBLISHED'
        OR OLD.status = 'PUBLISHED'
@@ -1736,16 +1742,26 @@ BEGIN
             MESSAGE = 'Un emploi du temps vide ne peut pas être publié.';
     END IF;
 
+    -- Deux créneaux de la classe qui se chevauchent sont interdits, sauf si
+    -- les deux sont des spécialités (bloc commun, groupes en parallèle dans
+    -- des salles différentes).
     IF EXISTS (
         SELECT 1
           FROM timetable_slots AS slot_a
+          JOIN teacher_assignments AS assignment_a ON assignment_a.id = slot_a.teacher_assignment_id
+          JOIN class_subjects AS class_subject_a ON class_subject_a.id = assignment_a.class_subject_id
+          JOIN subjects AS subject_a ON subject_a.id = class_subject_a.subject_id
           JOIN timetable_slots AS slot_b
             ON slot_b.timetable_id = slot_a.timetable_id
            AND slot_b.id <> slot_a.id
            AND slot_b.day_of_week = slot_a.day_of_week
            AND slot_b.start_time < slot_a.end_time
            AND slot_b.end_time > slot_a.start_time
+          JOIN teacher_assignments AS assignment_b ON assignment_b.id = slot_b.teacher_assignment_id
+          JOIN class_subjects AS class_subject_b ON class_subject_b.id = assignment_b.class_subject_id
+          JOIN subjects AS subject_b ON subject_b.id = class_subject_b.subject_id
          WHERE slot_a.timetable_id = NEW.id
+           AND NOT (subject_a.is_specialty AND subject_b.is_specialty)
     ) THEN
         RAISE EXCEPTION USING ERRCODE = '23514',
             MESSAGE = 'Publication impossible : deux cours de la classe se chevauchent.';
@@ -1866,49 +1882,93 @@ BEGIN
             MESSAGE = 'Publication impossible : conflit avec un autre emploi du temps publié.';
     END IF;
 
-    IF EXISTS (
-        SELECT 1
-          FROM timetable_slots AS candidate
-          JOIN teacher_assignments AS candidate_assignment
-            ON candidate_assignment.id = candidate.teacher_assignment_id
-          JOIN special_courses AS special_course
-            ON special_course.day_of_week = candidate.day_of_week
-           AND special_course.start_time < candidate.end_time
-           AND special_course.end_time > candidate.start_time
-          LEFT JOIN student_enrollments AS enrollment
-            ON enrollment.id = special_course.student_enrollment_id
-          LEFT JOIN classes AS special_class
-            ON special_class.id = special_course.class_id
-          LEFT JOIN classes AS enrollment_class
-            ON enrollment_class.id = enrollment.class_id
-         WHERE candidate.timetable_id = NEW.id
-           AND special_course.status = 'PUBLISHED'
-           AND COALESCE(
-                   special_class.school_year_id,
-                   enrollment_class.school_year_id
-               ) = current_school_year_id
-           AND daterange(
-                   special_course.valid_from,
-                   special_course.valid_until,
-                   '[]'
-               )
-               && daterange(
-                   NEW.effective_start_date,
-                   NEW.effective_end_date,
-                   '[]'
-               )
-           AND (
-               special_course.class_id = NEW.class_id
-               OR enrollment.class_id = NEW.class_id
-               OR special_course.teacher_id = candidate_assignment.teacher_id
-               OR (
-                   candidate.room_id IS NOT NULL
-                   AND special_course.room_id = candidate.room_id
-               )
+    SELECT
+        special_course.title,
+        special_course.day_of_week,
+        special_course.start_time,
+        special_course.end_time,
+        conflict_teacher.first_name,
+        conflict_teacher.last_name,
+        conflict_room.name,
+        CASE
+            WHEN special_course.teacher_id = candidate_assignment.teacher_id
+                THEN 'enseignant déjà pris'
+            WHEN candidate.room_id IS NOT NULL
+                 AND special_course.room_id = candidate.room_id
+                THEN 'salle déjà occupée'
+            ELSE 'chevauchement de créneau'
+        END
+      INTO
+        conflicting_special_course_title,
+        conflicting_special_course_day,
+        conflicting_special_course_start,
+        conflicting_special_course_end,
+        conflicting_special_course_teacher_first_name,
+        conflicting_special_course_teacher_last_name,
+        conflicting_special_course_room_name,
+        conflicting_special_course_reason
+      FROM timetable_slots AS candidate
+      JOIN teacher_assignments AS candidate_assignment
+        ON candidate_assignment.id = candidate.teacher_assignment_id
+      JOIN special_courses AS special_course
+        ON special_course.day_of_week = candidate.day_of_week
+       AND special_course.start_time < candidate.end_time
+       AND special_course.end_time > candidate.start_time
+      LEFT JOIN teachers AS conflict_teacher
+        ON conflict_teacher.id = special_course.teacher_id
+      LEFT JOIN rooms AS conflict_room
+        ON conflict_room.id = special_course.room_id
+      LEFT JOIN student_enrollments AS enrollment
+        ON enrollment.id = special_course.student_enrollment_id
+      LEFT JOIN classes AS special_class
+        ON special_class.id = special_course.class_id
+      LEFT JOIN classes AS enrollment_class
+        ON enrollment_class.id = enrollment.class_id
+     WHERE candidate.timetable_id = NEW.id
+       AND special_course.status = 'PUBLISHED'
+       AND COALESCE(
+               special_class.school_year_id,
+               enrollment_class.school_year_id
+           ) = current_school_year_id
+       AND daterange(
+               special_course.valid_from,
+               special_course.valid_until,
+               '[]'
            )
-    ) THEN
+           && daterange(
+               NEW.effective_start_date,
+               NEW.effective_end_date,
+               '[]'
+           )
+       AND (
+           special_course.class_id = NEW.class_id
+           OR enrollment.class_id = NEW.class_id
+           OR special_course.teacher_id = candidate_assignment.teacher_id
+           OR (
+               candidate.room_id IS NOT NULL
+               AND special_course.room_id = candidate.room_id
+           )
+       )
+     LIMIT 1;
+
+    IF FOUND THEN
         RAISE EXCEPTION USING ERRCODE = '23514',
-            MESSAGE = 'Publication impossible : conflit avec un cours spécial ou particulier.';
+            MESSAGE = format(
+                'Publication impossible : le cours particulier « %s » (%s, %s) avec %s %s%s est en conflit (%s).',
+                conflicting_special_course_title,
+                CASE conflicting_special_course_day
+                    WHEN 1 THEN 'lundi' WHEN 2 THEN 'mardi' WHEN 3 THEN 'mercredi'
+                    WHEN 4 THEN 'jeudi' WHEN 5 THEN 'vendredi' WHEN 6 THEN 'samedi'
+                    ELSE 'dimanche'
+                END,
+                to_char(conflicting_special_course_start, 'HH24:MI') || '-' ||
+                    to_char(conflicting_special_course_end, 'HH24:MI'),
+                COALESCE(conflicting_special_course_teacher_first_name, ''),
+                COALESCE(conflicting_special_course_teacher_last_name, ''),
+                CASE WHEN conflicting_special_course_room_name IS NOT NULL
+                     THEN ' en ' || conflicting_special_course_room_name ELSE '' END,
+                conflicting_special_course_reason
+            );
     END IF;
 
     RETURN NEW;

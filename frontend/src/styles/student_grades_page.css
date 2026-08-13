@@ -13,13 +13,7 @@
 .sgp-section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
 .sgp-section-head h2 { margin: 0; }
 
-/* Palette partagée (violet / vert / bleu / orange), cohérente avec le reste de l'app */
-:root {
-  --sgp-violet-bg: #f1e8ff; --sgp-violet-fg: #7d34f5;
-  --sgp-green-bg: #e4faef; --sgp-green-fg: #1f9d57;
-  --sgp-blue-bg: #e9f1ff; --sgp-blue-fg: #2354ff;
-  --sgp-orange-bg: #fff1e4; --sgp-orange-fg: #f97316;
-}
+/* Palette partagée définie globalement dans variables.css (--sgp-*). */
 
 .sgp-stats-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
 .sgp-stat { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-md); }

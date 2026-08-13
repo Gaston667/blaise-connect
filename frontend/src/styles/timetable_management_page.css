@@ -144,6 +144,8 @@
 .tmp-dialog__close:hover { background: var(--color-surface-subtle); }
 .tmp-dialog__actions { display: flex; flex-direction: column-reverse; gap: var(--space-3); margin-top: var(--space-5); }
 
+.tmp-panel__heading-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
 .tmp-field-with-suffix { position: relative; display: flex; align-items: center; }
 .tmp-field-with-suffix input { padding-right: 6.5rem; }
 .tmp-field-suffix {
@@ -156,6 +158,27 @@
 .tmp-field-hint { color: var(--color-text-muted); font-size: var(--font-size-xs); }
 
 .stp-cell { position: relative; }
+
+.stp-cell--parallel {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 3px;
+  padding: 3px;
+  background: transparent;
+}
+.stp-cell__sub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm, 6px);
+  min-width: 0;
+  overflow: hidden;
+}
+.stp-cell__sub .stp-cell__title { font-size: 0.68rem; }
+.stp-cell__sub .stp-cell__meta { font-size: 0.6rem; }
+.stp-cell__sub .stp-cell__delete { width: 1.1rem; height: 1.1rem; }
 .stp-cell__delete {
   position: absolute;
   top: 2px;
