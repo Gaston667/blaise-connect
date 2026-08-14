@@ -380,6 +380,7 @@ export default function StudentGradesPage() {
           </section>
         </aside>
       </div>
+      )}
 
       {(isAssessmentDetailLoading || assessmentDetail || assessmentDetailError) && (
         <div className="sgp-modal-backdrop" role="presentation" onMouseDown={closeAssessmentDetail}>
