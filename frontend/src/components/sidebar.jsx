@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   BookOpen, CalendarDays, CalendarRange, ChevronDown, ContactRound,
-  GraduationCap, House, NotebookPen, Presentation, ShieldCheck, UserRoundX,
+  FileText, GraduationCap, House, NotebookPen, Presentation, ShieldCheck, UserRoundX,
   Users, X,
 } from 'lucide-react'
 
@@ -66,6 +66,7 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
         {isAdmin ? <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>Absences</NavigationButton> : null}
       </> : null}
       {isAdmin ? <>
+        <NavigationButton page="report-cards" currentPage={currentPage} onNavigate={navigate} icon={<FileText size={20} />}>Bulletins</NavigationButton>
         <NavigationButton page="timetables" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Emploi du temps</NavigationButton>
         <NavigationButton page="school-years" currentPage={currentPage} onNavigate={navigate} icon={<CalendarRange size={20} />}>Années scolaires</NavigationButton>
       </> : null}
