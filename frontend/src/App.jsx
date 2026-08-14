@@ -307,13 +307,13 @@ export default function App() {
   }
   else if (
     currentPage === 'attendance'
-    && ['ADMIN', 'TEACHER', 'STUDENT'].includes(currentAccount.role)
+    && ['ADMIN', 'STUDENT'].includes(currentAccount.role)
   ) {
     pageContent = <AttendancePage account={currentAccount} onNavigate={handleNavigate} />
   }
   else if (
     currentPage === 'attendance-record-details'
-    && ['ADMIN', 'TEACHER', 'STUDENT'].includes(currentAccount.role)
+    && ['ADMIN', 'STUDENT'].includes(currentAccount.role)
   ) {
     pageContent = (
       <AttendanceRecordDetailsPage

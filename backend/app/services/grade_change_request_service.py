@@ -31,20 +31,16 @@ def _request_actor_scope(actor: Account) -> tuple[str, dict]:
 
 
 def _create_request_actor_scope(actor: Account) -> tuple[str, dict]:
-    """Limite la création aux notes enseignées ou à la classe principale du professeur."""
+    """Limite une demande d'enseignant aux notes de sa propre matière.
+
+    Le rôle de professeur principal permet de valider certaines demandes, mais
+    ne donne pas le droit de demander une correction sur une autre matière.
+    """
 
     if actor.role == "TEACHER":
-        return """
-            AND (
-                teacher.account_id = :actor_account_id
-                OR EXISTS (
-                    SELECT 1
-                    FROM teachers AS main_teacher
-                    WHERE main_teacher.account_id = :actor_account_id
-                      AND main_teacher.id = school_class.main_teacher_id
-                )
-            )
-        """, {"actor_account_id": actor.id}
+        return " AND teacher.account_id = :actor_account_id", {
+            "actor_account_id": actor.id,
+        }
 
     return "", {}
 
