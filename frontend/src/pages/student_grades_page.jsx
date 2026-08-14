@@ -51,7 +51,13 @@ function getSubjectInitials(subjectName) {
 }
 
 function formatAverage(value) {
-  return value === null || value === undefined ? '—' : value.toFixed(2).replace('.', ',')
+  if (value === null || value === undefined) return '—'
+
+  const numericValue = Number(value)
+
+  return Number.isFinite(numericValue)
+    ? numericValue.toFixed(2).replace('.', ',')
+    : '—'
 }
 
 function formatDate(value) {
