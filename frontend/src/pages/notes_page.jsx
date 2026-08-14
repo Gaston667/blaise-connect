@@ -116,7 +116,7 @@ function getAbsenceStatusTone(status) {
   return tones[status] || 'neutral'
 }
 
-export default function NotesPage({ account, onNavigate }) {
+export default function NotesPage({ account, onNavigate, initialAssessmentId }) {
   const toast = useToast()
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query)
@@ -164,6 +164,12 @@ export default function NotesPage({ account, onNavigate }) {
   const [documentsLoading, setDocumentsLoading] = useState(false)
 
   const isAdmin = account?.role === 'ADMIN'
+
+  useEffect(function openRequestedAssessmentEffect() {
+    if (initialAssessmentId) {
+      setSelectedAssessmentId(initialAssessmentId)
+    }
+  }, [initialAssessmentId])
 
   useEffect(function loadFilterOptionsEffect() {
     async function loadFilterOptions() {

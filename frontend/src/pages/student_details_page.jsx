@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   ChartNoAxesColumnIncreasing,
   CalendarPlus,
+  CalendarMinus,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
@@ -28,6 +29,7 @@ import {
   deactivateStudent,
   reactivateStudent,
   enrollStudent,
+  unenrollStudent,
   getStudentAcademicSummary,
   getStudentDocuments,
   getStudentDocumentFile,
@@ -45,6 +47,8 @@ import {
 import '../styles/student_details_page.css'
 import NotificationPopup from '../components/notification_popup.jsx'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import { NATIONALITIES } from '../constants/nationalities.js'
+import { INTERNATIONAL_PHONE_PATTERN, normalizeInternationalPhone } from '../utils/phone.js'
 import { uploadAccountPhoto } from '../services/account_service.js'
 import {
   getSchoolClassesOverview,
@@ -92,6 +96,18 @@ function formatDate(dateValue) {
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return '—'
   return new Intl.DateTimeFormat('fr-FR').format(date)
+}
+
+function calculateAge(birthDate) {
+  if (!birthDate) return '—'
+  const birth = new Date(`${birthDate}T00:00:00`)
+  if (Number.isNaN(birth.getTime())) return '—'
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const birthdayNotReached = today.getMonth() < birth.getMonth()
+    || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
+  if (birthdayNotReached) age -= 1
+  return age >= 0 ? `${age} ans` : '—'
 }
 
 function formatFileSize(sizeBytes) {
@@ -751,7 +767,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     setSaving(true)
     try {
       const payload = Object.fromEntries(
-        Object.entries(form).map(([k, v]) => [k, v === '' ? null : v])
+        Object.entries(form).map(([k, v]) => [k, v === '' ? null : (k === 'phone' ? normalizeInternationalPhone(v) : v)])
       )
       const updated = await updateStudent(details.id, payload)
       setDetails(updated)
@@ -822,6 +838,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
             <dl className="sdp-summary">
               <div><dt>Matricule</dt><dd>{details.registration_number ?? '—'}</dd></div>
               <div><dt>Sexe</dt><dd>{genderLabel(details.gender)}</dd></div>
+              <div><dt>Âge</dt><dd>{calculateAge(details.birth_date)}</dd></div>
               <div><dt>Dernière modification</dt><dd>{formatDate(details.updated_at)}</dd></div>
               <div><dt>Classe actuelle</dt><dd>{details.class_name ?? className(details.class_id)}</dd></div>
               <div><dt>Année scolaire</dt><dd>{details.school_year_name ?? yearName(details.school_year_id)}</dd></div>
@@ -835,12 +852,12 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
             <button
               type="button"
               className="sdp-btn-secondary"
-              onClick={openEnrollmentModal}
+              onClick={details.class_id ? () => handleAction(unenrollStudent) : openEnrollmentModal}
               disabled={details.status === 'ARCHIVED'}
               title={details.status === 'ARCHIVED' ? 'Un élève archivé ne peut pas être inscrit dans une classe.' : ''}
             >
-              <CalendarPlus aria-hidden="true" size={17} />
-              {details.class_id ? 'Changer de classe' : 'Inscrire dans une classe'}
+              {details.class_id ? <CalendarMinus aria-hidden="true" size={17} /> : <CalendarPlus aria-hidden="true" size={17} />}
+              {details.class_id ? 'Désinscrire de la classe' : 'Inscrire dans une classe'}
             </button>
             <div className="sdp-menu-wrapper">
               <button type="button" className="sdp-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
@@ -877,7 +894,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
           >
             <header>
               <div>
-                <h2 id="sdp-enrollment-title">{details.class_id ? 'Changer de classe' : 'Inscrire dans une classe'}</h2>
+                <h2 id="sdp-enrollment-title">Inscrire dans une classe</h2>
                 <p>Choisissez la classe annuelle et la date de début.</p>
               </div>
               <button type="button" onClick={closeEnrollmentModal} aria-label="Fermer">
@@ -1047,10 +1064,10 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                 <div className="sdp-row">
                   <label>Date de naissance<input type="date" value={form.birth_date ?? ''} onChange={(e) => update('birth_date', e.target.value)} /></label>
                   <label>Lieu de naissance<input value={form.birth_place} onChange={(e) => update('birth_place', e.target.value)} /></label>
-                  <label>Nationalité<input value={form.nationality} onChange={(e) => update('nationality', e.target.value)} /></label>
+                  <label>Nationalité *<select value={form.nationality} onChange={(e) => update('nationality', e.target.value)} required><option value="">Sélectionner une nationalité</option>{NATIONALITIES.map(function nationalityOption(nationality) { return <option key={nationality} value={nationality}>{nationality}</option> })}</select></label>
                 </div>
                 <div className="sdp-row">
-                  <label>Téléphone<input value={form.phone} onChange={(e) => update('phone', e.target.value)} /></label>
+                  <label>Téléphone<input value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" /></label>
                   <label>Email<input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} /></label>
                 </div>
                 <label className="sdp-full">Adresse<input value={form.address} onChange={(e) => update('address', e.target.value)} /></label>

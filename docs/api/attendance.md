@@ -18,4 +18,4 @@ Routes principales :
 - `PATCH /attendance/records/{id}/justification` ;
 - `GET /attendance/me` et `POST /attendance/me/{id}/justification`.
 
-La migration `database/migration/008_attendance.sql` doit être appliquée avant d’utiliser ces routes.
+La migration `database/migration/005_academic_activity.sql` doit être appliquée avant d’utiliser ces routes.

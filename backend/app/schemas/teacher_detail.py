@@ -45,6 +45,7 @@ class TeacherDetail(BaseModel):
     last_name: str
     birth_date: date | None
     gender: str | None
+    nationality: str | None
     email: str | None
     phone: str | None
     address: str | None

@@ -43,7 +43,6 @@ services:
       - ./database/migration/005_academic_activity.sql:/docker-entrypoint-initdb.d/005_academic_activity.sql:ro
       - ./database/migration/006_report_cards_year_deletion.sql:/docker-entrypoint-initdb.d/006_report_cards_year_deletion.sql:ro
       - ./database/migration/007_timetable.sql:/docker-entrypoint-initdb.d/007_timetable.sql:ro
-      - ./database/migration/008_attendance.sql:/docker-entrypoint-initdb.d/008_attendance.sql:ro
 
       # Données fictives exécutées après les migrations, dans leur ordre de dépendance.
       - ./database/init/020_accounts_and_profiles_test_data.sql:/docker-entrypoint-initdb.d/020_accounts_and_profiles_test_data.sql:ro

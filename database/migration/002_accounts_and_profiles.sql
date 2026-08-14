@@ -71,7 +71,7 @@ CREATE TABLE students (
     status student_status_enum NOT NULL DEFAULT 'ACTIVE',
     photo_path varchar(500),
     birth_place varchar(150),
-    nationality varchar(100),
+    nationality varchar(100) NOT NULL,
     previous_level varchar(100),
     updated_by_account_id uuid,
     archived_at timestamptz,
@@ -93,6 +93,9 @@ CREATE TABLE students (
 
     CONSTRAINT ck_students_last_name
         CHECK (char_length(btrim(last_name)) > 0),
+
+    CONSTRAINT ck_students_nationality_required
+        CHECK (char_length(btrim(nationality)) > 0),
 
     CONSTRAINT ck_students_birth_date
         CHECK (birth_date IS NULL OR birth_date <= admission_date),
@@ -120,6 +123,7 @@ CREATE TABLE teachers (
     address text,
     hire_date date NOT NULL,
     qualification text,
+    nationality varchar(100) NOT NULL,
     photo_path varchar(500),
     archived_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -135,6 +139,9 @@ CREATE TABLE teachers (
 
     CONSTRAINT ck_teachers_last_name
         CHECK (char_length(btrim(last_name)) > 0),
+
+    CONSTRAINT ck_teachers_nationality_required
+        CHECK (char_length(btrim(nationality)) > 0),
 
     CONSTRAINT ck_teachers_birth_date
         CHECK (birth_date IS NULL OR birth_date <= hire_date),
@@ -154,6 +161,7 @@ CREATE TABLE administrators (
     address text,
     hire_date date NOT NULL,
     job_title varchar(100) NOT NULL,
+    nationality varchar(100) NOT NULL,
     photo_path varchar(500),
     archived_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -173,6 +181,9 @@ CREATE TABLE administrators (
     CONSTRAINT ck_administrators_job_title
         CHECK (char_length(btrim(job_title)) > 0),
 
+    CONSTRAINT ck_administrators_nationality_required
+        CHECK (char_length(btrim(nationality)) > 0),
+
     CONSTRAINT ck_administrators_archived_at
         CHECK (archived_at IS NULL OR archived_at >= created_at)
 );
@@ -189,6 +200,7 @@ CREATE TABLE guardians (
     address text,
     occupation varchar(150),
     employer varchar(150),
+    nationality varchar(100) NOT NULL,
     photo_path varchar(500),
     archived_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -204,6 +216,9 @@ CREATE TABLE guardians (
 
     CONSTRAINT ck_guardians_last_name
         CHECK (char_length(btrim(last_name)) > 0),
+
+    CONSTRAINT ck_guardians_nationality_required
+        CHECK (char_length(btrim(nationality)) > 0),
 
     CONSTRAINT ck_guardians_archived_at
         CHECK (archived_at IS NULL OR archived_at >= created_at)
@@ -556,32 +571,32 @@ GRANT UPDATE (
 
 GRANT INSERT (
     account_id, first_name, last_name, birth_date, gender,
-    email, phone, address, hire_date, qualification, photo_path, archived_at
+    email, phone, address, hire_date, qualification, nationality, photo_path, archived_at
 ) ON teachers TO blaise_app;
 
 GRANT UPDATE (
     first_name, last_name, birth_date, gender,
-    email, phone, address, hire_date, qualification, photo_path, archived_at
+    email, phone, address, hire_date, qualification, nationality, photo_path, archived_at
 ) ON teachers TO blaise_app;
 
 GRANT INSERT (
     account_id, first_name, last_name, gender,
-    email, phone, address, hire_date, job_title, photo_path, archived_at
+    email, phone, address, hire_date, job_title, nationality, photo_path, archived_at
 ) ON administrators TO blaise_app;
 
 GRANT UPDATE (
     first_name, last_name, gender,
-    email, phone, address, hire_date, job_title, photo_path, archived_at
+    email, phone, address, hire_date, job_title, nationality, photo_path, archived_at
 ) ON administrators TO blaise_app;
 
 GRANT INSERT (
     account_id, first_name, last_name, gender,
-    email, phone, address, occupation, employer, photo_path, archived_at
+    email, phone, address, occupation, employer, nationality, photo_path, archived_at
 ) ON guardians TO blaise_app;
 
 GRANT UPDATE (
     account_id, first_name, last_name, gender,
-    email, phone, address, occupation, employer, photo_path, archived_at
+    email, phone, address, occupation, employer, nationality, photo_path, archived_at
 ) ON guardians TO blaise_app;
 
 GRANT INSERT (

@@ -30,10 +30,6 @@ function subjectInitials(name) {
   return words.map((word) => word[0]).slice(0, 3).join('').toUpperCase()
 }
 
-function formatCoefficient(coefficient) {
-  return coefficient === null || coefficient === undefined ? '—' : coefficient.toFixed(2)
-}
-
 const EMPTY_SUBJECT_FORM = { name: '', description: '', is_specialty: false }
 
 export default function SubjectsPage({ account, onNavigate }) {
@@ -230,15 +226,14 @@ export default function SubjectsPage({ account, onNavigate }) {
               <tr>
                 <th>Matière</th>
                 <th>Description</th>
-                <th>Coefficient moyen</th>
                 <th>Enseignants affectés</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={4} className="sjp-loading">Chargement…</td></tr>
+                <tr><td colSpan={3} className="sjp-loading">Chargement…</td></tr>
               ) : pageItems.length === 0 ? (
-                <tr><td colSpan={4} className="sjp-loading">Aucune matière trouvée.</td></tr>
+                <tr><td colSpan={3} className="sjp-loading">Aucune matière trouvée.</td></tr>
               ) : (
                 pageItems.map((subject) => {
                   const badge = subjectBadge(subject.name)
@@ -257,7 +252,6 @@ export default function SubjectsPage({ account, onNavigate }) {
                         </div>
                       </td>
                       <td>{subject.description || '—'}</td>
-                      <td>{formatCoefficient(subject.coefficient)}</td>
                       <td>{subject.teacher_count} enseignant{subject.teacher_count > 1 ? 's' : ''}</td>
                     </tr>
                   )

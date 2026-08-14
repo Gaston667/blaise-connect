@@ -1,8 +1,9 @@
 .attendance-detail-page { display: grid; gap: 1rem; padding: 1rem; }
-.attendance-detail-header button { display: inline-flex; align-items: center; gap: .4rem; padding: 0; color: var(--color-primary); border: 0; background: transparent; font-weight: 700; cursor: pointer; }
-.attendance-detail-header button svg { width: 1rem; }
-.attendance-detail-header h1 { margin: .7rem 0 .25rem; color: var(--color-primary-active); }
-.attendance-detail-header p, .attendance-detail-muted { margin: 0; color: var(--color-text-muted); }
+.attendance-detail-header h1 { margin: 0 0 .4rem; color: var(--color-primary-active); }
+.attendance-detail-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.attendance-detail-breadcrumb button { padding: 0; color: var(--color-primary); border: 0; background: transparent; font: inherit; font-weight: var(--font-weight-semibold); cursor: pointer; }
+.attendance-detail-breadcrumb button:hover { text-decoration: underline; }
+.attendance-detail-muted { margin: 0; color: var(--color-text-muted); }
 .attendance-detail-summary, .attendance-detail-card { padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-sm); }
 .attendance-detail-summary { display: grid; gap: 1rem; }
 .attendance-detail-summary > svg { width: 2.5rem; height: 2.5rem; padding: .6rem; color: var(--color-primary); border-radius: 50%; background: var(--color-primary-light); }

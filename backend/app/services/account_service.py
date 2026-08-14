@@ -315,6 +315,7 @@ def create_account_with_profile(
         "first_name": profile_data.first_name.strip(),
         "last_name": profile_data.last_name.strip(),
         "gender": profile_data.gender,
+        "nationality": profile_data.nationality,
         "email": profile_data.email,
         "phone": profile_data.phone,
         "address": profile_data.address,

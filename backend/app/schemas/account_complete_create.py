@@ -23,6 +23,7 @@ class AccountCompleteCreate(BaseModel):
 
         required_common_fields = {
             "gender": self.profile.gender,
+            "nationality": self.profile.nationality,
             "address": self.profile.address,
         }
         if self.role not in {"STUDENT", "GUARDIAN"}:

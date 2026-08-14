@@ -277,7 +277,7 @@ export default function App() {
     )
   }
   else if (currentPage === 'notes' && canManageNotes) {
-    pageContent = <NotesPage account={currentAccount} onNavigate={handleNavigate} />
+    pageContent = <NotesPage account={currentAccount} onNavigate={handleNavigate} initialAssessmentId={selectedEntity?.assessmentId} />
   }
   else if (currentPage === 'appreciations' && currentAccount.role === 'TEACHER') {
     pageContent = <AppreciationsPage />

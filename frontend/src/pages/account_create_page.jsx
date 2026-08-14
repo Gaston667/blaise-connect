@@ -6,6 +6,8 @@ import { generateSecurePassword } from '../services/password_generator.js'
 import ConfirmationPopup from '../components/confirmation_popup.jsx'
 import NotificationPopup from '../components/notification_popup.jsx'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import { NATIONALITIES } from '../constants/nationalities.js'
+import { INTERNATIONAL_PHONE_PATTERN, normalizeInternationalPhone } from '../utils/phone.js'
 
 const INITIAL_FORM = {
   role: '',
@@ -16,6 +18,7 @@ const INITIAL_FORM = {
   last_name: '',
   birth_date: '',
   gender: '',
+  nationality: '',
   email: '',
   phone: '',
   address: '',
@@ -220,7 +223,8 @@ export default function AccountCreatePage({ onNavigate }) {
           birth_date: form.birth_date || null,
           gender: form.gender || null,
           email: cleanOptionalValue(form.email),
-          phone: cleanOptionalValue(form.phone),
+          phone: cleanOptionalValue(normalizeInternationalPhone(form.phone)),
+          nationality: cleanOptionalValue(form.nationality),
           address: cleanOptionalValue(form.address),
           admission_date: form.admission_date || null,
           hire_date: form.hire_date || null,
@@ -494,8 +498,18 @@ export default function AccountCreatePage({ onNavigate }) {
               </select>
             </label>
 
+            <label>
+              Nationalité *
+              <select name="nationality" value={form.nationality} onChange={updateField} required>
+                <option value="">Sélectionner une nationalité</option>
+                {NATIONALITIES.map(function nationalityOption(nationality) {
+                  return <option key={nationality} value={nationality}>{nationality}</option>
+                })}
+              </select>
+            </label>
+
             <label>Email {isEmailRequired ? '*' : '(facultatif)'}<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" autoComplete="off" required={isEmailRequired} /></label>
-            <label>Téléphone {isPhoneRequired ? '*' : '(facultatif)'}<input name="phone" value={form.phone} onChange={updateField} maxLength="30" autoComplete="off" required={isPhoneRequired} /></label>
+            <label>Téléphone {isPhoneRequired ? '*' : '(facultatif)'}<input name="phone" value={form.phone} onChange={updateField} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" maxLength="30" autoComplete="off" required={isPhoneRequired} /></label>
             <label className="creation-compte-wide">Adresse *<input name="address" value={form.address} onChange={updateField} autoComplete="off" required /></label>
           </div>
         </section>

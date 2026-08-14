@@ -319,7 +319,7 @@ Ce document indique, pour chaque rubrique de BlaiseConnect, les principaux fichi
 - `backend/app/schemas/attendance_*.py`
 - `backend/app/services/grade_justification_service.py`
 - `backend/app/routes/grades.py`
-- `database/migration/008_attendance.sql` contient les tables d’assiduité de cours.
+- `database/migration/005_academic_activity.sql` contient les tables d’assiduité de cours.
 - `compose.yaml` monte la migration 008 lors de l’initialisation d’une base neuve.
 
 ## Emploi du temps

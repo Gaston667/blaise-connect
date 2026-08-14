@@ -13,6 +13,7 @@ import {
 import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getGuardianDetail, updateGuardian } from '../services/guardians_service.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import { INTERNATIONAL_PHONE_PATTERN, normalizeInternationalPhone } from '../utils/phone.js'
 import '../styles/guardian_details_page.css'
 
 const DEFAULT_PHOTO = defaultPhoto
@@ -145,7 +146,7 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
         first_name: form.first_name,
         last_name: form.last_name,
         gender: form.gender || null,
-        phone: form.phone,
+        phone: normalizeInternationalPhone(form.phone),
         email: form.email || null,
         address: form.address || null,
         occupation: form.occupation || null,
@@ -225,7 +226,7 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
                     <option value="FEMALE">Féminin</option>
                   </select>
                 </label>
-                <label><span>Téléphone</span><input value={form.phone} onChange={(event) => update('phone', event.target.value)} required /></label>
+                <label><span>Téléphone</span><input value={form.phone} onChange={(event) => update('phone', event.target.value)} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" required /></label>
                 <label><span>Email</span><input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
                 <label><span>Adresse</span><input value={form.address} onChange={(event) => update('address', event.target.value)} /></label>
                 <label><span>Profession</span><input value={form.occupation} onChange={(event) => update('occupation', event.target.value)} /></label>

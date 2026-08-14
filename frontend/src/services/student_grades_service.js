@@ -23,3 +23,11 @@ export function getMyGradesSummary() {
     fallbackMessage: 'Échec du chargement de la synthèse',
   })
 }
+
+/** Détail privé d'une évaluation appartenant à l'élève connecté. */
+export function getMyAssessmentDetail(assessmentId) {
+  return apiRequestJson(`/api/students/me/grades/assessments/${assessmentId}`, {
+    method: 'GET',
+    fallbackMessage: "Impossible de charger le détail de cette évaluation.",
+  })
+}

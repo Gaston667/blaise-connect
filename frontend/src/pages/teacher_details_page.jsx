@@ -26,6 +26,7 @@ import {
   updateTeacherProfile,
 } from '../services/teachers_overview_service.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import { INTERNATIONAL_PHONE_PATTERN, isValidInternationalPhone, normalizeInternationalPhone } from '../utils/phone.js'
 import { uploadAccountPhoto } from '../services/account_service.js'
 import '../styles/teacher_details_page.css'
 
@@ -92,7 +93,7 @@ function getAssignmentEndDate(assignment) {
   return today
 }
 
-export default function TeacherDetailsPage({ account, teacher }) {
+export default function TeacherDetailsPage({ account, teacher, onNavigate }) {
   const canEdit = account?.role === 'ADMIN'
   const toast = useToast()
   const [details, setDetails] = useState(null)
@@ -253,6 +254,7 @@ export default function TeacherDetailsPage({ account, teacher }) {
     if (lastName.length > 100) errors.last_name = 'Le nom ne peut pas dépasser 100 caractères.'
     if (gender && gender.length > 20) errors.gender = 'Le sexe ne peut pas dépasser 20 caractères.'
     if (phone && phone.length > 30) errors.phone = 'Le téléphone ne peut pas dépasser 30 caractères.'
+    if (phone && !isValidInternationalPhone(phone)) errors.phone = 'Utilisez le format international, par exemple +224 610 70 08 00.'
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'L\'adresse email est invalide.'
 
     return errors
@@ -271,7 +273,7 @@ export default function TeacherDetailsPage({ account, teacher }) {
       birth_date: personalForm.birth_date || null,
       gender: normalizeOptionalString(personalForm.gender),
       email: normalizeOptionalString(personalForm.email),
-      phone: normalizeOptionalString(personalForm.phone),
+      phone: normalizeOptionalString(normalizeInternationalPhone(personalForm.phone)),
       address: normalizeOptionalString(personalForm.address),
       hire_date: personalForm.hire_date || null,
       qualification: normalizeOptionalString(personalForm.qualification),
@@ -476,7 +478,7 @@ export default function TeacherDetailsPage({ account, teacher }) {
   }
 
   function openEvaluationRow(row) {
-    toast.info(`Détail non disponible V1 pour ${row.subject_name} (${row.class_name}).`)
+    onNavigate?.('notes', { assessmentId: row.id })
   }
 
   if (loading) return <main className="tdp-main"><p>Chargement de l’enseignant…</p></main>
@@ -700,6 +702,10 @@ export default function TeacherDetailsPage({ account, teacher }) {
                     type="text"
                     value={personalForm.phone}
                     onChange={(event) => handlePersonalFieldChange('phone', event.target.value)}
+                    placeholder="+224 610 70 08 00"
+                    pattern={INTERNATIONAL_PHONE_PATTERN}
+                    title="Exemple : +224 610 70 08 00"
+                    inputMode="tel"
                     maxLength={30}
                   />
                   <FieldError message={personalFieldErrors.phone} />

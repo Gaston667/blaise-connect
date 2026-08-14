@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Clock3, FileText, History, Pencil, UserRound, X } from 'lucide-react'
+import { Check, Clock3, FileText, History, Pencil, UserRound, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useToast } from '../components/feedback/ToastProvider.jsx'
@@ -68,11 +68,14 @@ export default function AttendanceRecordDetailsPage({ account, recordId, onNavig
   return (
     <main className="attendance-detail-page">
       <header className="attendance-detail-header">
-        <button type="button" onClick={function returnToAttendance() { onNavigate('attendance') }}>
-          <ArrowLeft /> Retour
-        </button>
         <h1>Détail de {detail.incident_type === 'LATE' ? 'retard' : 'l’absence'}</h1>
-        <p>Accueil › Assiduité › Détail</p>
+        <nav className="attendance-detail-breadcrumb" aria-label="Fil d’Ariane">
+          <button type="button" onClick={function goHome() { onNavigate('home') }}>Accueil</button>
+          <span>›</span>
+          <button type="button" onClick={function returnToAttendance() { onNavigate('attendance') }}>Assiduité</button>
+          <span>›</span>
+          <span>Détail</span>
+        </nav>
       </header>
 
       <section className="attendance-detail-summary">

@@ -10,6 +10,7 @@ class AdministratorOverview(BaseModel):
     first_name: str
     last_name: str
     gender: str | None
+    nationality: str | None
     email: str | None
     phone: str | None
     address: str | None
