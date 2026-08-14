@@ -11,6 +11,7 @@ def list_administrators_overview(db: Session, q: str | None = None) -> list[dict
     sql = """
         SELECT
             ad.id,
+            ad.account_id,
             a.registration_number,
             ad.first_name,
             ad.last_name,
@@ -45,7 +46,7 @@ def get_administrator_overview(db: Session, administrator_id: str) -> dict | Non
         text(
             """
             SELECT
-                ad.id, a.registration_number, ad.first_name, ad.last_name, ad.gender,
+                ad.id, ad.account_id, a.registration_number, ad.first_name, ad.last_name, ad.gender,
                 ad.email, ad.phone, ad.address, ad.hire_date, ad.job_title, ad.photo_path,
                 ad.archived_at, a.is_active, a.created_at AS account_created_at, a.last_login_at
             FROM administrators ad
@@ -65,6 +66,7 @@ def get_administrator_overview(db: Session, administrator_id: str) -> dict | Non
 def _row_to_overview(row) -> dict:
     return {
         "id": str(row.id),
+        "account_id": str(row.account_id),
         "registration_number": row.registration_number,
         "first_name": row.first_name,
         "last_name": row.last_name,

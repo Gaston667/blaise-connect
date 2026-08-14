@@ -545,6 +545,16 @@ La note doit appartenir au même élève, à une matière de sa classe et à une
 - `attendance_record_history` conserve les anciennes et nouvelles valeurs de
   chaque correction effectivement appliquée, son auteur, son motif et sa date.
 
+### 5.24 bis Appréciations préparatoires
+
+- `student_subject_appreciations` contient le brouillon d'appréciation d'un
+  enseignant pour un élève, une matière de classe et une période. La combinaison
+  est unique.
+- `student_overall_appreciations` contient le brouillon général du professeur
+  principal pour un élève et une période. La combinaison est unique.
+- Ces données sont modifiables uniquement avant la validation du bulletin ;
+  l'US-021 les copie ensuite dans les tables historiques du bulletin.
+
 ## 6. Contraintes et protections obligatoires
 
 ### 6.1 Contraintes simples

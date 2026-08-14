@@ -813,6 +813,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
               onError={handlePhotoError}
             />
           </span>
+          {canEdit ? <button type="button" className="sdp-photo-edit-button" onClick={startStudentEditing} aria-label="Modifier la photo"><Pencil size={14} /></button> : null}
           <div>
             <h1>{formatProfileName(details.first_name, details.last_name, details.gender)}</h1>
             <div className="sdp-header__badges">

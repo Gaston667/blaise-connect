@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class AdministratorOverview(BaseModel):
     id: str
+    account_id: str
     registration_number: str
     first_name: str
     last_name: str

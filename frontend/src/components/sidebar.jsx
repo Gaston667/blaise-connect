@@ -1,449 +1,81 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 import {
-  BookOpen,
-  CalendarDays,
-  CalendarRange,
-  ChevronDown,
-  ContactRound,
-  GraduationCap,
-  House,
-  NotebookPen,
-  ShieldCheck,
-  Users,
-  Presentation,
-  UserRoundX,
-  X,
-} from 'lucide-react';
-import logo from '../assets/logo-blaise-connect.png.png';
-import LogoutButton from '../pages/logout_button.jsx';
-import SidebarProfile from './sidebar_profile.jsx';
+  BookOpen, CalendarDays, CalendarRange, ChevronDown, ContactRound,
+  GraduationCap, House, NotebookPen, Presentation, ShieldCheck, UserRoundX,
+  Users, X,
+} from 'lucide-react'
 
-/**
- * Composant principal de la barre latérale.
- * Gère la navigation et l'affichage conditionnel des éléments selon le rôle.
- */
-export default function Sidebar({
-  account,
-  currentPage,
-  isOpen,
-  onClose,
-  onNavigate,
-  onLogoutSuccess,
-}) {
-  const isStaff = account.role === 'ADMIN' || account.role === 'TEACHER';
-  const isStudent = account.role === 'STUDENT';
-  const isTeacher = account.role === 'TEACHER';
-  const isAdmin = account.role === 'ADMIN';
-  const [isAccountsMenuOpen, setIsAccountsMenuOpen] = useState(
-    isAccountManagementPage(currentPage),
-  );
+import logo from '../assets/logo-blaise-connect.png.png'
+import LogoutButton from '../pages/logout_button.jsx'
+import SidebarProfile from './sidebar_profile.jsx'
 
-  /** Ouvre automatiquement le groupe lorsqu'une de ses pages est affichée. */
-  function synchronizeAccountsMenu() {
-    if (isAccountManagementPage(currentPage)) {
-      setIsAccountsMenuOpen(true);
-    }
-  }
-
-  useEffect(synchronizeAccountsMenu, [currentPage]);
-
-  /**
-   * Gère la navigation vers une page et ferme le menu mobile.
-   */
-  function handleNavigation(page) {
-    onNavigate(page);
-    onClose();
-  }
-
-  /** Affiche ou masque les sous-rubriques de gestion des utilisateurs. */
-  function toggleAccountsMenu() {
-    setIsAccountsMenuOpen((currentValue) => !currentValue);
-  }
-
-  return (
-    <aside className={isOpen ? 'layout-sidebar layout-sidebar-open' : 'layout-sidebar'}>
-      {renderBrand(onClose)}
-      <nav className="layout-navigation" aria-label="Navigation principale">
-        {renderCommonNavigation(currentPage, handleNavigation)}
-        {isStaff && renderStaffNavigation(currentPage, handleNavigation, isAdmin)}
-        {isAdmin && renderAdminNavigation(
-          currentPage,
-          handleNavigation,
-          isAccountsMenuOpen,
-          toggleAccountsMenu,
-        )}
-        {isStudent && renderStudentNavigation(currentPage, handleNavigation)}
-        {isTeacher && renderTeacherNavigation(currentPage, handleNavigation)}
-      </nav>
-      <div className="sidebar-bottom-card">
-        <SidebarProfile account={account} />
-        {renderLogoutButton(onLogoutSuccess)}
-      </div>
-    </aside>
-  );
+function isAccountManagementPage(page) {
+  return ['accounts', 'account-details', 'account-new', 'students', 'student-details',
+    'teachers', 'teacher-details', 'administrators', 'administrator-details',
+    'guardians', 'guardian-details'].includes(page)
 }
 
-/**
- * Rendu du logo et du bouton de fermeture.
- */
-function renderBrand(onClose) {
-  return (
-    <div className="layout-sidebar-brand">
-      <img className="layout-logo" src={logo} alt="Logo BlaiseConnect" />
-      <button
-        className="layout-sidebar-close"
-        type="button"
-        onClick={onClose}
-        aria-label="Fermer le menu"
-      >
-        <X aria-hidden="true" size={22} />
-      </button>
-    </div>
-  );
+function NavigationButton({ page, currentPage, onNavigate, icon, children }) {
+  function navigate() { onNavigate(page) }
+  return <button type="button" data-page={page} onClick={navigate} className={currentPage === page ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}>{icon}{children}</button>
 }
 
-/**
- * Navigation commune à tous les utilisateurs (Tableau de bord).
- */
-function renderCommonNavigation(currentPage, handleNavigation) {
-  return (
-    <button
-      className={
-        currentPage === 'home'
-          ? 'layout-navigation-item layout-navigation-item-active'
-          : 'layout-navigation-item'
-      }
-      type="button"
-      data-page="home"
-      onClick={() => handleNavigation('home')}
-    >
-      <House aria-hidden="true" size={20} />
-      Tableau de bord
+function AccountSubitem({ pages, page, label, icon, currentPage, onNavigate }) {
+  function navigate() { onNavigate(page) }
+  return <button type="button" data-page={page} onClick={navigate} className={pages.includes(currentPage) ? 'layout-navigation-subitem layout-navigation-subitem-active' : 'layout-navigation-subitem'}>{icon}<span>{label}</span></button>
+}
+
+function AccountNavigation({ currentPage, onNavigate, open, onToggle }) {
+  return <div className="layout-navigation-group">
+    <button type="button" onClick={onToggle} aria-expanded={open} className={isAccountManagementPage(currentPage) ? 'layout-navigation-item layout-navigation-item-active layout-navigation-group-toggle' : 'layout-navigation-item layout-navigation-group-toggle'}>
+      <ContactRound size={20} /><span>Gestion des comptes</span><ChevronDown size={17} className={open ? 'layout-navigation-chevron layout-navigation-chevron-open' : 'layout-navigation-chevron'} />
     </button>
-  );
+    {open ? <div className="layout-navigation-submenu">
+      <AccountSubitem pages={['accounts', 'account-details', 'account-new']} page="accounts" label="Comptes" icon={<ContactRound size={17} />} currentPage={currentPage} onNavigate={onNavigate} />
+      <AccountSubitem pages={['students', 'student-details']} page="students" label="Élèves" icon={<GraduationCap size={17} />} currentPage={currentPage} onNavigate={onNavigate} />
+      <AccountSubitem pages={['teachers', 'teacher-details']} page="teachers" label="Enseignants" icon={<Presentation size={17} />} currentPage={currentPage} onNavigate={onNavigate} />
+      <AccountSubitem pages={['administrators', 'administrator-details']} page="administrators" label="Administrateurs" icon={<ShieldCheck size={17} />} currentPage={currentPage} onNavigate={onNavigate} />
+      <AccountSubitem pages={['guardians', 'guardian-details']} page="guardians" label="Responsables légaux" icon={<Users size={17} />} currentPage={currentPage} onNavigate={onNavigate} />
+    </div> : null}
+  </div>
 }
 
-/**
- * Navigation commune au personnel (ADMIN + TEACHER) : élèves, classes, matières, notes, emploi du temps général.
- */
-function renderStaffNavigation(currentPage, handleNavigation, isAdmin) {
-  return (
-    <>
-      {!isAdmin && (
-        <button
-          className={
-            currentPage === 'students' || currentPage === 'student-details'
-              ? 'layout-navigation-item layout-navigation-item-active'
-              : 'layout-navigation-item'
-          }
-          type="button"
-          data-page="students"
-          onClick={() => handleNavigation('students')}
-        >
-          <GraduationCap aria-hidden="true" size={20} />
-          Élèves
-        </button>
-      )}
+export default function Sidebar({ account, currentPage, isOpen, onClose, onNavigate, onLogoutSuccess }) {
+  const isAdmin = account.role === 'ADMIN'
+  const isTeacher = account.role === 'TEACHER'
+  const isStudent = account.role === 'STUDENT'
+  const [accountsOpen, setAccountsOpen] = useState(isAccountManagementPage(currentPage))
 
-      <button
-        className={
-          currentPage === 'school-classes'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="school-classes"
-        onClick={() => handleNavigation('school-classes')}
-      >
-        <Users aria-hidden="true" size={20} />
-        Classes
-      </button>
+  useEffect(function openAccountGroupOnNavigation() {
+    if (isAccountManagementPage(currentPage)) setAccountsOpen(true)
+  }, [currentPage])
 
-      <button
-        className={
-          currentPage === 'subjects' || currentPage === 'subject-details'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="subjects"
-        onClick={() => handleNavigation('subjects')}
-      >
-        <BookOpen aria-hidden="true" size={20} />
-        Matières
-      </button>
+  function navigate(page) { onNavigate(page); onClose() }
+  function toggleAccounts() { setAccountsOpen(function invert(current) { return !current }) }
 
-      <button
-        className={
-          currentPage === 'notes'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="notes"
-        onClick={() => handleNavigation('notes')}
-      >
-        <NotebookPen aria-hidden="true" size={20} />
-        Notes
-      </button>
-
-      <button
-        className={
-          currentPage === 'attendance'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="attendance"
-        onClick={() => handleNavigation('attendance')}
-      >
-        <UserRoundX aria-hidden="true" size={20} />
-        Absences et retards
-      </button>
-    </>
-  );
-}
-
-/**
- * Navigation spécifique aux administrateurs.
- */
-function renderAdminNavigation(
-  currentPage,
-  handleNavigation,
-  isAccountsMenuOpen,
-  toggleAccountsMenu,
-) {
-  return (
-    <>
-      <div className="layout-navigation-group">
-        <button
-          className={
-            isAccountManagementPage(currentPage)
-              ? 'layout-navigation-item layout-navigation-item-active layout-navigation-group-toggle'
-              : 'layout-navigation-item layout-navigation-group-toggle'
-          }
-          type="button"
-          aria-expanded={isAccountsMenuOpen}
-          aria-controls="accounts-navigation-submenu"
-          onClick={toggleAccountsMenu}
-        >
-          <ContactRound aria-hidden="true" size={20} />
-          <span>Gestion des comptes</span>
-          <ChevronDown
-            className={
-              isAccountsMenuOpen
-                ? 'layout-navigation-chevron layout-navigation-chevron-open'
-                : 'layout-navigation-chevron'
-            }
-            aria-hidden="true"
-            size={17}
-          />
-        </button>
-
-        {isAccountsMenuOpen && (
-          <div
-            id="accounts-navigation-submenu"
-            className="layout-navigation-submenu"
-          >
-            {renderNavigationSubitem(
-              currentPage,
-              handleNavigation,
-              ['accounts', 'account-details', 'account-new'],
-              'accounts',
-              'Comptes',
-              <ContactRound aria-hidden="true" size={17} />,
-            )}
-            {renderNavigationSubitem(
-              currentPage,
-              handleNavigation,
-              ['students', 'student-details'],
-              'students',
-              'Élèves',
-              <GraduationCap aria-hidden="true" size={17} />,
-            )}
-            {renderNavigationSubitem(
-              currentPage,
-              handleNavigation,
-              ['teachers', 'teacher-details'],
-              'teachers',
-              'Enseignants',
-              <Presentation aria-hidden="true" size={17} />,
-            )}
-            {renderNavigationSubitem(
-              currentPage,
-              handleNavigation,
-              ['administrators', 'administrator-details'],
-              'administrators',
-              'Administrateurs',
-              <ShieldCheck aria-hidden="true" size={17} />,
-            )}
-            {renderNavigationSubitem(
-              currentPage,
-              handleNavigation,
-              ['guardians', 'guardian-details'],
-              'guardians',
-              'Responsables légaux',
-              <Users aria-hidden="true" size={17} />,
-            )}
-          </div>
-        )}
-      </div>
-
-      <button
-        className={
-          currentPage === 'timetables'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="timetables"
-        onClick={() => handleNavigation('timetables')}
-      >
-        <CalendarDays aria-hidden="true" size={20} />
-        Emploi du temps
-      </button>
-
-      <button
-        className={
-          currentPage === 'school-years'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="school-years"
-        onClick={() => handleNavigation('school-years')}
-      >
-        <CalendarRange aria-hidden="true" size={20} />
-        Années scolaires
-      </button>
-
-    </>
-  );
-}
-
-/** Indique si la page courante appartient à la gestion des utilisateurs. */
-function isAccountManagementPage(currentPage) {
-  return [
-    'accounts',
-    'account-details',
-    'account-new',
-    'students',
-    'student-details',
-    'teachers',
-    'teacher-details',
-    'administrators',
-    'administrator-details',
-    'guardians',
-    'guardian-details',
-  ].includes(currentPage);
-}
-
-/** Construit une sous-rubrique sans modifier la route existante. */
-function renderNavigationSubitem(
-  currentPage,
-  handleNavigation,
-  activePages,
-  destination,
-  label,
-  icon,
-) {
-  function navigateToSubitem() {
-    handleNavigation(destination);
-  }
-
-  return (
-    <button
-      key={destination}
-      className={
-        activePages.includes(currentPage)
-          ? 'layout-navigation-subitem layout-navigation-subitem-active'
-          : 'layout-navigation-subitem'
-      }
-      type="button"
-      data-page={destination}
-      onClick={navigateToSubitem}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-}
-
-/**
- * Navigation spécifique aux élèves.
- */
-function renderStudentNavigation(currentPage, handleNavigation) {
-  return (
-    <>
-      <button
-        className={
-          currentPage === 'student-grades'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="student-grades"
-        onClick={() => handleNavigation('student-grades')}
-      >
-        <NotebookPen aria-hidden="true" size={20} />
-        Mes notes
-      </button>
-
-      <button
-        className={
-          currentPage === 'student-timetable'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="student-timetable"
-        onClick={() => handleNavigation('student-timetable')}
-      >
-        <CalendarDays aria-hidden="true" size={20} />
-        Mon emploi du temps
-      </button>
-
-      <button
-        className={
-          currentPage === 'attendance'
-            ? 'layout-navigation-item layout-navigation-item-active'
-            : 'layout-navigation-item'
-        }
-        type="button"
-        data-page="attendance"
-        onClick={() => handleNavigation('attendance')}
-      >
-        <UserRoundX aria-hidden="true" size={20} />
-        Mes absences
-      </button>
-    </>
-  );
-}
-
-/**
- * Navigation spécifique aux enseignants.
- */
-function renderTeacherNavigation(currentPage, handleNavigation) {
-  return (
-    <button
-      className={
-        currentPage === 'teacher-timetable'
-          ? 'layout-navigation-item layout-navigation-item-active'
-          : 'layout-navigation-item'
-      }
-      type="button"
-      data-page="teacher-timetable"
-      onClick={() => handleNavigation('teacher-timetable')}
-    >
-      <CalendarDays aria-hidden="true" size={20} />
-      Mon emploi du temps
-    </button>
-  );
-}
-
-/**
- * Bouton de déconnexion.
- */
-function renderLogoutButton(onLogoutSuccess) {
-  return <LogoutButton onLogoutSuccess={onLogoutSuccess} />;
+  return <aside className={isOpen ? 'layout-sidebar layout-sidebar-open' : 'layout-sidebar'}>
+    <div className="layout-sidebar-brand"><img className="layout-logo" src={logo} alt="Logo BlaiseConnect" /><button className="layout-sidebar-close" type="button" onClick={onClose} aria-label="Fermer le menu"><X size={22} /></button></div>
+    <nav className="layout-navigation" aria-label="Navigation principale">
+      <NavigationButton page="home" currentPage={currentPage} onNavigate={navigate} icon={<House size={20} />}>Tableau de bord</NavigationButton>
+      {isAdmin ? <AccountNavigation currentPage={currentPage} onNavigate={navigate} open={accountsOpen} onToggle={toggleAccounts} /> : null}
+      {(isAdmin || isTeacher) ? <>
+        {!isAdmin ? <NavigationButton page="students" currentPage={currentPage} onNavigate={navigate} icon={<GraduationCap size={20} />}>Élèves</NavigationButton> : null}
+        <NavigationButton page="school-classes" currentPage={currentPage} onNavigate={navigate} icon={<Users size={20} />}>Classes</NavigationButton>
+        <NavigationButton page="subjects" currentPage={currentPage} onNavigate={navigate} icon={<BookOpen size={20} />}>Matières</NavigationButton>
+        <NavigationButton page="notes" currentPage={currentPage} onNavigate={navigate} icon={<NotebookPen size={20} />}>Notes</NavigationButton>
+        <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>Absences</NavigationButton>
+      </> : null}
+      {isAdmin ? <>
+        <NavigationButton page="timetables" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Emploi du temps</NavigationButton>
+        <NavigationButton page="school-years" currentPage={currentPage} onNavigate={navigate} icon={<CalendarRange size={20} />}>Années scolaires</NavigationButton>
+      </> : null}
+      {isStudent ? <>
+        <NavigationButton page="student-grades" currentPage={currentPage} onNavigate={navigate} icon={<NotebookPen size={20} />}>Mes notes</NavigationButton>
+        <NavigationButton page="student-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Mon emploi du temps</NavigationButton>
+        <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>Mes absences</NavigationButton>
+      </> : null}
+      {isTeacher ? <NavigationButton page="teacher-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Mon emploi du temps</NavigationButton> : null}
+    </nav>
+    <div className="sidebar-bottom-card"><SidebarProfile account={account} /><LogoutButton onLogoutSuccess={onLogoutSuccess} /></div>
+  </aside>
 }
