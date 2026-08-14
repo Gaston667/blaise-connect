@@ -1,11 +1,16 @@
+import { useEffect, useState } from 'react'
 import {
   CalendarDays,
+  ChevronRight,
+  GraduationCap,
   NotebookPen,
   ShieldCheck,
   Sparkles,
   UserRound,
   UserRoundX,
 } from 'lucide-react'
+
+import { getMyProfile } from '../services/student_grades_service.js'
 
 /**
  * Traduit le rôle technique pour l'interface utilisateur.
@@ -25,11 +30,17 @@ function getGreeting() {
   return 'Bonsoir'
 }
 
+/** Initiales utilisées dans l'avatar rond du profil. */
+function getInitials(firstName, lastName) {
+  const source = `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.trim()
+  return source ? source.toUpperCase() : '?'
+}
+
 const QUICK_LINKS_BY_ROLE = {
   STUDENT: [
-    { page: 'student-grades', label: 'Mes notes', description: 'Consulter mes évaluations et moyennes', icon: NotebookPen, tone: 'violet' },
-    { page: 'student-timetable', label: 'Mon emploi du temps', description: 'Voir mes cours de la semaine', icon: CalendarDays, tone: 'blue' },
-    { page: 'attendance', label: 'Mes absences', description: 'Suivre mes absences et retards', icon: UserRoundX, tone: 'orange' },
+    { page: 'student-grades', label: 'Mes notes', description: 'Consulter mes évaluations et moyennes', icon: NotebookPen, tone: 'violet', hideOnMobile: true },
+    { page: 'student-timetable', label: 'Mon emploi du temps', description: 'Voir mes cours de la semaine', icon: CalendarDays, tone: 'blue', hideOnMobile: true },
+    { page: 'attendance', label: 'Mes absences', description: 'Suivre mes absences et retards', icon: UserRoundX, tone: 'orange', hideOnMobile: false },
   ],
   TEACHER: [
     { page: 'teacher-timetable', label: 'Mon emploi du temps', description: 'Voir mes cours de la semaine', icon: CalendarDays, tone: 'blue' },
@@ -38,11 +49,51 @@ const QUICK_LINKS_BY_ROLE = {
 }
 
 /**
+ * Carte de profil dédiée à l'élève : avatar, classe et année scolaire.
+ * Remplace les cartes génériques "compte / session" sur cet écran.
+ */
+function StudentProfileCard({ account, profile }) {
+  return (
+    <article className="accueil-profile-card">
+      <span className="accueil-profile-card__avatar">
+        {getInitials(account.first_name, account.last_name)}
+      </span>
+      <div className="accueil-profile-card__body">
+        <strong>{account.first_name} {account.last_name}</strong>
+        <span className="accueil-profile-card__meta">
+          <GraduationCap aria-hidden="true" size={14} />
+          {profile?.class_name ?? 'Classe non renseignée'}
+          {profile?.school_year_name ? ` · ${profile.school_year_name}` : ''}
+        </span>
+        <span className="accueil-profile-card__registration">Matricule {account.registration_number}</span>
+      </div>
+    </article>
+  )
+}
+
+/**
  * Affiche le premier écran après une authentification réussie.
  */
 export default function HomePage({ account, onNavigate }) {
+  const [studentProfile, setStudentProfile] = useState(null)
   const quickLinks = QUICK_LINKS_BY_ROLE[account.role] ?? []
+  const isStudent = account.role === 'STUDENT'
   const greetingName = account.first_name || getRoleLabel(account.role).toLowerCase()
+
+  useEffect(function loadStudentProfileEffect() {
+    if (!isStudent) return
+    let isCancelled = false
+    getMyProfile()
+      .then(function applyProfile(data) {
+        if (!isCancelled) setStudentProfile(data)
+      })
+      .catch(function ignoreProfileError() {
+        // La carte de profil reste simplement moins détaillée.
+      })
+    return function cancelEffect() {
+      isCancelled = true
+    }
+  }, [isStudent])
 
   return (
     <main className="accueil-main">
@@ -54,19 +105,27 @@ export default function HomePage({ account, onNavigate }) {
           {getGreeting()}, {greetingName} !
         </h1>
         <p className="accueil-description">
-          Bienvenue sur BlaiseConnect. Accédez aux fonctionnalités autorisées depuis le menu principal.
+          {isStudent
+            ? 'Retrouvez vos notes, votre emploi du temps et vos absences en un coup d’œil.'
+            : 'Bienvenue sur BlaiseConnect. Accédez aux fonctionnalités autorisées depuis le menu principal.'}
         </p>
       </header>
 
+      {isStudent && (
+        <section className="accueil-profile-section">
+          <StudentProfileCard account={account} profile={studentProfile} />
+        </section>
+      )}
+
       {quickLinks.length > 0 && (
-        <section className={account.role === 'STUDENT' ? 'accueil-quicklinks accueil-quicklinks--hide-on-mobile' : 'accueil-quicklinks'}>
+        <section className="accueil-quicklinks">
           {quickLinks.map(function renderQuickLink(link) {
             const Icon = link.icon
             return (
               <button
                 key={link.page}
                 type="button"
-                className={`accueil-quicklink accueil-quicklink--${link.tone}`}
+                className={`accueil-quicklink accueil-quicklink--${link.tone}${link.hideOnMobile ? ' accueil-quicklink--hide-on-mobile' : ''}`}
                 onClick={() => onNavigate?.(link.page)}
               >
                 <span className="accueil-quicklink__icon">
@@ -76,30 +135,33 @@ export default function HomePage({ account, onNavigate }) {
                   <strong>{link.label}</strong>
                   <span>{link.description}</span>
                 </span>
+                <ChevronRight aria-hidden="true" size={18} className="accueil-quicklink__chevron" />
               </button>
             )
           })}
         </section>
       )}
 
-      <section className="accueil-grid">
-        <article className="accueil-card">
-          <span className="accueil-card-icon">
-            <UserRound aria-hidden="true" size={26} />
-          </span>
-          <h2>Votre compte</h2>
-          <p>{account.registration_number}</p>
-          <strong>{getRoleLabel(account.role)}</strong>
-        </article>
+      {!isStudent && (
+        <section className="accueil-grid">
+          <article className="accueil-card">
+            <span className="accueil-card-icon">
+              <UserRound aria-hidden="true" size={26} />
+            </span>
+            <h2>Votre compte</h2>
+            <p>{account.registration_number}</p>
+            <strong>{getRoleLabel(account.role)}</strong>
+          </article>
 
-        <article className="accueil-card">
-          <span className="accueil-card-icon">
-            <ShieldCheck aria-hidden="true" size={26} />
-          </span>
-          <h2>Session sécurisée</h2>
-          <p>Votre session expire après 15 minutes sans activité.</p>
-        </article>
-      </section>
+          <article className="accueil-card">
+            <span className="accueil-card-icon">
+              <ShieldCheck aria-hidden="true" size={26} />
+            </span>
+            <h2>Session sécurisée</h2>
+            <p>Votre session expire après 15 minutes sans activité.</p>
+          </article>
+        </section>
+      )}
     </main>
   )
 }
