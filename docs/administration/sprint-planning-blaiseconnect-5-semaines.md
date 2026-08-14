@@ -100,6 +100,7 @@
 | US-023 et US-024 | Tableaux de bord | 🟥 À faire |
 | US-026 | Historique général des actions | 🟥 À faire |
 | US-029 à US-037 | Fonctionnalités prévues pour les versions futures | 🟥 À faire |
+us30 : gerer le renvoie des des profs et la reaffectation a un nouveaux profs 
 
 ## Mise à jour pendant le stage
 

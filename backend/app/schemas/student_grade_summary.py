@@ -9,6 +9,7 @@ from pydantic import BaseModel
 class StudentSubjectAverage(BaseModel):
     subject_id: UUID
     subject_name: str
+    coefficient: float
     average: float | None
 
 

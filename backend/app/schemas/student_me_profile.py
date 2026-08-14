@@ -8,3 +8,4 @@ class StudentMeProfile(BaseModel):
     last_name: str
     gender: str | None
     class_name: str | None
+    school_year_name: str | None

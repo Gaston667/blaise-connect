@@ -7,7 +7,12 @@ from app.core.student_self import CurrentStudentDependency
 from app.schemas.student_grade_item import StudentGradeItem
 from app.schemas.student_grade_summary import StudentGradeSummary
 from app.schemas.student_me_profile import StudentMeProfile
-from app.services.student_grade_service import get_my_class_name, get_my_grade_summary, list_my_grades
+from app.services.student_grade_service import (
+    get_my_class_name,
+    get_my_grade_summary,
+    get_my_school_year_name,
+    list_my_grades,
+)
 
 router = APIRouter(prefix="/students/me", tags=["student-grades"])
 
@@ -23,6 +28,7 @@ def get_my_profile(
         "last_name": current_student.last_name,
         "gender": current_student.gender,
         "class_name": get_my_class_name(db=db, student_id=current_student.id),
+        "school_year_name": get_my_school_year_name(db=db, student_id=current_student.id),
     }
 
 

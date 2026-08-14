@@ -1,10 +1,92 @@
-.sgp-main { padding: var(--space-8) var(--space-10); font-family: var(--font-family-base); color: var(--color-text-primary); background: var(--color-background); }
+.sgp-main { padding: 0 var(--space-10) var(--space-8); font-family: var(--font-family-base); color: var(--color-text-primary); background: var(--color-background); }
 .sgp-error { padding: var(--space-4); color: var(--color-danger-text); background: var(--color-danger-light); border: 1px solid var(--color-danger-border); border-radius: var(--radius-md); }
-.sgp-header { margin-bottom: var(--space-6); }
-.sgp-header h1 { margin: 0 0 var(--space-1); font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); }
-.sgp-header p { margin: 0; color: var(--color-text-muted); }
 
-.sgp-layout { display: grid; grid-template-columns: 1fr; gap: var(--space-6); align-items: start; }
+.sgp-hero {
+  position: relative;
+  margin: 0 calc(-1 * var(--space-10)) var(--space-10);
+  padding: var(--space-8) var(--space-10) var(--space-12);
+  background: linear-gradient(135deg, var(--bc-cobalt-blue) 0%, var(--bc-prussian-blue) 100%);
+}
+
+.sgp-hero__top h1 { margin: 0 0 var(--space-1); color: var(--color-text-on-primary); font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); }
+.sgp-hero__top p { margin: 0 0 var(--space-4); color: rgba(255, 255, 255, 0.8); }
+
+.sgp-period-picker { position: relative; display: inline-block; }
+.sgp-period-picker__button {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text-on-primary);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+.sgp-period-picker__button:hover { background: rgba(255, 255, 255, 0.22); }
+
+.sgp-period-picker__menu {
+  position: absolute; z-index: var(--z-dropdown); top: calc(100% + var(--space-2)); left: 0;
+  min-width: 200px; margin: 0; padding: var(--space-2);
+  list-style: none;
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+.sgp-period-picker__menu button {
+  width: 100%; padding: var(--space-2) var(--space-3); text-align: left;
+  color: var(--color-text-primary); background: transparent; border: 0; border-radius: var(--radius-sm);
+  font: inherit; cursor: pointer;
+}
+.sgp-period-picker__menu button:hover { background: var(--color-surface-hover); }
+
+.sgp-average-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  margin-bottom: calc(-1 * var(--space-10));
+  padding: var(--space-5) var(--space-6);
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+.sgp-average-card__icon {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 52px; height: 52px;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-radius: var(--radius-full);
+}
+.sgp-average-card__body { display: flex; flex-direction: column; gap: 2px; }
+.sgp-average-card__body span { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.sgp-average-card__body strong { font-size: var(--font-size-3xl); font-weight: var(--font-weight-bold); color: var(--color-primary); }
+.sgp-average-card__body strong small { font-size: var(--font-size-md); font-weight: var(--font-weight-medium); color: var(--color-text-muted); }
+
+.sgp-average-card__trend {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  margin-left: auto;
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
+}
+.sgp-average-card__trend small { font-size: var(--font-size-xs); font-weight: var(--font-weight-regular); color: var(--color-text-muted); }
+.sgp-average-card__trend--up { color: var(--color-success); }
+.sgp-average-card__trend--down { color: var(--color-danger); }
+
+.sgp-average-card__rank {
+  display: flex; align-items: center; gap: 4px;
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-accent-active);
+  background: var(--color-accent-light);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.sgp-layout { display: grid; grid-template-columns: 1fr; gap: var(--space-6); align-items: start; padding-top: var(--space-12); }
 
 .sgp-section { background: var(--color-surface); border: var(--border-default); border-radius: var(--radius-lg); padding: var(--space-5); box-shadow: var(--shadow-xs); margin-bottom: var(--space-5); }
 .sgp-section h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-4); font-size: var(--font-size-md); }
@@ -82,6 +164,62 @@
 .sgp-subject-item--orange .sgp-subject-item__icon { background: var(--sgp-orange-bg); color: var(--sgp-orange-fg); }
 .sgp-subject-item--orange strong { color: var(--sgp-orange-fg); }
 
+.sgp-subject-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.sgp-subject-row { border: var(--border-default); border-radius: var(--radius-md); overflow: hidden; }
+.sgp-subject-row__head {
+  width: 100%; display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border: 0; background: var(--color-surface);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.sgp-subject-row__head:hover { background: var(--color-surface-hover); }
+.sgp-subject-row__badge {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 34px; height: 34px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-bold);
+}
+.sgp-subject-row__name { flex: 1; min-width: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sgp-subject-row__average { flex: 0 0 auto; font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
+.sgp-subject-row__average small { font-size: var(--font-size-xs); font-weight: var(--font-weight-regular); color: var(--color-text-muted); }
+.sgp-subject-row__coef { flex: 0 0 auto; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.sgp-subject-row__chevron { flex: 0 0 auto; color: var(--color-text-muted); transition: transform 0.15s ease; }
+.sgp-subject-row--open .sgp-subject-row__chevron { transform: rotate(90deg); }
+.sgp-subject-row__body { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--color-surface-alt); border-top: var(--border-width-thin) solid var(--table-border); }
+.sgp-subject-row__grade { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: var(--border-width-thin) solid var(--color-border-light, var(--table-border)); }
+.sgp-subject-row__grade:last-child { border-bottom: 0; }
+.sgp-subject-row__grade > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sgp-subject-row__grade strong { font-size: var(--font-size-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sgp-subject-row__grade span { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.sgp-subject-row__grade .sgp-score { flex: 0 0 auto; font-size: var(--font-size-sm); }
+
+.sgp-subject-row--violet .sgp-subject-row__badge { background: var(--sgp-violet-bg); color: var(--sgp-violet-fg); }
+.sgp-subject-row--green .sgp-subject-row__badge { background: var(--sgp-green-bg); color: var(--sgp-green-fg); }
+.sgp-subject-row--blue .sgp-subject-row__badge { background: var(--sgp-blue-bg); color: var(--sgp-blue-fg); }
+.sgp-subject-row--orange .sgp-subject-row__badge { background: var(--sgp-orange-bg); color: var(--sgp-orange-fg); }
+
+.sgp-evaluation-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.sgp-evaluation-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-left: 4px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+.sgp-evaluation-row--good { border-left-color: var(--color-success); background: var(--color-success-light); }
+.sgp-evaluation-row--average { border-left-color: var(--color-warning); background: var(--color-warning-light); }
+.sgp-evaluation-row--low,
+.sgp-evaluation-row--absent { border-left-color: var(--color-danger); background: var(--color-danger-light); }
+.sgp-evaluation-row__icon { display: grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; border-radius: var(--radius-full); }
+.sgp-evaluation-row__icon--violet { background: #fff; color: var(--sgp-violet-fg); }
+.sgp-evaluation-row__icon--green { background: #fff; color: var(--sgp-green-fg); }
+.sgp-evaluation-row__icon--blue { background: #fff; color: var(--sgp-blue-fg); }
+.sgp-evaluation-row__icon--orange { background: #fff; color: var(--sgp-orange-fg); }
+.sgp-evaluation-row__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sgp-evaluation-row__info strong { font-size: var(--font-size-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sgp-evaluation-row__info span { font-size: var(--font-size-xs); color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sgp-evaluation-row__date { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
 .sgp-upcoming-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
 .sgp-upcoming-list li { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border: var(--border-default); border-radius: var(--radius-md); }
 .sgp-upcoming-date { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 46px; height: 46px; flex: 0 0 auto; border-radius: var(--radius-md); }
@@ -94,6 +232,18 @@
 .sgp-upcoming-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .sgp-upcoming-info strong { font-size: var(--font-size-sm); }
 .sgp-upcoming-info span { font-size: var(--font-size-xs); color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .sgp-main { padding: 0 var(--space-3) var(--space-6); }
+  .sgp-hero { margin: 0 calc(-1 * var(--space-3)) var(--space-6); padding: var(--space-6) var(--space-4) var(--space-10); }
+  .sgp-hero__top h1 { font-size: var(--font-size-xl); }
+  .sgp-average-card { flex-direction: column; align-items: flex-start; padding: var(--space-4); }
+  .sgp-average-card__trend { margin-left: 0; }
+  .sgp-layout { padding-top: var(--space-8); gap: var(--space-4); }
+  .sgp-section { padding: var(--space-4); }
+  .sgp-evaluation-row { flex-wrap: wrap; }
+  .sgp-evaluation-row__date { flex-basis: 100%; padding-left: calc(34px + var(--space-3)); }
+}
 
 @media (min-width: 700px) {
   .sgp-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
