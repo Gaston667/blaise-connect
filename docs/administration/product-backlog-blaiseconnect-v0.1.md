@@ -54,7 +54,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 | US-012 | Consultation | Rechercher et consulter les élèves autorisés | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-013 | Évaluations | Créer et gérer une évaluation | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-014 | Notes | Saisir les notes d’une évaluation | Indispensable pour le MVP | L | 🟩 Terminé |
-| US-015 | Moyennes | Calculer les moyennes automatiquement | Indispensable pour le MVP | L | 🟨 En cours — arrondi à valider |
+| US-015 | Moyennes | Calculer les moyennes automatiquement | Indispensable pour le MVP | L | 🟩 Terminé |
 | US-016 | Notes | Demander et valider la modification d’une note | Important | L | 🟩 Terminé |
 | US-017 | Appréciations | Saisir les appréciations des élèves | Important | M | 🟥 À faire |
 | US-018 | Absences | Enregistrer et consulter une absence | Indispensable pour le MVP | L | 🟨 En cours — migration à appliquer et tests réels à faire |
@@ -297,11 +297,11 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** calculer les moyennes de matière et la moyenne générale.
 - **Utilisateur concerné :** administrateur, enseignant.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** En cours : calcul backend terminé, formule d’arrondi définitive à valider.
-- **Règles de gestion :** calcul fondé sur les notes, barèmes et coefficients ; règles d’arrondi à confirmer ; résultats regroupés par période.
+- **Statut :** Terminé.
+- **Règles de gestion :** calcul fondé sur les notes, barèmes et coefficients ; arrondi fixé à deux décimales ; résultats regroupés par période.
 - **Critères d’acceptation :** les moyennes correspondent à des jeux de données de référence ; une modification de note déclenche un recalcul ; les absences sont traitées selon leur statut ; aucune division par zéro n’est possible.
 - **Dépendances :** US-003, US-005, US-014, US-020 et décisions QD-5 à QD-7.
-- **Tâches techniques :** service de calcul ; tests unitaires avec exemples validés ; affichage des moyennes ; gestion des arrondis.
+- **Tâches techniques :** service de calcul ; tests unitaires avec exemples validés ; affichage des moyennes ; gestion des arrondis sur deux décimales.
 - **Cas d’erreur :** aucun résultat, coefficient manquant, barème nul, absence en attente, données incohérentes.
 - **Estimation :** L.
 

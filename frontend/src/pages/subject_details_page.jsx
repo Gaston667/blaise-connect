@@ -249,12 +249,11 @@ export default function SubjectDetailsPage({ account, subject, onNavigate }) {
                 <th>Coefficient</th>
                 <th>Enseignant</th>
                 <th>Meilleure moyenne</th>
-                <th>Élève</th>
               </tr>
             </thead>
             <tbody>
               {details.classes.length === 0 ? (
-                <tr><td colSpan="6" className="sdt-empty">Cette matière n’est associée à aucune classe.</td></tr>
+                <tr><td colSpan="5" className="sdt-empty">Cette matière n’est associée à aucune classe.</td></tr>
               ) : details.classes.map(function renderClassRow(classRow) {
                 return (
                   <tr key={classRow.class_id} onClick={() => openClass(classRow)}>
@@ -263,7 +262,6 @@ export default function SubjectDetailsPage({ account, subject, onNavigate }) {
                     <td>{Number(classRow.coefficient).toFixed(2)}</td>
                     <td>{classRow.teacher_name || 'Non affecté'}</td>
                     <td>{formatAverage(classRow.best_average)}</td>
-                    <td>{classRow.best_student_name || 'Indisponible'}</td>
                   </tr>
                 )
               })}

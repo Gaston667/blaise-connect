@@ -955,7 +955,14 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                           )}
                         </td>
                         <td className="scd-col-teacher">
-                          {subject.teacher_name ?? (
+                          {subject.teacher_name ? (
+                            <span className="scd-assigned-teacher">
+                              <strong>{subject.teacher_name}</strong>
+                              <small>
+                                {subject.teacher_qualification || 'Qualification non renseignée'}
+                              </small>
+                            </span>
+                          ) : (
                             <span className="scd-no-teacher">
                               Non affecté
                               {canEdit && (
@@ -1054,6 +1061,7 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                   <span>
                     <strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong>
                     <small>Matricule : {teacher.registration_number}</small>
+                    <small>Qualification : {teacher.qualification || 'Non renseignée'}</small>
                     <small>Competence : {teacher.qualification || 'Non renseignee'}</small>
                   </span>
                 </button>
