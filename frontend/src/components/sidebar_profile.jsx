@@ -9,14 +9,20 @@ const ROLE_META = {
  * Retourne le nom disponible sans inventer de donnée personnelle.
  */
 function getDisplayName(account) {
-  return account.display_name || account.registration_number
+  if (account.first_name && account.last_name) {
+    return `${account.first_name} ${account.last_name}`
+  }
+  return account.registration_number
 }
 
 /**
  * Initiales utilisées dans l'avatar, à défaut d'une photo de profil.
  */
 function getInitials(account) {
-  const source = account.display_name || account.registration_number || '?'
+  if (account.first_name && account.last_name) {
+    return `${account.first_name[0]}${account.last_name[0]}`.toUpperCase()
+  }
+  const source = account.registration_number || '?'
   return source.trim().slice(0, 2).toUpperCase()
 }
 

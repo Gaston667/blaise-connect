@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.core.account_locked_error import AccountLockedError
@@ -13,6 +13,28 @@ from app.models.account import Account
 ALLOWED_AUTHENTICATION_ROLES = ("ADMIN", "TEACHER", "STUDENT")
 MAX_FAILED_LOGIN_ATTEMPTS = 5
 ACCOUNT_LOCK_DURATION = timedelta(minutes=5)
+
+_PROFILE_TABLE_BY_ROLE = {
+    "ADMIN": "administrators",
+    "TEACHER": "teachers",
+    "STUDENT": "students",
+}
+
+
+def get_account_full_name(db: Session, account: Account) -> tuple[str | None, str | None]:
+    """Retourne (prénom, nom) de la personne rattachée au compte, si connue."""
+
+    table_name = _PROFILE_TABLE_BY_ROLE.get(account.role)
+    if table_name is None:
+        return None, None
+
+    row = db.execute(
+        text(f"SELECT first_name, last_name FROM {table_name} WHERE account_id = :account_id"),
+        {"account_id": account.id},
+    ).mappings().first()
+    if row is None:
+        return None, None
+    return row["first_name"], row["last_name"]
 
 
 def get_account_by_registration_number(

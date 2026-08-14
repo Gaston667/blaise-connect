@@ -1,33 +1,86 @@
-import { ShieldCheck, UserRound } from 'lucide-react'
+import {
+  CalendarDays,
+  NotebookPen,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+  UserRoundX,
+} from 'lucide-react'
 
 /**
  * Traduit le rôle technique pour l'interface utilisateur.
  */
 function getRoleLabel(role) {
-  if (role === 'ADMIN') {
-    return 'Administrateur'
-  }
-
-  if (role === 'TEACHER') {
-    return 'Enseignant'
-  }
-
+  if (role === 'ADMIN') return 'Administrateur'
+  if (role === 'TEACHER') return 'Enseignant'
+  if (role === 'STUDENT') return 'Élève'
   return role
+}
+
+/** Message d'accueil variant selon le moment de la journée. */
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Bonjour'
+  if (hour < 18) return 'Bon après-midi'
+  return 'Bonsoir'
+}
+
+const QUICK_LINKS_BY_ROLE = {
+  STUDENT: [
+    { page: 'student-grades', label: 'Mes notes', description: 'Consulter mes évaluations et moyennes', icon: NotebookPen, tone: 'violet' },
+    { page: 'student-timetable', label: 'Mon emploi du temps', description: 'Voir mes cours de la semaine', icon: CalendarDays, tone: 'blue' },
+    { page: 'attendance', label: 'Mes absences', description: 'Suivre mes absences et retards', icon: UserRoundX, tone: 'orange' },
+  ],
+  TEACHER: [
+    { page: 'teacher-timetable', label: 'Mon emploi du temps', description: 'Voir mes cours de la semaine', icon: CalendarDays, tone: 'blue' },
+    { page: 'notes', label: 'Notes', description: 'Saisir et consulter les évaluations', icon: NotebookPen, tone: 'violet' },
+  ],
 }
 
 /**
  * Affiche le premier écran après une authentification réussie.
  */
-export default function HomePage({ account }) {
+export default function HomePage({ account, onNavigate }) {
+  const quickLinks = QUICK_LINKS_BY_ROLE[account.role] ?? []
+  const greetingName = account.first_name || getRoleLabel(account.role).toLowerCase()
+
   return (
     <main className="accueil-main">
-      <header className="accueil-heading">
-        <p className="accueil-eyebrow">Accueil</p>
-        <h1 className="accueil-title">Bienvenue sur BlaiseConnect</h1>
+      <header className="accueil-hero">
+        <p className="accueil-eyebrow">
+          <Sparkles aria-hidden="true" size={15} /> Accueil
+        </p>
+        <h1 className="accueil-title">
+          {getGreeting()}, {greetingName} !
+        </h1>
         <p className="accueil-description">
-          Accédez aux fonctionnalités autorisées depuis le menu principal.
+          Bienvenue sur BlaiseConnect. Accédez aux fonctionnalités autorisées depuis le menu principal.
         </p>
       </header>
+
+      {quickLinks.length > 0 && (
+        <section className="accueil-quicklinks">
+          {quickLinks.map(function renderQuickLink(link) {
+            const Icon = link.icon
+            return (
+              <button
+                key={link.page}
+                type="button"
+                className={`accueil-quicklink accueil-quicklink--${link.tone}`}
+                onClick={() => onNavigate?.(link.page)}
+              >
+                <span className="accueil-quicklink__icon">
+                  <Icon aria-hidden="true" size={22} />
+                </span>
+                <span className="accueil-quicklink__text">
+                  <strong>{link.label}</strong>
+                  <span>{link.description}</span>
+                </span>
+              </button>
+            )
+          })}
+        </section>
+      )}
 
       <section className="accueil-grid">
         <article className="accueil-card">
