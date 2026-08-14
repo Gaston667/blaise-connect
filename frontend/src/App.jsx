@@ -312,6 +312,7 @@ export default function App() {
     pageContent = (
       <AttendanceRecordDetailsPage
         recordId={pathId}
+        account={currentAccount}
         onNavigate={handleNavigate}
       />
     )
