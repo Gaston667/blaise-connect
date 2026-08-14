@@ -606,6 +606,35 @@ def generate_timetable(
     regular_subjects = [subject for subject in subjects if not subject["is_specialty"]]
     all_periods = _build_available_periods(configuration)
 
+    # Les cours particuliers publiés (classe entière ou élève de la classe)
+    # occupent déjà un créneau : on ne les propose pas au générateur, pour
+    # éviter un conflit détecté seulement à la publication.
+    reserved_periods = db.execute(
+        text(
+            """
+            SELECT DISTINCT special_course.day_of_week, special_course.start_time, special_course.end_time
+            FROM special_courses AS special_course
+            LEFT JOIN student_enrollments AS enrollment
+              ON enrollment.id = special_course.student_enrollment_id
+            WHERE special_course.status = 'PUBLISHED'
+              AND (
+                  special_course.class_id = :class_id
+                  OR enrollment.class_id = :class_id
+              )
+            """
+        ),
+        {"class_id": class_id},
+    ).mappings().all()
+    all_periods = [
+        period for period in all_periods
+        if not any(
+            period["day_of_week"] == reserved["day_of_week"]
+            and period["start_time"] < reserved["end_time"]
+            and period["end_time"] > reserved["start_time"]
+            for reserved in reserved_periods
+        )
+    ]
+
     used_subjects_by_day: dict[int, set[UUID]] = {}
     created_slots: list[dict] = []
 
@@ -711,6 +740,15 @@ def generate_timetable(
             for key in keys:
                 used_period_keys.add(key)
 
+    # Une matière à double-heure dont le volume restant n'atteint plus 2h
+    # (ex. 3h demandées = un bloc de 2h + un reliquat d'1h) peut compléter
+    # ce reliquat sur une heure isolée, plutôt que de rester incomplète.
+    completion_subjects = [
+        subject for subject in double_hour_subjects
+        if 0 < subject["remaining_minutes"] < 120
+    ]
+    single_hour_subjects = single_hour_subjects + completion_subjects
+
     for candidate in all_periods:
         if (candidate["day_of_week"], candidate["start_time"]) in used_period_keys:
             continue
@@ -739,6 +777,8 @@ def generate_timetable(
             "class_subject_id": subject["class_subject_id"],
             "subject_name": subject["subject_name"],
             "remaining_minutes": subject["remaining_minutes"],
+            "requested_minutes": subject["weekly_minutes"],
+            "placed_minutes": subject["weekly_minutes"] - subject["remaining_minutes"],
         }
         for subject in subjects
         if subject["remaining_minutes"] > 0
@@ -883,6 +923,69 @@ def get_class_timetable(db: Session, class_id: str, published_only: bool = False
     return [dict(row) for row in rows]
 
 
+def get_draft_conflicts(db: Session, class_id: str) -> list[dict]:
+    """Détecte, sans publier, les créneaux du brouillon en conflit (même
+    enseignant ou même salle) avec un emploi du temps déjà publié d'une
+    autre classe. Permet d'avertir l'admin avant qu'il ne clique sur
+    « Publier », par exemple quand le brouillon est devenu obsolète après
+    la publication d'une autre classe qui partage des enseignants.
+    """
+
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                draft_slot.day_of_week, draft_slot.start_time, draft_slot.end_time,
+                draft_subject.name AS subject_name,
+                draft_teacher.first_name AS teacher_first_name,
+                draft_teacher.last_name AS teacher_last_name,
+                published_class_level.name || ' ' || published_class.group_label AS conflicting_class_name,
+                published_subject.name AS conflicting_subject_name,
+                CASE
+                    WHEN draft_assignment.teacher_id = published_assignment.teacher_id
+                        THEN 'enseignant déjà pris'
+                    ELSE 'salle déjà occupée'
+                END AS reason
+            FROM timetable_slots AS draft_slot
+            JOIN teacher_assignments AS draft_assignment
+              ON draft_assignment.id = draft_slot.teacher_assignment_id
+            JOIN class_subjects AS draft_class_subject
+              ON draft_class_subject.id = draft_assignment.class_subject_id
+            JOIN subjects AS draft_subject ON draft_subject.id = draft_class_subject.subject_id
+            JOIN teachers AS draft_teacher ON draft_teacher.id = draft_assignment.teacher_id
+            JOIN timetable_slots AS published
+              ON published.day_of_week = draft_slot.day_of_week
+             AND published.start_time < draft_slot.end_time
+             AND published.end_time > draft_slot.start_time
+            JOIN timetables AS published_timetable
+              ON published_timetable.id = published.timetable_id
+             AND published_timetable.status = 'PUBLISHED'
+             AND published_timetable.class_id <> :class_id
+            JOIN teacher_assignments AS published_assignment
+              ON published_assignment.id = published.teacher_assignment_id
+            JOIN class_subjects AS published_class_subject
+              ON published_class_subject.id = published_assignment.class_subject_id
+            JOIN subjects AS published_subject ON published_subject.id = published_class_subject.subject_id
+            JOIN classes AS published_class ON published_class.id = published_timetable.class_id
+            JOIN class_levels AS published_class_level ON published_class_level.id = published_class.class_level_id
+            WHERE draft_slot.timetable_id IN (
+                SELECT id FROM timetables WHERE class_id = :class_id AND status = 'DRAFT'
+            )
+              AND (
+                  draft_assignment.teacher_id = published_assignment.teacher_id
+                  OR (
+                      draft_slot.room_id IS NOT NULL
+                      AND draft_slot.room_id = published.room_id
+                  )
+              )
+            ORDER BY draft_slot.day_of_week, draft_slot.start_time
+            """
+        ),
+        {"class_id": class_id},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
 def _get_or_create_draft(
     db: Session,
     class_id: UUID,
@@ -901,7 +1004,15 @@ def _get_or_create_draft(
     ).scalar_one_or_none()
     if draft_id is not None:
         return draft_id
-    return db.execute(
+
+    published_id = db.execute(
+        text(
+            "SELECT id FROM timetables WHERE class_id = :class_id AND status = 'PUBLISHED'"
+        ),
+        {"class_id": class_id},
+    ).scalar_one_or_none()
+
+    new_draft_id = db.execute(
         text(
             """
             INSERT INTO timetables (
@@ -932,6 +1043,28 @@ def _get_or_create_draft(
         ),
         {"class_id": class_id, "account_id": created_by_account_id},
     ).scalar_one()
+
+    # Le brouillon part d'une copie du planning publié courant, pour que la
+    # modification manuelle ne fasse que l'ajuster sans faire disparaître le
+    # reste des créneaux déjà en place.
+    if published_id is not None:
+        db.execute(
+            text(
+                """
+                INSERT INTO timetable_slots (
+                    timetable_id, teacher_assignment_id, room_id,
+                    day_of_week, start_time, end_time
+                )
+                SELECT :new_draft_id, teacher_assignment_id, room_id,
+                       day_of_week, start_time, end_time
+                FROM timetable_slots
+                WHERE timetable_id = :published_id
+                """
+            ),
+            {"new_draft_id": new_draft_id, "published_id": published_id},
+        )
+
+    return new_draft_id
 
 
 def create_timetable_slot(
@@ -968,6 +1101,25 @@ def create_timetable_slot(
             db=db,
             class_id=class_id,
             created_by_account_id=created_by_account_id,
+        )
+        # Un ajout manuel sur un créneau déjà occupé (copié depuis le
+        # planning publié) remplace ce créneau, sans toucher au reste.
+        db.execute(
+            text(
+                """
+                DELETE FROM timetable_slots
+                WHERE timetable_id = :timetable_id
+                  AND day_of_week = :day_of_week
+                  AND start_time < :end_time
+                  AND end_time > :start_time
+                """
+            ),
+            {
+                "timetable_id": timetable_id,
+                "day_of_week": day_of_week,
+                "start_time": start_time,
+                "end_time": end_time,
+            },
         )
         row = db.execute(
             text(

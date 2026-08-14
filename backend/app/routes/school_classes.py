@@ -327,10 +327,41 @@ def delete_class_subject(
         db.rollback()
         message = extract_postgres_error_message(error)
         if "constraint" in message.lower() or "permission denied" in message.lower():
-            message = (
-                "Impossible de retirer cette matière : une affectation enseignant "
-                "ou une donnée pédagogique (notes, planning publié) y est rattachée."
-            )
+            usage = db.execute(
+                sql_text(
+                    """
+                    SELECT
+                        COUNT(DISTINCT assessment.id) AS assessment_count,
+                        COUNT(DISTINCT slot.id) FILTER (WHERE timetable.status = 'PUBLISHED') AS published_slot_count
+                    FROM teacher_assignments AS assignment
+                    LEFT JOIN assessments AS assessment
+                      ON assessment.teacher_assignment_id = assignment.id
+                    LEFT JOIN timetable_slots AS slot
+                      ON slot.teacher_assignment_id = assignment.id
+                    LEFT JOIN timetables AS timetable
+                      ON timetable.id = slot.timetable_id
+                    WHERE assignment.class_subject_id = :class_subject_id
+                    """
+                ),
+                {"class_subject_id": class_subject_id},
+            ).mappings().one()
+            if usage["assessment_count"] > 0:
+                message = (
+                    "Impossible de retirer cette matière : l'enseignant a déjà commencé à "
+                    f"faire cours et {usage['assessment_count']} évaluation(s) avec des notes "
+                    "ont déjà été saisies. Supprimez d'abord ces évaluations si vous êtes "
+                    "certain de vouloir continuer."
+                )
+            elif usage["published_slot_count"] > 0:
+                message = (
+                    "Impossible de retirer cette matière : elle fait partie d'un emploi du "
+                    "temps déjà publié. Retirez d'abord ses créneaux du planning publié."
+                )
+            else:
+                message = (
+                    "Impossible de retirer cette matière : une affectation enseignant "
+                    "ou une donnée pédagogique y est rattachée."
+                )
         raise HTTPException(status_code=409, detail=message) from error
 
 

@@ -90,8 +90,19 @@ export function validateTimetable(classId) {
 }
 
 /** Emploi du temps réel d'une classe (créneaux enregistrés en base). */
-export function getClassTimetable(classId) {
-  return apiRequestJson(`/api/school-classes/${classId}/timetable`, {
+/** Signale, sans publier, les conflits du brouillon avec une autre classe déjà publiée. */
+export function getDraftConflicts(classId) {
+  return apiRequestJson(`/api/school-classes/${classId}/timetable/conflicts`, {
+    method: 'GET',
+    fallbackMessage: 'Échec de la vérification des conflits',
+  })
+}
+
+/** Emploi du temps de la classe. Brouillon prioritaire par défaut, ou
+ * uniquement le planning publié (celui vu par les élèves/enseignants). */
+export function getClassTimetable(classId, { publishedOnly = false } = {}) {
+  const suffix = publishedOnly ? '?published_only=true' : ''
+  return apiRequestJson(`/api/school-classes/${classId}/timetable${suffix}`, {
     method: 'GET',
     fallbackMessage: "Échec du chargement de l'emploi du temps",
   })

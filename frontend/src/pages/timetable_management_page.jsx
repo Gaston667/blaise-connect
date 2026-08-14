@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
+  AlertTriangle,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -33,6 +34,7 @@ import {
   generateTimetable,
   getClassSpecialCourses,
   getClassTimetable,
+  getDraftConflicts,
   getRooms,
   getTimetableConfiguration,
   validateTimetable,
@@ -54,8 +56,7 @@ const DAY_LABELS = {
 
 const TABS = [
   { key: 'overview', label: 'Accueil', icon: LayoutDashboard },
-  { key: 'manual', label: 'Création manuelle', icon: PencilRuler },
-  { key: 'generate', label: 'Génération automatique', icon: Sparkles },
+  { key: 'build', label: 'Créer le brouillon', icon: PencilRuler },
   { key: 'schedule', label: 'Emploi du temps', icon: CalendarDays },
   { key: 'special', label: 'Cours particuliers', icon: Users },
   { key: 'configuration', label: 'Configuration', icon: Settings, disabled: true },
@@ -109,6 +110,105 @@ function flattenBreaks(days) {
   return [...breaksByKey.values()]
 }
 
+/**
+ * Grille hebdomadaire réutilisable (aperçu du brouillon comme planning publié).
+ */
+function TimetableGrid({ slots, breaks, editable = false, onDeleteSlot, deletingSlotId }) {
+  const gridDayLabels = [1, 2, 3, 4, 5, 6, 7].map(function toLabel(dayNumber) { return DAY_LABELS[dayNumber] })
+  const daySchedule = getScheduleRows(slots, breaks)
+  const subjectColorByName = new Map()
+  slots.forEach(function assignSubjectColor(slot) {
+    if (!subjectColorByName.has(slot.subject_name)) {
+      subjectColorByName.set(slot.subject_name, SUBJECT_PALETTE[subjectColorByName.size % SUBJECT_PALETTE.length])
+    }
+  })
+
+  function findSlotsForCell(dayIndex, period) {
+    return slots.filter(
+      (slot) =>
+        slot.day_of_week === dayIndex + 1 &&
+        formatTime(slot.start_time) < period.end &&
+        formatTime(slot.end_time) > period.start
+    )
+  }
+
+  function renderDeleteButton(slot, size) {
+    if (!editable || slot.status !== 'DRAFT') return null
+    return (
+      <button
+        type="button"
+        className="tmp-icon-button stp-cell__delete"
+        disabled={deletingSlotId === slot.id}
+        title="Retirer ce créneau"
+        onClick={function deleteSelectedSlot(event) { event.stopPropagation(); onDeleteSlot(slot.id) }}
+      >
+        <Trash2 aria-hidden="true" size={size} />
+      </button>
+    )
+  }
+
+  return (
+    <div className="stp-grid-wrapper">
+      <div className="stp-grid">
+        <div className="stp-grid__corner" />
+        {gridDayLabels.map((day) => (
+          <div key={day} className="stp-grid__day-head">{day}</div>
+        ))}
+
+        {daySchedule.map((entry) => (
+          entry.type === 'break' ? (
+            <div key={`break-${entry.start}`} className="stp-break-row">
+              {entry.label} ({entry.start}-{entry.end})
+            </div>
+          ) : (
+            <Fragment key={`period-${entry.start}`}>
+              <div className="stp-grid__time">
+                <strong>{entry.start}</strong>
+                <span>{entry.end}</span>
+              </div>
+              {gridDayLabels.map((day, dayIndex) => {
+                const cellSlots = findSlotsForCell(dayIndex, entry)
+                if (cellSlots.length === 0) {
+                  return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
+                }
+                if (cellSlots.length === 1) {
+                  const slot = cellSlots[0]
+                  const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
+                  return (
+                    <div key={`${day}-${entry.start}`} className={`stp-cell stp-cell--${color}`}>
+                      <span className="stp-cell__title"><BookOpen aria-hidden="true" size={14} /> {slot.subject_name}</span>
+                      <span className="stp-cell__meta">
+                        {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
+                      </span>
+                      {renderDeleteButton(slot, 14)}
+                    </div>
+                  )
+                }
+                return (
+                  <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--parallel" title={`${cellSlots.length} cours en parallèle`}>
+                    {cellSlots.map(function renderParallelSlot(slot) {
+                      const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
+                      return (
+                        <div key={slot.id} className={`stp-cell__sub stp-cell--${color}`}>
+                          <span className="stp-cell__title"><BookOpen aria-hidden="true" size={12} /> {slot.subject_name}</span>
+                          <span className="stp-cell__meta">
+                            {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
+                          </span>
+                          {renderDeleteButton(slot, 12)}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </Fragment>
+          )
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function TimetableManagementPage() {
   const toast = useToast()
   const [classes, setClasses] = useState([])
@@ -117,9 +217,12 @@ export default function TimetableManagementPage() {
   const [showClassPicker, setShowClassPicker] = useState(false)
   const [pendingClassId, setPendingClassId] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
+  const [buildMode, setBuildMode] = useState(null)
   const [subjects, setSubjects] = useState([])
   const [rooms, setRooms] = useState([])
   const [savedSlots, setSavedSlots] = useState([])
+  const [publishedSlots, setPublishedSlots] = useState([])
+  const [draftConflicts, setDraftConflicts] = useState([])
   const [scheduleBreaks, setScheduleBreaks] = useState([])
   const [classDataLoading, setClassDataLoading] = useState(false)
   const [savingSlot, setSavingSlot] = useState(false)
@@ -162,16 +265,20 @@ export default function TimetableManagementPage() {
       setClassDataLoading(true)
       setError('')
       try {
-        const [classSubjects, classTimetable, availableRooms, configuration] = await Promise.all([
+        const [classSubjects, classTimetable, published, availableRooms, configuration, conflicts] = await Promise.all([
           getSchoolClassSubjects(selectedClassId, { isActive: true }),
           getClassTimetable(selectedClassId),
+          getClassTimetable(selectedClassId, { publishedOnly: true }),
           getRooms(),
           getTimetableConfiguration(selectedClassId),
+          getDraftConflicts(selectedClassId),
         ])
         setSubjects(classSubjects)
         setSavedSlots([...classTimetable].sort(sortTimetableSlots))
+        setPublishedSlots([...published].sort(sortTimetableSlots))
         setRooms(availableRooms)
         setScheduleBreaks(flattenBreaks(configuration.days))
+        setDraftConflicts(conflicts)
       } catch (loadError) {
         setError(loadError.message)
       } finally {
@@ -183,7 +290,7 @@ export default function TimetableManagementPage() {
   }, [selectedClassId])
 
   useEffect(function loadGenerateTabEffect() {
-    if (!selectedClassId || activeTab !== 'generate') return
+    if (!selectedClassId || activeTab !== 'build' || buildMode !== 'generate') return
 
     async function loadConfiguration() {
       setConfigLoading(true)
@@ -201,7 +308,7 @@ export default function TimetableManagementPage() {
     }
 
     loadConfiguration()
-  }, [selectedClassId, activeTab])
+  }, [selectedClassId, activeTab, buildMode])
 
   useEffect(function loadSpecialCoursesTabEffect() {
     if (!selectedClassId || activeTab !== 'special') return
@@ -250,6 +357,7 @@ export default function TimetableManagementPage() {
     if (!pendingClassId) return
     setSelectedClassId(pendingClassId)
     setActiveTab('overview')
+    setBuildMode(null)
     setShowClassPicker(false)
   }
 
@@ -265,8 +373,17 @@ export default function TimetableManagementPage() {
   }
 
   async function refreshTimetable() {
-    const classTimetable = await getClassTimetable(selectedClassId)
+    const [classTimetable, conflicts] = await Promise.all([
+      getClassTimetable(selectedClassId),
+      getDraftConflicts(selectedClassId),
+    ])
     setSavedSlots([...classTimetable].sort(sortTimetableSlots))
+    setDraftConflicts(conflicts)
+  }
+
+  async function refreshPublishedTimetable() {
+    const published = await getClassTimetable(selectedClassId, { publishedOnly: true })
+    setPublishedSlots([...published].sort(sortTimetableSlots))
   }
 
   async function handlePublishTimetable() {
@@ -274,7 +391,7 @@ export default function TimetableManagementPage() {
     setError('')
     try {
       await validateTimetable(selectedClassId)
-      await refreshTimetable()
+      await Promise.all([refreshTimetable(), refreshPublishedTimetable()])
       toast.success('Le brouillon est désormais l’emploi du temps courant, visible des élèves et des enseignants.')
     } catch (publishError) {
       setError(publishError.message)
@@ -307,8 +424,7 @@ export default function TimetableManagementPage() {
       })
       await refreshTimetable()
       setSlotForm(EMPTY_SLOT_FORM)
-      setActiveTab('schedule')
-      toast.success('Le créneau a été ajouté au brouillon de l’emploi du temps.')
+      toast.success('Le créneau a été ajouté au brouillon de l’emploi du temps. Voir l’aperçu ci-dessous.')
     } catch (saveError) {
       setError(saveError.message)
     } finally {
@@ -357,8 +473,7 @@ export default function TimetableManagementPage() {
       )
       await refreshTimetable()
       setUnplacedRequirements(result.unplaced_requirements ?? [])
-      setActiveTab('schedule')
-      toast.success('Un nouveau brouillon d’emploi du temps a été généré.')
+      toast.success('Un nouveau brouillon d’emploi du temps a été généré. Voir l’aperçu ci-dessous.')
     } catch (generateError) {
       setError(generateError.message)
     } finally {
@@ -513,7 +628,7 @@ export default function TimetableManagementPage() {
               </div>
 
               <div className="tmp-overview__actions">
-                <button type="button" className="tmp-btn-primary" onClick={function openManualCreation() { setActiveTab('manual') }}>
+                <button type="button" className="tmp-btn-primary" onClick={function openManualCreation() { setActiveTab('build'); setBuildMode('manual') }}>
                   <Plus aria-hidden="true" size={17} /> Créer un créneau
                 </button>
                 <button type="button" className="tmp-btn-secondary" onClick={function openSchedule() { setActiveTab('schedule') }}>
@@ -523,146 +638,235 @@ export default function TimetableManagementPage() {
             </section>
           )}
 
-          {activeTab === 'manual' && (
+          {activeTab === 'build' && (
             <section className="tmp-panel">
               <div className="tmp-panel__heading">
                 <div>
-                  <h2>Création manuelle</h2>
-                  <p>Ajoutez un cours au brouillon de la classe sélectionnée.</p>
+                  <h2>Créer le brouillon</h2>
+                  <p>Un seul brouillon existe à la fois pour cette classe. Choisissez comment le construire.</p>
                 </div>
               </div>
 
-              <form className="tmp-manual-form" onSubmit={handleCreateSlot}>
-                <label className="tmp-field tmp-field--wide">
-                  <span>Matière et enseignant *</span>
-                  <select name="classSubjectId" value={slotForm.classSubjectId} onChange={handleSlotFieldChange} required>
-                    <option value="">Sélectionner une matière</option>
-                    {subjects.map(function renderSubjectOption(subject) {
-                      return (
-                        <option key={subject.id} value={subject.id} disabled={!subject.teacher_id}>
-                          {subject.name} — {subject.teacher_name || 'aucun enseignant affecté'}
-                        </option>
-                      )
-                    })}
-                  </select>
-                </label>
-
-                <label className="tmp-field">
-                  <span>Jour *</span>
-                  <select name="dayOfWeek" value={slotForm.dayOfWeek} onChange={handleSlotFieldChange} required>
-                    {Object.entries(DAY_LABELS).map(function renderDayOption([dayNumber, dayLabel]) {
-                      return <option key={dayNumber} value={dayNumber}>{dayLabel}</option>
-                    })}
-                  </select>
-                </label>
-
-                <label className="tmp-field">
-                  <span>Heure de début *</span>
-                  <input name="startTime" type="time" value={slotForm.startTime} onChange={handleSlotFieldChange} required />
-                </label>
-
-                <label className="tmp-field">
-                  <span>Heure de fin *</span>
-                  <input name="endTime" type="time" value={slotForm.endTime} onChange={handleSlotFieldChange} required />
-                </label>
-
-                <label className="tmp-field">
-                  <span>Salle</span>
-                  <select name="roomId" value={slotForm.roomId} onChange={handleSlotFieldChange}>
-                    <option value="">Aucune salle</option>
-                    {rooms.map(function renderRoomOption(room) {
-                      return <option key={room.id} value={room.id}>{room.name}</option>
-                    })}
-                  </select>
-                </label>
-
-                <div className="tmp-manual-form__summary">
-                  <Clock3 aria-hidden="true" size={19} />
+              <div className="tmp-build-mode-picker" role="radiogroup" aria-label="Mode de création">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={buildMode === 'manual'}
+                  className={buildMode === 'manual' ? 'tmp-build-mode tmp-build-mode--active' : 'tmp-build-mode'}
+                  onClick={function chooseManualMode() { setBuildMode('manual') }}
+                >
+                  <PencilRuler aria-hidden="true" size={22} />
                   <div>
-                    <strong>Contrôles automatiques</strong>
-                    <span>Les conflits de classe, d’enseignant et de salle sont vérifiés avant l’enregistrement.</span>
+                    <strong>Création manuelle</strong>
+                    <span>Ajoutez ou remplacez un créneau, un par un.</span>
                   </div>
-                </div>
-
-                <div className="tmp-manual-form__actions">
-                  <button type="button" className="tmp-btn-secondary" onClick={function cancelManualCreation() { setActiveTab('overview') }}>Annuler</button>
-                  <button type="submit" className="tmp-btn-primary" disabled={savingSlot || classDataLoading}>
-                    <Plus aria-hidden="true" size={17} /> {savingSlot ? 'Enregistrement…' : 'Ajouter le créneau'}
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
-
-          {activeTab === 'generate' && (
-            <section className="tmp-panel">
-              <div className="tmp-panel__heading">
-                <div>
-                  <h2>Génération automatique</h2>
-                  <p>Renseignez le volume horaire hebdomadaire de chaque matière, puis générez un brouillon sans conflit.</p>
-                </div>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={buildMode === 'generate'}
+                  className={buildMode === 'generate' ? 'tmp-build-mode tmp-build-mode--active' : 'tmp-build-mode'}
+                  onClick={function chooseGenerateMode() { setBuildMode('generate') }}
+                >
+                  <Sparkles aria-hidden="true" size={22} />
+                  <div>
+                    <strong>Génération automatique</strong>
+                    <span>Proposez un planning complet à partir des volumes horaires.</span>
+                  </div>
+                </button>
               </div>
 
-              {configLoading ? (
-                <p className="tmp-empty">Chargement de la configuration…</p>
-              ) : requirements.length === 0 ? (
-                <div className="tmp-empty-state">
-                  <Sparkles aria-hidden="true" size={38} />
-                  <strong>Aucune matière disponible</strong>
-                  <p>Ajoutez des matières à cette classe avant de générer un emploi du temps.</p>
-                </div>
-              ) : (
-                <form className="tmp-manual-form" onSubmit={handleGenerateTimetable}>
-                  {requirements.map(function renderRequirementField(requirement) {
-                    const totalMinutes = Number(requirement.weekly_minutes) || 0
-                    const hoursValue = Math.round((totalMinutes / 60) * 4) / 4
-                    const wholeHours = Math.floor(totalMinutes / 60)
-                    const remainingMinutes = totalMinutes % 60
-                    const hoursLabel = remainingMinutes > 0
-                      ? `${wholeHours} h ${remainingMinutes} min`
-                      : `${wholeHours} h`
-                    return (
-                      <label className="tmp-field" key={requirement.class_subject_id}>
-                        <span>{requirement.subject_name} — volume hebdomadaire</span>
-                        <div className="tmp-field-with-suffix">
-                          <input
-                            type="number"
-                            min="0.25"
-                            max="40"
-                            step="0.25"
-                            value={hoursValue}
-                            onChange={function updateRequirement(event) {
-                              const hours = Number(event.target.value) || 0
-                              handleRequirementChange(requirement.class_subject_id, Math.round(hours * 60))
-                            }}
-                          />
-                          <span className="tmp-field-suffix">h/semaine</span>
-                        </div>
-                        <small className="tmp-field-hint">Soit {hoursLabel} par semaine.</small>
-                      </label>
-                    )
-                  })}
+              {buildMode === 'manual' && (
+                <form className="tmp-manual-form tmp-build-form" onSubmit={handleCreateSlot}>
+                  <label className="tmp-field tmp-field--wide">
+                    <span>Matière et enseignant *</span>
+                    <select name="classSubjectId" value={slotForm.classSubjectId} onChange={handleSlotFieldChange} required>
+                      <option value="">Sélectionner une matière</option>
+                      {subjects.map(function renderSubjectOption(subject) {
+                        return (
+                          <option key={subject.id} value={subject.id} disabled={!subject.teacher_id}>
+                            {subject.name} — {subject.teacher_name || 'aucun enseignant affecté'}
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </label>
+
+                  <label className="tmp-field">
+                    <span>Jour *</span>
+                    <select name="dayOfWeek" value={slotForm.dayOfWeek} onChange={handleSlotFieldChange} required>
+                      {Object.entries(DAY_LABELS).map(function renderDayOption([dayNumber, dayLabel]) {
+                        return <option key={dayNumber} value={dayNumber}>{dayLabel}</option>
+                      })}
+                    </select>
+                  </label>
+
+                  <label className="tmp-field">
+                    <span>Heure de début *</span>
+                    <input name="startTime" type="time" value={slotForm.startTime} onChange={handleSlotFieldChange} required />
+                  </label>
+
+                  <label className="tmp-field">
+                    <span>Heure de fin *</span>
+                    <input name="endTime" type="time" value={slotForm.endTime} onChange={handleSlotFieldChange} required />
+                  </label>
+
+                  <label className="tmp-field">
+                    <span>Salle</span>
+                    <select name="roomId" value={slotForm.roomId} onChange={handleSlotFieldChange}>
+                      <option value="">Aucune salle</option>
+                      {rooms.map(function renderRoomOption(room) {
+                        return <option key={room.id} value={room.id}>{room.name}</option>
+                      })}
+                    </select>
+                  </label>
 
                   <div className="tmp-manual-form__summary">
-                    <Sparkles aria-hidden="true" size={19} />
+                    <Clock3 aria-hidden="true" size={19} />
                     <div>
-                      <strong>Génération sans conflit</strong>
-                      <span>Les enseignants déjà occupés sur un créneau, dans une autre classe, sont automatiquement évités.</span>
+                      <strong>Contrôles automatiques</strong>
+                      <span>Un créneau ajouté sur un horaire déjà occupé dans le brouillon le remplace ; le reste n’est pas modifié.</span>
                     </div>
                   </div>
 
-                  {unplacedRequirements.length > 0 && (
-                    <p className="tmp-error" role="alert">
-                      Volume incomplet pour : {unplacedRequirements.map(function renderUnplaced(item) { return item.subject_name }).join(', ')}.
-                    </p>
-                  )}
-
                   <div className="tmp-manual-form__actions">
-                    <button type="submit" className="tmp-btn-primary" disabled={generating}>
-                      <Sparkles aria-hidden="true" size={17} /> {generating ? 'Génération…' : 'Générer l’emploi du temps'}
+                    <button type="submit" className="tmp-btn-primary" disabled={savingSlot || classDataLoading}>
+                      <Plus aria-hidden="true" size={17} /> {savingSlot ? 'Enregistrement…' : 'Ajouter le créneau'}
                     </button>
                   </div>
                 </form>
+              )}
+
+              {buildMode === 'generate' && (
+                configLoading ? (
+                  <p className="tmp-empty">Chargement de la configuration…</p>
+                ) : requirements.length === 0 ? (
+                  <div className="tmp-empty-state">
+                    <Sparkles aria-hidden="true" size={38} />
+                    <strong>Aucune matière disponible</strong>
+                    <p>Ajoutez des matières à cette classe avant de générer un emploi du temps.</p>
+                  </div>
+                ) : (
+                  <form className="tmp-manual-form tmp-build-form" onSubmit={handleGenerateTimetable}>
+                    {requirements.map(function renderRequirementField(requirement) {
+                      const totalMinutes = Number(requirement.weekly_minutes) || 0
+                      const hoursValue = Math.round((totalMinutes / 60) * 4) / 4
+                      const wholeHours = Math.floor(totalMinutes / 60)
+                      const remainingMinutes = totalMinutes % 60
+                      const hoursLabel = remainingMinutes > 0
+                        ? `${wholeHours} h ${remainingMinutes} min`
+                        : `${wholeHours} h`
+                      return (
+                        <label className="tmp-field" key={requirement.class_subject_id}>
+                          <span>{requirement.subject_name} — volume hebdomadaire</span>
+                          <div className="tmp-field-with-suffix">
+                            <input
+                              type="number"
+                              min="0.25"
+                              max="40"
+                              step="0.25"
+                              value={hoursValue}
+                              onChange={function updateRequirement(event) {
+                                const hours = Number(event.target.value) || 0
+                                handleRequirementChange(requirement.class_subject_id, Math.round(hours * 60))
+                              }}
+                            />
+                            <span className="tmp-field-suffix">h/semaine</span>
+                          </div>
+                          <small className="tmp-field-hint">Soit {hoursLabel} par semaine.</small>
+                        </label>
+                      )
+                    })}
+
+                    <div className="tmp-manual-form__summary">
+                      <Sparkles aria-hidden="true" size={19} />
+                      <div>
+                        <strong>Génération sans conflit</strong>
+                        <span>Les enseignants déjà occupés sur un créneau, dans une autre classe, sont automatiquement évités. Remplace entièrement le brouillon existant.</span>
+                      </div>
+                    </div>
+
+                    {unplacedRequirements.length > 0 && (
+                      <div className="tmp-error" role="alert">
+                        <p>Volume horaire incomplet, plus assez de créneaux libres cette semaine :</p>
+                        <ul>
+                          {unplacedRequirements.map(function renderUnplaced(item) {
+                            const placedHours = (item.placed_minutes / 60).toFixed(1).replace(/\.0$/, '')
+                            const requestedHours = (item.requested_minutes / 60).toFixed(1).replace(/\.0$/, '')
+                            return (
+                              <li key={item.class_subject_id}>
+                                {item.subject_name} : {placedHours} h sur {requestedHours} h placées
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="tmp-manual-form__actions">
+                      <button type="submit" className="tmp-btn-primary" disabled={generating}>
+                        <Sparkles aria-hidden="true" size={17} /> {generating ? 'Génération…' : 'Générer l’emploi du temps'}
+                      </button>
+                    </div>
+                  </form>
+                )
+              )}
+
+              {buildMode && (
+                <div className="tmp-draft-preview">
+                  <div className="tmp-panel__heading">
+                    <div>
+                      <h3>Aperçu du brouillon</h3>
+                      <p>Le reste de l’emploi du temps courant est conservé tant que le brouillon n’est pas publié.</p>
+                    </div>
+                    {timetableStatus === 'DRAFT' && savedSlots.length > 0 && (
+                      <button
+                        type="button"
+                        className="tmp-btn-primary"
+                        disabled={publishing || draftConflicts.length > 0}
+                        title={draftConflicts.length > 0 ? 'Résolvez les conflits ci-dessous avant de publier' : undefined}
+                        onClick={handlePublishTimetable}
+                      >
+                        <CheckCircle2 aria-hidden="true" size={17} /> {publishing ? 'Publication…' : 'Publier comme emploi du temps courant'}
+                      </button>
+                    )}
+                  </div>
+
+                  {draftConflicts.length > 0 && (
+                    <div className="tmp-conflict-banner" role="alert">
+                      <AlertTriangle aria-hidden="true" size={20} />
+                      <div>
+                        <strong>Ce brouillon est en conflit avec {draftConflicts.length > 1 ? 'des classes déjà publiées' : 'une classe déjà publiée'} — probablement périmé depuis leur publication.</strong>
+                        <ul>
+                          {draftConflicts.map(function renderConflict(conflict, index) {
+                            const dayLabel = DAY_LABELS[conflict.day_of_week]
+                            return (
+                              <li key={index}>
+                                {conflict.subject_name} ({dayLabel} {formatTime(conflict.start_time)}-{formatTime(conflict.end_time)}) —
+                                {' '}{conflict.teacher_first_name} {conflict.teacher_last_name} : {conflict.reason} par {conflict.conflicting_class_name} ({conflict.conflicting_subject_name})
+                              </li>
+                            )
+                          })}
+                        </ul>
+                        <p>Régénérez le brouillon (mode automatique) ou remplacez manuellement les créneaux concernés.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {classDataLoading ? (
+                    <p className="tmp-empty">Chargement…</p>
+                  ) : savedSlots.length === 0 ? (
+                    <p className="tmp-empty">Aucun créneau pour le moment.</p>
+                  ) : (
+                    <TimetableGrid
+                      slots={savedSlots}
+                      breaks={scheduleBreaks}
+                      editable
+                      onDeleteSlot={handleDeleteSlot}
+                      deletingSlotId={deletingSlotId}
+                    />
+                  )}
+                </div>
               )}
             </section>
           )}
@@ -786,131 +990,23 @@ export default function TimetableManagementPage() {
               <div className="tmp-panel__heading">
                 <div>
                   <h2>Emploi du temps actuel</h2>
-                  <p>Créneaux du {timetableStatus === 'PUBLISHED' ? 'planning publié' : 'brouillon en cours'}.</p>
+                  <p>Planning publié, visible des élèves et des enseignants. Pour le modifier, passez par « Créer le brouillon ».</p>
                 </div>
-                <div className="tmp-panel__heading-actions">
-                  {timetableStatus === 'DRAFT' && savedSlots.length > 0 && (
-                    <button type="button" className="tmp-btn-primary" disabled={publishing} onClick={handlePublishTimetable}>
-                      <CheckCircle2 aria-hidden="true" size={17} /> {publishing ? 'Publication…' : 'Publier comme emploi du temps courant'}
-                    </button>
-                  )}
-                  <button type="button" className="tmp-btn-secondary" onClick={function addAnotherSlot() { setActiveTab('manual') }}>
-                    <Plus aria-hidden="true" size={17} /> Ajouter un créneau
-                  </button>
-                </div>
+                <button type="button" className="tmp-btn-secondary" onClick={function addAnotherSlot() { setActiveTab('build'); setBuildMode('manual') }}>
+                  <Plus aria-hidden="true" size={17} /> Ajouter un créneau
+                </button>
               </div>
 
               {classDataLoading ? (
                 <p className="tmp-empty">Chargement de l’emploi du temps…</p>
-              ) : savedSlots.length === 0 ? (
+              ) : publishedSlots.length === 0 ? (
                 <div className="tmp-empty-state">
                   <CalendarDays aria-hidden="true" size={38} />
-                  <strong>Aucun créneau enregistré</strong>
-                  <p>Utilisez la création manuelle pour construire le premier brouillon.</p>
+                  <strong>Aucun emploi du temps publié</strong>
+                  <p>Utilisez la création manuelle ou la génération automatique, puis publiez le brouillon.</p>
                 </div>
               ) : (
-                (function renderScheduleGrid() {
-                  const gridDayLabels = [1, 2, 3, 4, 5, 6, 7].map(function toLabel(dayNumber) { return DAY_LABELS[dayNumber] })
-                  const daySchedule = getScheduleRows(savedSlots, scheduleBreaks)
-                  const subjectColorByName = new Map()
-                  savedSlots.forEach(function assignSubjectColor(slot) {
-                    if (!subjectColorByName.has(slot.subject_name)) {
-                      subjectColorByName.set(slot.subject_name, SUBJECT_PALETTE[subjectColorByName.size % SUBJECT_PALETTE.length])
-                    }
-                  })
-
-                  function findSlotsForCell(dayIndex, period) {
-                    return savedSlots.filter(
-                      (slot) =>
-                        slot.day_of_week === dayIndex + 1 &&
-                        formatTime(slot.start_time) < period.end &&
-                        formatTime(slot.end_time) > period.start
-                    )
-                  }
-
-                  return (
-                    <div className="stp-grid-wrapper">
-                      <div className="stp-grid">
-                        <div className="stp-grid__corner" />
-                        {gridDayLabels.map((day) => (
-                          <div key={day} className="stp-grid__day-head">{day}</div>
-                        ))}
-
-                        {daySchedule.map((entry) => (
-                          entry.type === 'break' ? (
-                            <div key={`break-${entry.start}`} className="stp-break-row">
-                              {entry.label} ({entry.start}-{entry.end})
-                            </div>
-                          ) : (
-                            <Fragment key={`period-${entry.start}`}>
-                              <div className="stp-grid__time">
-                                <strong>{entry.start}</strong>
-                                <span>{entry.end}</span>
-                              </div>
-                              {gridDayLabels.map((day, dayIndex) => {
-                                const cellSlots = findSlotsForCell(dayIndex, entry)
-                                if (cellSlots.length === 0) {
-                                  return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
-                                }
-                                if (cellSlots.length === 1) {
-                                  const slot = cellSlots[0]
-                                  const canDelete = slot.status === 'DRAFT'
-                                  const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
-                                  return (
-                                    <div key={`${day}-${entry.start}`} className={`stp-cell stp-cell--${color}`}>
-                                      <span className="stp-cell__title"><BookOpen aria-hidden="true" size={14} /> {slot.subject_name}</span>
-                                      <span className="stp-cell__meta">
-                                        {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
-                                      </span>
-                                      {canDelete && (
-                                        <button
-                                          type="button"
-                                          className="tmp-icon-button stp-cell__delete"
-                                          disabled={deletingSlotId === slot.id}
-                                          title="Retirer ce créneau"
-                                          onClick={function deleteSelectedSlot() { handleDeleteSlot(slot.id) }}
-                                        >
-                                          <Trash2 aria-hidden="true" size={14} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  )
-                                }
-                                return (
-                                  <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--parallel" title={`${cellSlots.length} cours en parallèle`}>
-                                    {cellSlots.map(function renderParallelSlot(slot) {
-                                      const canDelete = slot.status === 'DRAFT'
-                                      const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
-                                      return (
-                                        <div key={slot.id} className={`stp-cell__sub stp-cell--${color}`}>
-                                          <span className="stp-cell__title"><BookOpen aria-hidden="true" size={12} /> {slot.subject_name}</span>
-                                          <span className="stp-cell__meta">
-                                            {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
-                                          </span>
-                                          {canDelete && (
-                                            <button
-                                              type="button"
-                                              className="tmp-icon-button stp-cell__delete"
-                                              disabled={deletingSlotId === slot.id}
-                                              title="Retirer ce créneau"
-                                              onClick={function deleteSelectedSlot() { handleDeleteSlot(slot.id) }}
-                                            >
-                                              <Trash2 aria-hidden="true" size={12} />
-                                            </button>
-                                          )}
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                )
-                              })}
-                            </Fragment>
-                          )
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })()
+                <TimetableGrid slots={publishedSlots} breaks={scheduleBreaks} />
               )}
             </section>
           )}

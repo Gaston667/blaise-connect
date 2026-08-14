@@ -1,6 +1,6 @@
 """Routes HTTP pour la gestion de l'emploi du temps (admin)."""
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 
 from app.core.authentication import CurrentAdminDependency, DatabaseSession
@@ -131,10 +131,21 @@ def post_timetable_validation(class_id: str, db: DatabaseSession, current_admin:
         _raise_service_error(error)
 
 
+@router.get("/school-classes/{class_id}/timetable/conflicts")
+def get_timetable_draft_conflicts(class_id: str, db: DatabaseSession, current_admin: CurrentAdminDependency):
+    """Signale, sans publier, les conflits du brouillon avec une autre classe déjà publiée."""
+    return timetable_service.get_draft_conflicts(db=db, class_id=class_id)
+
+
 @router.get("/school-classes/{class_id}/timetable")
-def get_class_timetable(class_id: str, db: DatabaseSession, current_admin: CurrentAdminDependency):
-    """Retourne les créneaux de la classe."""
-    return timetable_service.get_class_timetable(db=db, class_id=class_id)
+def get_class_timetable(
+    class_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+    published_only: bool = Query(default=False),
+):
+    """Retourne les créneaux de la classe (brouillon prioritaire, ou uniquement le planning publié)."""
+    return timetable_service.get_class_timetable(db=db, class_id=class_id, published_only=published_only)
 
 
 @router.post("/school-classes/{class_id}/timetable", status_code=201)

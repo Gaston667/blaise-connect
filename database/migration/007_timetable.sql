@@ -1698,6 +1698,15 @@ DECLARE
     conflicting_special_course_teacher_last_name text;
     conflicting_special_course_room_name varchar(100);
     conflicting_special_course_reason text;
+    conflicting_timetable_subject varchar(100);
+    conflicting_timetable_day smallint;
+    conflicting_timetable_start time;
+    conflicting_timetable_end time;
+    conflicting_timetable_teacher_first_name text;
+    conflicting_timetable_teacher_last_name text;
+    conflicting_timetable_class_name text;
+    conflicting_timetable_class_subject varchar(100);
+    conflicting_timetable_reason text;
 BEGIN
     IF NEW.status <> 'PUBLISHED'
        OR OLD.status = 'PUBLISHED'
@@ -1840,46 +1849,85 @@ BEGIN
             MESSAGE = 'Publication impossible : conflit interne d''enseignant ou de salle.';
     END IF;
 
-    IF EXISTS (
-        SELECT 1
-          FROM timetable_slots AS candidate
-          JOIN teacher_assignments AS candidate_assignment
-            ON candidate_assignment.id = candidate.teacher_assignment_id
-          JOIN timetable_slots AS published
-            ON published.day_of_week = candidate.day_of_week
-           AND published.start_time < candidate.end_time
-           AND published.end_time > candidate.start_time
-          JOIN timetables AS published_timetable
-            ON published_timetable.id = published.timetable_id
-          JOIN classes AS published_class
-            ON published_class.id = published_timetable.class_id
-          JOIN teacher_assignments AS published_assignment
-            ON published_assignment.id = published.teacher_assignment_id
-         WHERE candidate.timetable_id = NEW.id
-           AND published_timetable.status = 'PUBLISHED'
-           AND published_timetable.class_id <> NEW.class_id
-           AND published_class.school_year_id = current_school_year_id
-           AND daterange(
-                   published_timetable.effective_start_date,
-                   published_timetable.effective_end_date,
-                   '[]'
-               )
-               && daterange(
-                   NEW.effective_start_date,
-                   NEW.effective_end_date,
-                   '[]'
-               )
-           AND (
-               candidate_assignment.teacher_id =
-                   published_assignment.teacher_id
-               OR (
-                   candidate.room_id IS NOT NULL
-                   AND candidate.room_id = published.room_id
-               )
+    SELECT
+        candidate_subject.name, candidate.day_of_week, candidate.start_time, candidate.end_time,
+        candidate_teacher.first_name, candidate_teacher.last_name,
+        published_class_level.name || ' ' || published_class.group_label,
+        published_subject.name,
+        CASE
+            WHEN candidate_assignment.teacher_id = published_assignment.teacher_id
+                THEN 'enseignant déjà pris'
+            ELSE 'salle déjà occupée'
+        END
+      INTO
+        conflicting_timetable_subject, conflicting_timetable_day,
+        conflicting_timetable_start, conflicting_timetable_end,
+        conflicting_timetable_teacher_first_name, conflicting_timetable_teacher_last_name,
+        conflicting_timetable_class_name, conflicting_timetable_class_subject,
+        conflicting_timetable_reason
+      FROM timetable_slots AS candidate
+      JOIN teacher_assignments AS candidate_assignment
+        ON candidate_assignment.id = candidate.teacher_assignment_id
+      JOIN class_subjects AS candidate_class_subject
+        ON candidate_class_subject.id = candidate_assignment.class_subject_id
+      JOIN subjects AS candidate_subject ON candidate_subject.id = candidate_class_subject.subject_id
+      JOIN teachers AS candidate_teacher ON candidate_teacher.id = candidate_assignment.teacher_id
+      JOIN timetable_slots AS published
+        ON published.day_of_week = candidate.day_of_week
+       AND published.start_time < candidate.end_time
+       AND published.end_time > candidate.start_time
+      JOIN timetables AS published_timetable
+        ON published_timetable.id = published.timetable_id
+      JOIN classes AS published_class
+        ON published_class.id = published_timetable.class_id
+      JOIN class_levels AS published_class_level
+        ON published_class_level.id = published_class.class_level_id
+      JOIN teacher_assignments AS published_assignment
+        ON published_assignment.id = published.teacher_assignment_id
+      JOIN class_subjects AS published_class_subject
+        ON published_class_subject.id = published_assignment.class_subject_id
+      JOIN subjects AS published_subject ON published_subject.id = published_class_subject.subject_id
+     WHERE candidate.timetable_id = NEW.id
+       AND published_timetable.status = 'PUBLISHED'
+       AND published_timetable.class_id <> NEW.class_id
+       AND published_class.school_year_id = current_school_year_id
+       AND daterange(
+               published_timetable.effective_start_date,
+               published_timetable.effective_end_date,
+               '[]'
            )
-    ) THEN
+           && daterange(
+               NEW.effective_start_date,
+               NEW.effective_end_date,
+               '[]'
+           )
+       AND (
+           candidate_assignment.teacher_id =
+               published_assignment.teacher_id
+           OR (
+               candidate.room_id IS NOT NULL
+               AND candidate.room_id = published.room_id
+           )
+       )
+     LIMIT 1;
+
+    IF FOUND THEN
         RAISE EXCEPTION USING ERRCODE = '23514',
-            MESSAGE = 'Publication impossible : conflit avec un autre emploi du temps publié.';
+            MESSAGE = format(
+                'Publication impossible : %s %s est déjà en cours avec %s (%s) le %s de %s à %s (%s).',
+                conflicting_timetable_teacher_first_name,
+                conflicting_timetable_teacher_last_name,
+                conflicting_timetable_class_name,
+                conflicting_timetable_class_subject,
+                CASE conflicting_timetable_day
+                    WHEN 1 THEN 'lundi' WHEN 2 THEN 'mardi' WHEN 3 THEN 'mercredi'
+                    WHEN 4 THEN 'jeudi' WHEN 5 THEN 'vendredi' WHEN 6 THEN 'samedi'
+                    ELSE 'dimanche'
+                END,
+                to_char(conflicting_timetable_start, 'HH24:MI'),
+                to_char(conflicting_timetable_end, 'HH24:MI'),
+                conflicting_timetable_reason
+            );
     END IF;
 
     SELECT

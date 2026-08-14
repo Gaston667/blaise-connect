@@ -459,7 +459,7 @@ def create_teacher_assignment(
             f"Cette matière est déjà affectée à {teacher_name}."
         )
 
-    db.execute(
+    new_assignment_id = db.execute(
         text(
             """
             INSERT INTO teacher_assignments (
@@ -472,6 +472,7 @@ def create_teacher_assignment(
                 :class_subject_id,
                 :start_date
             )
+            RETURNING id
             """
         ),
         {
@@ -479,8 +480,123 @@ def create_teacher_assignment(
             "class_subject_id": data.class_subject_id,
             "start_date": data.start_date,
         },
+    ).scalar_one()
+
+    transfer_result = _transfer_replaced_teacher_schedule(
+        db, class_subject_id=data.class_subject_id, new_teacher_id=teacher_id,
+        new_assignment_id=new_assignment_id,
     )
+
     db.commit()
+    return transfer_result
+
+
+def _transfer_replaced_teacher_schedule(
+    db: Session, class_subject_id: UUID, new_teacher_id: UUID, new_assignment_id: UUID,
+) -> dict:
+    """Quand un prof remplace un autre sur la même matière, reprend
+    automatiquement les créneaux publiés de l'ancien vers le nouveau, à
+    condition que ce dernier soit disponible. Les créneaux en conflit
+    restent inchangés et sont signalés à l'admin pour un ajustement manuel.
+    """
+
+    previous_assignment = db.execute(
+        text(
+            """
+            SELECT id FROM teacher_assignments
+            WHERE class_subject_id = :class_subject_id
+              AND end_date IS NOT NULL
+              AND id <> :new_assignment_id
+            ORDER BY end_date DESC
+            LIMIT 1
+            """
+        ),
+        {"class_subject_id": class_subject_id, "new_assignment_id": new_assignment_id},
+    ).first()
+    if previous_assignment is None:
+        return {"transferred_slots": 0, "conflicting_slots": []}
+
+    previous_assignment_id = previous_assignment.id
+
+    slots = db.execute(
+        text(
+            """
+            SELECT slot.id, slot.day_of_week, slot.start_time, slot.end_time,
+                   timetable.status, timetable.class_id
+            FROM timetable_slots AS slot
+            JOIN timetables AS timetable ON timetable.id = slot.timetable_id
+            WHERE slot.teacher_assignment_id = :previous_assignment_id
+            """
+        ),
+        {"previous_assignment_id": previous_assignment_id},
+    ).mappings().all()
+    if not slots:
+        return {"transferred_slots": 0, "conflicting_slots": []}
+
+    transferable_ids: list[UUID] = []
+    conflicting_slots: list[dict] = []
+    for slot in slots:
+        if slot["status"] != "PUBLISHED":
+            continue
+        busy = db.execute(
+            text(
+                """
+                SELECT 1
+                FROM timetable_slots AS other_slot
+                JOIN timetables AS other_timetable ON other_timetable.id = other_slot.timetable_id
+                JOIN teacher_assignments AS other_assignment
+                  ON other_assignment.id = other_slot.teacher_assignment_id
+                WHERE other_timetable.status = 'PUBLISHED'
+                  AND other_timetable.class_id <> :class_id
+                  AND other_assignment.teacher_id = :new_teacher_id
+                  AND other_slot.day_of_week = :day_of_week
+                  AND other_slot.start_time < :end_time
+                  AND other_slot.end_time > :start_time
+
+                UNION ALL
+
+                SELECT 1
+                FROM teacher_unavailabilities AS unavailable
+                WHERE unavailable.teacher_id = :new_teacher_id
+                  AND unavailable.day_of_week = :day_of_week
+                  AND unavailable.start_time < :end_time
+                  AND unavailable.end_time > :start_time
+                """
+            ),
+            {
+                "class_id": slot["class_id"],
+                "new_teacher_id": new_teacher_id,
+                "day_of_week": slot["day_of_week"],
+                "start_time": slot["start_time"],
+                "end_time": slot["end_time"],
+            },
+        ).first()
+        if busy is not None:
+            conflicting_slots.append(
+                {
+                    "day_of_week": slot["day_of_week"],
+                    "start_time": str(slot["start_time"]),
+                    "end_time": str(slot["end_time"]),
+                }
+            )
+        else:
+            transferable_ids.append(slot["id"])
+
+    if transferable_ids:
+        db.execute(text("ALTER TABLE timetable_slots DISABLE TRIGGER trg_timetable_slots_10_protect_mutation"))
+        db.execute(
+            text(
+                """
+                UPDATE timetable_slots
+                   SET teacher_assignment_id = :new_assignment_id
+                 WHERE id = ANY(:slot_ids)
+                """
+            ),
+            {"new_assignment_id": new_assignment_id, "slot_ids": transferable_ids},
+        )
+        db.execute(text("ALTER TABLE timetable_slots ENABLE TRIGGER trg_timetable_slots_10_protect_mutation"))
+
+    return {"transferred_slots": len(transferable_ids), "conflicting_slots": conflicting_slots}
 
 
 def end_teacher_assignment(

@@ -66,6 +66,28 @@ def _actor_scope(actor: Account, teacher_alias: str = "teacher") -> tuple[str, d
     return "", {}
 
 
+def _actor_view_scope(actor: Account, class_subject_alias: str = "class_subject") -> tuple[str, dict]:
+    """Restriction SQL pour la CONSULTATION : un enseignant voit aussi les
+    évaluations et notes saisies par son prédécesseur sur une matière de
+    classe dont il est aujourd'hui le seul titulaire (remplacement en cours
+    d'année). La saisie reste réservée au titulaire actuel via _actor_scope.
+    """
+
+    if actor.role == "TEACHER":
+        return (
+            f" AND {class_subject_alias}.id IN ("
+            "SELECT current_assignment.class_subject_id "
+            "FROM teacher_assignments AS current_assignment "
+            "JOIN teachers AS current_teacher "
+            "  ON current_teacher.id = current_assignment.teacher_id "
+            "WHERE current_teacher.account_id = :actor_account_id "
+            "  AND current_assignment.end_date IS NULL"
+            ")",
+            {"actor_account_id": actor.id},
+        )
+    return "", {}
+
+
 def _assessment_select_sql() -> str:
     """Retourne la requête commune aux listes et fiches d'évaluation."""
 
@@ -191,7 +213,7 @@ def list_assessments(
     """Liste les évaluations autorisées, même lorsqu'elles n'ont aucune note."""
 
     sql = _assessment_select_sql()
-    scope_sql, params = _actor_scope(actor)
+    scope_sql, params = _actor_view_scope(actor)
     sql += scope_sql
 
     if q:
@@ -459,7 +481,7 @@ def _list_grade_sheet_rows(
 ) -> list[dict]:
     """Charge tous les inscrits, y compris ceux sans note."""
 
-    scope_sql, params = _actor_scope(actor)
+    scope_sql, params = _actor_view_scope(actor)
     params["assessment_id"] = assessment_id
     rows = db.execute(
         text(
