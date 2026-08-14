@@ -82,7 +82,7 @@ export default function StudentGradesPage() {
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [showAllGrades, setShowAllGrades] = useState(false)
+  const [showAllEvaluationsTab, setShowAllEvaluationsTab] = useState(false)
   const [selectedSubjectId, setSelectedSubjectId] = useState(null)
   const [selectedPeriodId, setSelectedPeriodId] = useState(null)
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false)
@@ -118,7 +118,7 @@ export default function StudentGradesPage() {
   const gradesForSelectedSubject = selectedSubjectId
     ? grades.filter((grade) => grade.subject_id === selectedSubjectId)
     : []
-  const recentGrades = showAllGrades ? grades : grades.slice(0, 5)
+  const recentGrades = grades.slice(0, 2)
   const hiddenGradeCount = grades.length - recentGrades.length
 
   const periodIndex = summary.period_averages.findIndex((period) => period.period_id === selectedPeriodId)
@@ -137,6 +137,27 @@ export default function StudentGradesPage() {
   function selectPeriod(periodId) {
     setSelectedPeriodId(periodId)
     setIsPeriodMenuOpen(false)
+  }
+
+  /** Ligne d'évaluation partagée entre l'aperçu et l'onglet "Toutes mes évaluations". */
+  function renderEvaluationRow(grade) {
+    const SubjectIcon = getSubjectIcon(grade.subject_name)
+    const color = subjectColorBySubjectId.get(grade.subject_id) ?? 'violet'
+    return (
+      <div key={grade.id} className={`sgp-evaluation-row sgp-evaluation-row--${scoreTone(grade).replace('sgp-score--', '')}`}>
+        <span className={`sgp-evaluation-row__icon sgp-evaluation-row__icon--${color}`}>
+          <SubjectIcon aria-hidden="true" size={17} />
+        </span>
+        <div className="sgp-evaluation-row__info">
+          <strong>{grade.subject_name}</strong>
+          <span>{grade.assessment_title}</span>
+        </div>
+        <span className={`sgp-score ${scoreTone(grade)}`}>{formatScore(grade)}</span>
+        <span className="sgp-evaluation-row__date">
+          <CalendarDays aria-hidden="true" size={13} /> {formatDate(grade.assessment_date)}
+        </span>
+      </div>
+    )
   }
 
   return (
@@ -177,23 +198,44 @@ export default function StudentGradesPage() {
           </span>
           <div className="sgp-average-card__body">
             <span>Moyenne générale</span>
-            <strong>{formatAverage(headlineAverage)} <small>/20</small></strong>
+            <div className="sgp-average-card__row">
+              <strong>{formatAverage(headlineAverage)} <small>/20</small></strong>
+              {trendDelta !== null && (
+                <span className={`sgp-average-card__trend ${trendDelta >= 0 ? 'sgp-average-card__trend--up' : 'sgp-average-card__trend--down'}`}>
+                  {trendDelta >= 0 ? <TrendingUp aria-hidden="true" size={14} /> : <TrendingDown aria-hidden="true" size={14} />}
+                  {trendDelta >= 0 ? '+' : ''}{trendDelta.toFixed(2).replace('.', ',')}
+                </span>
+              )}
+              {summary.rank && summary.class_size && (
+                <span className="sgp-average-card__rank">
+                  <Award aria-hidden="true" size={13} /> {summary.rank}/{summary.class_size}
+                </span>
+              )}
+            </div>
+            {trendDelta !== null && <small className="sgp-average-card__trend-hint">vs période précédente</small>}
           </div>
-          {trendDelta !== null && (
-            <span className={`sgp-average-card__trend ${trendDelta >= 0 ? 'sgp-average-card__trend--up' : 'sgp-average-card__trend--down'}`}>
-              {trendDelta >= 0 ? <TrendingUp aria-hidden="true" size={14} /> : <TrendingDown aria-hidden="true" size={14} />}
-              {trendDelta >= 0 ? '+' : ''}{trendDelta.toFixed(2).replace('.', ',')}
-              <small>vs période précédente</small>
-            </span>
-          )}
-          {summary.rank && summary.class_size && (
-            <span className="sgp-average-card__rank">
-              <Award aria-hidden="true" size={13} /> Rang : {summary.rank} / {summary.class_size}
-            </span>
-          )}
         </article>
       </div>
 
+      {showAllEvaluationsTab ? (
+        <div className="sgp-layout">
+          <section className="sgp-section sgp-section--full">
+            <div className="sgp-section-head">
+              <h2><CalendarClock aria-hidden="true" size={18} /> Toutes mes évaluations</h2>
+              <button type="button" className="sgp-more__btn" onClick={() => setShowAllEvaluationsTab(false)}>
+                Retour
+              </button>
+            </div>
+            <div className="sgp-evaluation-list">
+              {grades.length === 0 ? (
+                <p className="sgp-empty">Aucune note pour le moment.</p>
+              ) : (
+                grades.map(renderEvaluationRow)
+              )}
+            </div>
+          </section>
+        </div>
+      ) : (
       <div className="sgp-layout">
         <div className="sgp-main-col">
           <section className="sgp-section">
@@ -248,9 +290,9 @@ export default function StudentGradesPage() {
           <section className="sgp-section">
             <div className="sgp-section-head">
               <h2><CalendarClock aria-hidden="true" size={18} /> Dernières évaluations</h2>
-              {grades.length > 5 && (
-                <button type="button" className="sgp-more__btn" onClick={() => setShowAllGrades((current) => !current)}>
-                  {showAllGrades ? 'Voir moins' : 'Voir tout'} <ChevronRight aria-hidden="true" size={14} />
+              {grades.length > 2 && (
+                <button type="button" className="sgp-more__btn" onClick={() => setShowAllEvaluationsTab(true)}>
+                  Voir tout <ChevronRight aria-hidden="true" size={14} />
                 </button>
               )}
             </div>
@@ -258,25 +300,7 @@ export default function StudentGradesPage() {
               {recentGrades.length === 0 ? (
                 <p className="sgp-empty">Aucune note pour le moment.</p>
               ) : (
-                recentGrades.map((grade) => {
-                  const SubjectIcon = getSubjectIcon(grade.subject_name)
-                  const color = subjectColorBySubjectId.get(grade.subject_id) ?? 'violet'
-                  return (
-                    <div key={grade.id} className={`sgp-evaluation-row sgp-evaluation-row--${scoreTone(grade).replace('sgp-score--', '')}`}>
-                      <span className={`sgp-evaluation-row__icon sgp-evaluation-row__icon--${color}`}>
-                        <SubjectIcon aria-hidden="true" size={17} />
-                      </span>
-                      <div className="sgp-evaluation-row__info">
-                        <strong>{grade.subject_name}</strong>
-                        <span>{grade.assessment_title}</span>
-                      </div>
-                      <span className={`sgp-score ${scoreTone(grade)}`}>{formatScore(grade)}</span>
-                      <span className="sgp-evaluation-row__date">
-                        <CalendarDays aria-hidden="true" size={13} /> {formatDate(grade.assessment_date)}
-                      </span>
-                    </div>
-                  )
-                })
+                recentGrades.map(renderEvaluationRow)
               )}
             </div>
             {hiddenGradeCount > 0 && (
@@ -312,6 +336,7 @@ export default function StudentGradesPage() {
           </section>
         </aside>
       </div>
+      )}
     </main>
   )
 }

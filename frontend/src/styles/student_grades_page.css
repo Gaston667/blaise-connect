@@ -67,24 +67,34 @@
 .sgp-average-card__body strong { font-size: var(--font-size-3xl); font-weight: var(--font-weight-bold); color: var(--color-primary); }
 .sgp-average-card__body strong small { font-size: var(--font-size-md); font-weight: var(--font-weight-medium); color: var(--color-text-muted); }
 
+.sgp-average-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .sgp-average-card__trend {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 4px;
   font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
 }
 .sgp-average-card__trend small { font-size: var(--font-size-xs); font-weight: var(--font-weight-regular); color: var(--color-text-muted); }
 .sgp-average-card__trend--up { color: var(--color-success); }
 .sgp-average-card__trend--down { color: var(--color-danger); }
+.sgp-average-card__trend-hint { display: block; margin-top: 2px; font-size: var(--font-size-xs); color: var(--color-text-muted); }
 
 .sgp-average-card__rank {
-  display: flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: 4px;
   padding: var(--space-1) var(--space-3);
   color: var(--color-accent-active);
   background: var(--color-accent-light);
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
 }
+
+.sgp-section--full { max-width: 720px; margin: 0 auto; }
 
 .sgp-layout { display: grid; grid-template-columns: 1fr; gap: var(--space-6); align-items: start; padding-top: var(--space-12); }
 
@@ -237,8 +247,13 @@
   .sgp-main { padding: 0 var(--space-3) var(--space-6); }
   .sgp-hero { margin: 0 calc(-1 * var(--space-3)) var(--space-6); padding: var(--space-6) var(--space-4) var(--space-10); }
   .sgp-hero__top h1 { font-size: var(--font-size-xl); }
-  .sgp-average-card { flex-direction: column; align-items: flex-start; padding: var(--space-4); }
-  .sgp-average-card__trend { margin-left: 0; }
+  .sgp-average-card { align-items: center; padding: var(--space-4); gap: var(--space-3); }
+  .sgp-average-card__icon { display: none; }
+  .sgp-average-card__body strong { font-size: var(--font-size-xl); }
+  .sgp-average-card__row { flex-wrap: nowrap; gap: var(--space-2); }
+  .sgp-average-card__trend svg { display: none; }
+  .sgp-average-card__rank { padding: 2px var(--space-2); font-size: 0.65rem; }
+  .sgp-average-card__rank svg { width: 11px; height: 11px; }
   .sgp-layout { padding-top: var(--space-8); gap: var(--space-4); }
   .sgp-section { padding: var(--space-4); }
   .sgp-evaluation-row { flex-wrap: wrap; }

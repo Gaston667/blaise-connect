@@ -1,9 +1,10 @@
-import { CalendarDays, House, NotebookPen } from 'lucide-react'
+import { CalendarDays, House, NotebookPen, UserRoundX } from 'lucide-react'
 
 const STUDENT_TABS = [
   { page: 'home', label: 'Accueil', icon: House },
   { page: 'student-timetable', label: 'Emploi du temps', icon: CalendarDays },
   { page: 'student-grades', label: 'Notes', icon: NotebookPen },
+  { page: 'attendance', label: 'Absences', icon: UserRoundX },
 ]
 
 /**
