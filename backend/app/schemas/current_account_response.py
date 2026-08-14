@@ -18,6 +18,8 @@ class CurrentAccountResponse(BaseModel):
     id: UUID
     registration_number: RegistrationNumber
     role: AccountRole
+    first_name: str | None = None
+    last_name: str | None = None
     is_active: bool
     locked_until: datetime | None
     last_login_at: datetime | None

@@ -22,7 +22,7 @@ from app.core.session_cookie_config import (
 from app.schemas.current_account_response import CurrentAccountResponse
 from app.schemas.login_request import LoginRequest
 from app.schemas.login_response import LoginResponse
-from app.services.auth_service import authenticate_account
+from app.services.auth_service import authenticate_account, get_account_full_name
 from app.services.session_service import create_session, revoke_session
 
 
@@ -78,7 +78,14 @@ def login(
         path="/",
     )
 
-    account_response = CurrentAccountResponse.model_validate(account)
+    first_name, last_name = get_account_full_name(db=db, account=account)
+    account_response = CurrentAccountResponse(
+        **{
+            **CurrentAccountResponse.model_validate(account).model_dump(),
+            "first_name": first_name,
+            "last_name": last_name,
+        }
+    )
 
     return LoginResponse(
         message="Connexion réussie.",
@@ -92,11 +99,19 @@ def login(
     status_code=status.HTTP_200_OK,
 )
 def get_current_account_information(
+    db: DatabaseSession,
     current_account: CurrentAccountDependency,
 ) -> CurrentAccountResponse:
     """Retourne les informations du compte actuellement connecté."""
 
-    return CurrentAccountResponse.model_validate(current_account)
+    first_name, last_name = get_account_full_name(db=db, account=current_account)
+    return CurrentAccountResponse(
+        **{
+            **CurrentAccountResponse.model_validate(current_account).model_dump(),
+            "first_name": first_name,
+            "last_name": last_name,
+        }
+    )
 
 
 @router.post(

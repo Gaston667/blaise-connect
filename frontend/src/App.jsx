@@ -197,7 +197,7 @@ export default function App() {
   const canManageSchool = currentAccount.role === 'ADMIN'
   const canViewSchoolDirectory = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
   const canManageNotes = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
-  let pageContent = <HomePage account={currentAccount} />
+  let pageContent = <HomePage account={currentAccount} onNavigate={handleNavigate} />
 
   if (currentPage === 'students' && canViewSchoolDirectory) {
     pageContent = <StudentsPage onNavigate={handleNavigate} />
