@@ -59,7 +59,7 @@ export default function HomePage({ account, onNavigate }) {
       </header>
 
       {quickLinks.length > 0 && (
-        <section className="accueil-quicklinks">
+        <section className={account.role === 'STUDENT' ? 'accueil-quicklinks accueil-quicklinks--hide-on-mobile' : 'accueil-quicklinks'}>
           {quickLinks.map(function renderQuickLink(link) {
             const Icon = link.icon
             return (

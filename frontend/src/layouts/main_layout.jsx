@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import AppHeader from '../components/app_header.jsx'
+import MobileBottomNav from '../components/mobile_bottom_nav.jsx'
 import Sidebar from '../components/sidebar.jsx'
 
 /**
@@ -29,8 +30,10 @@ export default function MainLayout({
     setIsSidebarOpen(false)
   }
 
+  const hasMobileBottomNav = account?.role === 'STUDENT'
+
   return (
-    <div className="layout-page">
+    <div className={hasMobileBottomNav ? 'layout-page layout-page--has-bottom-nav' : 'layout-page'}>
       <Sidebar
         account={account}
         currentPage={currentPage}
@@ -54,6 +57,8 @@ export default function MainLayout({
 
         {children}
       </div>
+
+      <MobileBottomNav account={account} currentPage={currentPage} onNavigate={onNavigate} />
     </div>
   )
 }

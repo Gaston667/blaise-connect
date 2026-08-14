@@ -182,3 +182,12 @@
   color: var(--color-text-secondary);
 }
 
+/* Sur mobile, ces raccourcis élève font doublon avec la barre de
+   navigation fixée en bas (mobile-bottom-nav) : on les masque, tout en
+   les gardant sur ordinateur où il n'y a pas de barre équivalente. */
+@media (max-width: 767px) {
+  .accueil-quicklinks--hide-on-mobile {
+    display: none;
+  }
+}
+

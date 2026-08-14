@@ -19,6 +19,20 @@ def get_my_class_name(db: Session, student_id: UUID) -> str | None:
     """
     return db.execute(text(sql), {"student_id": student_id}).scalar_one_or_none()
 
+
+def get_my_school_year_name(db: Session, student_id: UUID) -> str | None:
+    """Retourne le nom de l'année scolaire de la classe actuelle de l'élève."""
+
+    sql = """
+        SELECT school_year.name
+        FROM student_enrollments AS enrollment
+        JOIN classes AS school_class ON school_class.id = enrollment.class_id
+        JOIN school_years AS school_year ON school_year.id = school_class.school_year_id
+        WHERE enrollment.student_id = :student_id AND enrollment.end_date IS NULL
+        LIMIT 1
+    """
+    return db.execute(text(sql), {"student_id": student_id}).scalar_one_or_none()
+
 # Une absence non justifiée ou rejetée compte pour 0/20 dans les moyennes ;
 # une absence justifiée ou en attente est exclue du calcul.
 _EFFECTIVE_SCORE_SQL = """
@@ -85,12 +99,13 @@ def get_my_grade_summary(db: Session, student_id: UUID) -> dict:
         SELECT
             subject.id AS subject_id,
             subject.name AS subject_name,
+            class_subject.coefficient AS subject_coefficient,
             SUM({_EFFECTIVE_SCORE_SQL} * assessment.coefficient)
                 / NULLIF(SUM(CASE WHEN {_EFFECTIVE_SCORE_SQL} IS NOT NULL THEN assessment.coefficient END), 0)
                 AS average
         {_GRADE_BASE_JOIN}
         WHERE student.id = :student_id
-        GROUP BY subject.id, subject.name
+        GROUP BY subject.id, subject.name, class_subject.coefficient
         ORDER BY subject.name
     """
     subject_rows = db.execute(text(subject_sql), {"student_id": student_id}).mappings().all()
@@ -154,6 +169,7 @@ def get_my_grade_summary(db: Session, student_id: UUID) -> dict:
             {
                 "subject_id": row.subject_id,
                 "subject_name": row.subject_name,
+                "coefficient": float(row.subject_coefficient),
                 "average": float(row.average) if row.average is not None else None,
             }
             for row in subject_rows

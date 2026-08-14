@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
 import {
   Award,
-  BarChart3,
   BookOpen,
   Calculator,
   CalendarClock,
+  CalendarDays,
   ChevronDown,
-  FileText,
+  ChevronRight,
   FlaskConical,
   Globe2,
   Languages,
   Laptop2,
   Palette,
+  TrendingDown,
   TrendingUp,
 } from 'lucide-react'
 
@@ -35,8 +36,16 @@ function getSubjectIcon(subjectName) {
   return match ? match[1] : BookOpen
 }
 
+/** Initiales d'une matière pour le badge rond, à défaut d'une icône plus parlante. */
+function getSubjectInitials(subjectName) {
+  if (!subjectName) return '?'
+  const words = subjectName.replace(/\(.*?\)/g, '').trim().split(/[\s-]+/).filter(Boolean)
+  if (words.length === 1) return words[0].slice(0, 2)
+  return `${words[0][0]}${words[1][0]}`
+}
+
 function formatAverage(value) {
-  return value === null || value === undefined ? '—' : `${value.toFixed(2)} /20`
+  return value === null || value === undefined ? '—' : value.toFixed(2).replace('.', ',')
 }
 
 function formatDate(value) {
@@ -75,6 +84,8 @@ export default function StudentGradesPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [showAllGrades, setShowAllGrades] = useState(false)
   const [selectedSubjectId, setSelectedSubjectId] = useState(null)
+  const [selectedPeriodId, setSelectedPeriodId] = useState(null)
+  const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false)
 
   useEffect(function loadDashboardEffect() {
     async function load() {
@@ -87,6 +98,8 @@ export default function StudentGradesPage() {
         setProfile(profileData)
         setGrades(gradesData)
         setSummary(summaryData)
+        const lastPeriod = summaryData.period_averages[summaryData.period_averages.length - 1]
+        setSelectedPeriodId(lastPeriod ? lastPeriod.period_id : null)
       } catch (error) {
         setErrorMessage(error.message)
       } finally {
@@ -108,80 +121,113 @@ export default function StudentGradesPage() {
   const recentGrades = showAllGrades ? grades : grades.slice(0, 5)
   const hiddenGradeCount = grades.length - recentGrades.length
 
+  const periodIndex = summary.period_averages.findIndex((period) => period.period_id === selectedPeriodId)
+  const selectedPeriod = periodIndex >= 0 ? summary.period_averages[periodIndex] : null
+  const previousPeriod = periodIndex > 0 ? summary.period_averages[periodIndex - 1] : null
+  const headlineAverage = selectedPeriod ? selectedPeriod.average : summary.overall_average
+  const trendDelta =
+    selectedPeriod && previousPeriod && selectedPeriod.average !== null && previousPeriod.average !== null
+      ? selectedPeriod.average - previousPeriod.average
+      : null
+
   function toggleSubjectFilter(subjectId) {
     setSelectedSubjectId((current) => (current === subjectId ? null : subjectId))
   }
 
+  function selectPeriod(periodId) {
+    setSelectedPeriodId(periodId)
+    setIsPeriodMenuOpen(false)
+  }
+
   return (
     <main className="sgp-main">
-      <header className="sgp-header">
-        <div>
-          <h1>Bonjour, {profile.first_name} {profile.last_name} !</h1>
-          <p>{profile.class_name ? `Élève en ${profile.class_name}` : 'Aucune classe active'}</p>
+      <div className="sgp-hero">
+        <div className="sgp-hero__top">
+          <h1>Mes notes</h1>
+          <p>{profile.class_name ?? 'Aucune classe active'}{profile.school_year_name ? ` • Année scolaire ${profile.school_year_name}` : ''}</p>
+
+          <div className="sgp-period-picker">
+            <button
+              type="button"
+              className="sgp-period-picker__button"
+              onClick={() => setIsPeriodMenuOpen((current) => !current)}
+              aria-expanded={isPeriodMenuOpen}
+            >
+              <CalendarDays aria-hidden="true" size={16} />
+              {selectedPeriod ? selectedPeriod.period_name : 'Toutes périodes'}
+              <ChevronDown aria-hidden="true" size={16} />
+            </button>
+            {isPeriodMenuOpen && (
+              <ul className="sgp-period-picker__menu">
+                {summary.period_averages.map((period) => (
+                  <li key={period.period_id}>
+                    <button type="button" onClick={() => selectPeriod(period.period_id)}>
+                      {period.period_name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
-      </header>
+
+        <article className="sgp-average-card">
+          <span className="sgp-average-card__icon">
+            <TrendingUp aria-hidden="true" size={22} />
+          </span>
+          <div className="sgp-average-card__body">
+            <span>Moyenne générale</span>
+            <strong>{formatAverage(headlineAverage)} <small>/20</small></strong>
+          </div>
+          {trendDelta !== null && (
+            <span className={`sgp-average-card__trend ${trendDelta >= 0 ? 'sgp-average-card__trend--up' : 'sgp-average-card__trend--down'}`}>
+              {trendDelta >= 0 ? <TrendingUp aria-hidden="true" size={14} /> : <TrendingDown aria-hidden="true" size={14} />}
+              {trendDelta >= 0 ? '+' : ''}{trendDelta.toFixed(2).replace('.', ',')}
+              <small>vs période précédente</small>
+            </span>
+          )}
+          {summary.rank && summary.class_size && (
+            <span className="sgp-average-card__rank">
+              <Award aria-hidden="true" size={13} /> Rang : {summary.rank} / {summary.class_size}
+            </span>
+          )}
+        </article>
+      </div>
 
       <div className="sgp-layout">
         <div className="sgp-main-col">
           <section className="sgp-section">
-            <h2><BarChart3 aria-hidden="true" size={18} /> Synthèse des performances</h2>
-            <div className="sgp-stats-grid">
-              <article className="sgp-stat sgp-stat--violet">
-                <span className="sgp-stat__icon"><TrendingUp aria-hidden="true" size={18} /></span>
-                <div>
-                  <span>Moyenne générale</span>
-                  <strong>{formatAverage(summary.overall_average)}</strong>
-                  {summary.rank && summary.class_size && (
-                    <small><Award aria-hidden="true" size={13} /> Rang : {summary.rank} / {summary.class_size}</small>
-                  )}
-                </div>
-              </article>
-
-              {summary.period_averages.map((period, index) => (
-                <article key={period.period_id} className={`sgp-stat sgp-stat--${PALETTE[(index + 1) % PALETTE.length]}`}>
-                  <span className="sgp-stat__icon"><TrendingUp aria-hidden="true" size={18} /></span>
-                  <div>
-                    <span>Moyenne — {period.period_name}</span>
-                    <strong>{formatAverage(period.average)}</strong>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="sgp-section">
-            <h2><BookOpen aria-hidden="true" size={18} /> Mes matières</h2>
-            <p className="sgp-section-hint">Touchez une matière pour voir ses notes juste en dessous.</p>
-            <div className="sgp-subject-accordion">
+            <h2><BookOpen aria-hidden="true" size={18} /> Moyennes par matière</h2>
+            <div className="sgp-subject-list">
               {summary.subject_averages.length === 0 ? (
                 <p className="sgp-empty">Aucune moyenne disponible pour le moment.</p>
               ) : (
-                summary.subject_averages.map((subject, index) => {
-                  const SubjectIcon = getSubjectIcon(subject.subject_name)
+                summary.subject_averages.map((subject) => {
                   const isSelected = subject.subject_id === selectedSubjectId
-                  const color = PALETTE[index % PALETTE.length]
+                  const color = subjectColorBySubjectId.get(subject.subject_id)
                   const subjectGrades = isSelected ? gradesForSelectedSubject : []
                   return (
-                    <div key={subject.subject_id} className={`sgp-subject-item sgp-subject-item--${color}${isSelected ? ' sgp-subject-item--open' : ''}`}>
+                    <div key={subject.subject_id} className={`sgp-subject-row sgp-subject-row--${color}${isSelected ? ' sgp-subject-row--open' : ''}`}>
                       <button
                         type="button"
-                        className="sgp-subject-item__head"
+                        className="sgp-subject-row__head"
                         onClick={() => toggleSubjectFilter(subject.subject_id)}
                         aria-expanded={isSelected}
                       >
-                        <span className="sgp-subject-item__icon"><SubjectIcon aria-hidden="true" size={16} /></span>
-                        <span className="sgp-subject-item__name">{subject.subject_name}</span>
-                        <strong>{formatAverage(subject.average)}</strong>
-                        <ChevronDown aria-hidden="true" size={16} className="sgp-subject-item__chevron" />
+                        <span className="sgp-subject-row__badge">{getSubjectInitials(subject.subject_name)}</span>
+                        <span className="sgp-subject-row__name">{subject.subject_name}</span>
+                        <span className="sgp-subject-row__average">{formatAverage(subject.average)} <small>/20</small></span>
+                        <span className="sgp-subject-row__coef">Coef. {subject.coefficient % 1 === 0 ? subject.coefficient : subject.coefficient.toFixed(1)}</span>
+                        <ChevronRight aria-hidden="true" size={17} className="sgp-subject-row__chevron" />
                       </button>
 
                       {isSelected && (
-                        <div className="sgp-subject-item__body">
+                        <div className="sgp-subject-row__body">
                           {subjectGrades.length === 0 ? (
                             <p className="sgp-empty">Aucune note dans cette matière.</p>
                           ) : (
                             subjectGrades.map((grade) => (
-                              <div key={grade.id} className="sgp-subject-item__grade">
+                              <div key={grade.id} className="sgp-subject-row__grade">
                                 <div>
                                   <strong>{grade.assessment_title}</strong>
                                   <span>{formatDate(grade.assessment_date)}</span>
@@ -200,55 +246,41 @@ export default function StudentGradesPage() {
           </section>
 
           <section className="sgp-section">
-            <h2><FileText aria-hidden="true" size={18} /> Mes dernières notes</h2>
-            <div className="sgp-table-wrapper">
-              <table className="sgp-table">
-                <thead>
-                  <tr>
-                    <th>Matière</th>
-                    <th>Évaluation</th>
-                    <th>Date</th>
-                    <th>Note</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentGrades.length === 0 ? (
-                    <tr><td colSpan={4} className="sgp-empty">Aucune note pour le moment.</td></tr>
-                  ) : (
-                    recentGrades.map((grade) => {
-                      const SubjectIcon = getSubjectIcon(grade.subject_name)
-                      const color = subjectColorBySubjectId.get(grade.subject_id) ?? 'violet'
-                      return (
-                      <tr key={grade.id}>
-                        <td>
-                          <span className="sgp-row-subject">
-                            <span className={`sgp-row-subject__icon sgp-row-subject__icon--${color}`}>
-                              <SubjectIcon aria-hidden="true" size={15} />
-                            </span>
-                            {grade.subject_name}
-                          </span>
-                        </td>
-                        <td>{grade.assessment_title}</td>
-                        <td>{formatDate(grade.assessment_date)}</td>
-                        <td className={`sgp-score ${scoreTone(grade)}`}>
-                          {formatScore(grade)}
-                        </td>
-                      </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {grades.length > 5 && (
-              <p className="sgp-more">
-                {showAllGrades
-                  ? `${grades.length} note(s) affichée(s) au total.`
-                  : `${hiddenGradeCount} autre(s) note(s) non affichée(s) ici.`}
+            <div className="sgp-section-head">
+              <h2><CalendarClock aria-hidden="true" size={18} /> Dernières évaluations</h2>
+              {grades.length > 5 && (
                 <button type="button" className="sgp-more__btn" onClick={() => setShowAllGrades((current) => !current)}>
-                  {showAllGrades ? 'Voir moins' : 'Voir toutes mes notes'}
+                  {showAllGrades ? 'Voir moins' : 'Voir tout'} <ChevronRight aria-hidden="true" size={14} />
                 </button>
-              </p>
+              )}
+            </div>
+            <div className="sgp-evaluation-list">
+              {recentGrades.length === 0 ? (
+                <p className="sgp-empty">Aucune note pour le moment.</p>
+              ) : (
+                recentGrades.map((grade) => {
+                  const SubjectIcon = getSubjectIcon(grade.subject_name)
+                  const color = subjectColorBySubjectId.get(grade.subject_id) ?? 'violet'
+                  return (
+                    <div key={grade.id} className={`sgp-evaluation-row sgp-evaluation-row--${scoreTone(grade).replace('sgp-score--', '')}`}>
+                      <span className={`sgp-evaluation-row__icon sgp-evaluation-row__icon--${color}`}>
+                        <SubjectIcon aria-hidden="true" size={17} />
+                      </span>
+                      <div className="sgp-evaluation-row__info">
+                        <strong>{grade.subject_name}</strong>
+                        <span>{grade.assessment_title}</span>
+                      </div>
+                      <span className={`sgp-score ${scoreTone(grade)}`}>{formatScore(grade)}</span>
+                      <span className="sgp-evaluation-row__date">
+                        <CalendarDays aria-hidden="true" size={13} /> {formatDate(grade.assessment_date)}
+                      </span>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+            {hiddenGradeCount > 0 && (
+              <p className="sgp-more">{hiddenGradeCount} autre(s) note(s) non affichée(s) ici.</p>
             )}
           </section>
         </div>
