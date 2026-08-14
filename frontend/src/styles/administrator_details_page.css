@@ -7,6 +7,9 @@
 .addp-identity, .addp-information { padding: var(--space-5); background: var(--color-surface); border: var(--border-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); }
 .addp-identity { display: grid; grid-template-columns: auto 1fr; gap: var(--space-4); align-items: center; margin-bottom: var(--space-5); }
 .addp-avatar { width: 64px; height: 64px; display: grid; place-items: center; color: var(--color-primary); background: var(--color-primary-light); border-radius: var(--radius-full); overflow: hidden; font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); }
+.addp-photo-wrap { position: relative; width: 64px; height: 64px; }
+.addp-photo-input { display: none; }
+.addp-photo-edit { position: absolute; right: -4px; bottom: -4px; width: 28px; height: 28px; display: grid; place-items: center; color: var(--color-primary); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-full); cursor: pointer; }
 .addp-name h2 { margin: 0 0 var(--space-2); }
 .addp-summary { grid-column: 1 / -1; display: grid; gap: var(--space-3); margin: 0; }
 .addp-summary div { padding-top: var(--space-3); border-top: 1px solid var(--color-border); }

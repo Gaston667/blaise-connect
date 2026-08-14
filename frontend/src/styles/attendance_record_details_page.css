@@ -21,6 +21,23 @@
 .attendance-detail-history { display: grid; gap: .6rem; }
 .attendance-detail-history article { display: grid; gap: .2rem; padding: .75rem; border-left: 3px solid var(--color-primary); background: var(--color-background-alt); }
 .attendance-detail-history small { color: var(--color-text-muted); }
+.attendance-detail-actions > div { display: flex; flex-wrap: wrap; gap: .75rem; }
+.attendance-detail-button { display: inline-flex; align-items: center; gap: .45rem; padding: .65rem .85rem; color: var(--color-primary); border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-surface); font: inherit; font-weight: 700; cursor: pointer; }
+.attendance-detail-button svg { width: 1rem; }
+.attendance-detail-button--success { color: var(--color-success); border-color: var(--color-success); }
+.attendance-detail-button--danger { color: var(--color-danger); border-color: var(--color-danger); }
+.attendance-detail-dialog-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 1rem; background: rgb(8 25 55 / 48%); }
+.attendance-detail-dialog { width: min(100%, 38rem); padding: 1.25rem; border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-lg); }
+.attendance-detail-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.attendance-detail-dialog h2 { margin: 0; color: var(--color-primary-active); }
+.attendance-detail-dialog header button { border: 0; background: transparent; cursor: pointer; }
+.attendance-detail-dialog form { display: grid; gap: 1rem; margin-top: 1rem; }
+.attendance-detail-dialog label { display: grid; gap: .4rem; color: var(--color-text-secondary); font-weight: 600; }
+.attendance-detail-dialog input, .attendance-detail-dialog select, .attendance-detail-dialog textarea { width: 100%; min-height: 2.75rem; padding: .65rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); font: inherit; }
+.attendance-detail-dialog textarea { min-height: 5.5rem; resize: vertical; }
+.attendance-detail-dialog footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .6rem; }
+.attendance-detail-dialog footer button { padding: .65rem .85rem; border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-primary); font: inherit; font-weight: 700; cursor: pointer; }
+.attendance-detail-dialog footer button[type="submit"] { background: var(--color-primary); color: #fff; }
 @media (min-width: 760px) {
   .attendance-detail-page { padding: 1.5rem; }
   .attendance-detail-summary { grid-template-columns: auto 2fr 1fr 1fr; align-items: center; }

@@ -83,7 +83,7 @@
 
 | US | Deadline | Nom de l’US | Description de l’US | Statut | Fichiers concernés |
 |---|---|---|---|---|---|
-| US-017 | 18/08/2026 | Saisie des appréciations | En tant qu’enseignant, je veux ajouter une appréciation sur le travail d’un élève afin de compléter ses résultats et son bulletin. | À faire | Champ préparé dans `database/migration/006_report_cards_and_year_deletion.sql` ; backend et frontend à créer |
+| US-017 | 18/08/2026 | Saisie des appréciations | En tant qu’enseignant, je veux ajouter une appréciation sur le travail d’un élève afin de compléter ses résultats et son bulletin. | À tester | `database/migration/009_appreciations.sql`, `backend/app/routes/appreciations.py`, `backend/app/services/appreciation_service.py`, `frontend/src/pages/appreciations_page.jsx` |
 | US-021 | 19/08/2026 | Génération du bulletin PDF | En tant qu’administrateur, je veux vérifier et générer le bulletin PDF d’un élève afin de fournir un document scolaire imprimable. | 🟥 À faire | `database/migration/006_report_cards_and_year_deletion.sql`, `docs/diagramme/database_05_report_cards.plantuml` ; génération PDF à créer |
 | US-027 | 20/08/2026 | Sauvegarde des données | En tant qu’administrateur technique, je veux sauvegarder les données et les fichiers afin de limiter le risque de perte. | 🟥 À faire | À compléter pendant le développement |
 | US-028 | 21/08/2026 | Version pilote | En tant que responsable de l’établissement, je veux utiliser une version pilote de BlaiseConnect afin de vérifier son fonctionnement avant une ouverture plus large. | 🟥 À faire | À compléter pendant le développement |

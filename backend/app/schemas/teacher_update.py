@@ -17,5 +17,6 @@ class TeacherUpdate(BaseModel):
     email: str | None = Field(default=None, max_length=254)
     phone: str | None = Field(default=None, max_length=30)
     address: str | None = None
+    hire_date: date | None = None
     qualification: str | None = None
     photo_path: str | None = Field(default=None, max_length=500)

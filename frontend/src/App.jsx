@@ -30,6 +30,7 @@ import TeacherTimetablePage from './pages/teacher_timetable_page.jsx'
 import TimetableManagementPage from './pages/timetable_management_page.jsx'
 import AttendancePage from './pages/attendance_page.jsx'
 import AttendanceRecordDetailsPage from './pages/attendance_record_details_page.jsx'
+import AppreciationsPage from './pages/appreciations_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
 
 const PAGE_PATHS = {
@@ -49,6 +50,7 @@ const PAGE_PATHS = {
   'teacher-timetable': '/my-teaching-schedule',
   timetables: '/timetables',
   attendance: '/attendance',
+  appreciations: '/appreciations',
 }
 
 /**
@@ -79,6 +81,7 @@ function getCurrentPage(pathname) {
   if (pathname === '/my-teaching-schedule') return 'teacher-timetable'
   if (pathname === '/timetables') return 'timetables'
   if (pathname === '/attendance') return 'attendance'
+  if (pathname === '/appreciations') return 'appreciations'
   return 'home'
 }
 
@@ -276,6 +279,9 @@ export default function App() {
   else if (currentPage === 'notes' && canManageNotes) {
     pageContent = <NotesPage account={currentAccount} onNavigate={handleNavigate} />
   }
+  else if (currentPage === 'appreciations' && currentAccount.role === 'TEACHER') {
+    pageContent = <AppreciationsPage />
+  }
   else if (currentPage === 'administrators' && canManageSchool) {
     pageContent = <AdministratorsPage onNavigate={handleNavigate} />
   }
@@ -301,17 +307,18 @@ export default function App() {
   }
   else if (
     currentPage === 'attendance'
-    && ['ADMIN', 'TEACHER', 'STUDENT'].includes(currentAccount.role)
+    && ['ADMIN', 'STUDENT'].includes(currentAccount.role)
   ) {
     pageContent = <AttendancePage account={currentAccount} onNavigate={handleNavigate} />
   }
   else if (
     currentPage === 'attendance-record-details'
-    && ['ADMIN', 'TEACHER', 'STUDENT'].includes(currentAccount.role)
+    && ['ADMIN', 'STUDENT'].includes(currentAccount.role)
   ) {
     pageContent = (
       <AttendanceRecordDetailsPage
         recordId={pathId}
+        account={currentAccount}
         onNavigate={handleNavigate}
       />
     )

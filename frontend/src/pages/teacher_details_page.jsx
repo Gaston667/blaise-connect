@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BadgeInfo,
   BookOpen,
@@ -26,6 +26,7 @@ import {
   updateTeacherProfile,
 } from '../services/teachers_overview_service.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import { uploadAccountPhoto } from '../services/account_service.js'
 import '../styles/teacher_details_page.css'
 
 const DEFAULT_PHOTO = defaultPhoto
@@ -108,8 +109,10 @@ export default function TeacherDetailsPage({ account, teacher }) {
     email: '',
     phone: '',
     address: '',
+    hire_date: '',
     qualification: '',
   })
+  const photoInputRef = useRef(null)
   const [personalFieldErrors, setPersonalFieldErrors] = useState({})
 
   const [subjectAssignOpen, setSubjectAssignOpen] = useState(false)
@@ -207,6 +210,7 @@ export default function TeacherDetailsPage({ account, teacher }) {
       email: source.email ?? '',
       phone: source.phone ?? '',
       address: source.address ?? '',
+      hire_date: toDateInput(source.hire_date),
       qualification: source.qualification ?? '',
     })
   }
@@ -269,6 +273,7 @@ export default function TeacherDetailsPage({ account, teacher }) {
       email: normalizeOptionalString(personalForm.email),
       phone: normalizeOptionalString(personalForm.phone),
       address: normalizeOptionalString(personalForm.address),
+      hire_date: personalForm.hire_date || null,
       qualification: normalizeOptionalString(personalForm.qualification),
     }
 
@@ -284,6 +289,23 @@ export default function TeacherDetailsPage({ account, teacher }) {
       toast.error(error.message || 'Échec de la mise à jour.')
     } finally {
       setPersonalSaving(false)
+    }
+  }
+
+  async function handleTeacherPhotoChange(event) {
+    const photo = event.target.files?.[0]
+    event.target.value = ''
+    if (!photo || !details?.account_id) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.type) || photo.size > 5 * 1024 * 1024) {
+      toast.error('La photo doit être en JPEG, PNG ou WebP et ne pas dépasser 5 Mo.')
+      return
+    }
+    try {
+      await uploadAccountPhoto(details.account_id, photo)
+      await loadTeacher()
+      toast.success('Photo de l’enseignant mise à jour.')
+    } catch (error) {
+      toast.error(error.message)
     }
   }
 
@@ -482,6 +504,7 @@ export default function TeacherDetailsPage({ account, teacher }) {
                 }}
               />
             </span>
+            {canEdit ? <><input ref={photoInputRef} className="tdp-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleTeacherPhotoChange} /><button type="button" className="tdp-photo-edit" onClick={function openPhotoPicker() { photoInputRef.current?.click() }} aria-label="Modifier la photo"><Pencil size={14} /></button></> : null}
 
             <div>
               <h2 className="tdp-hero__name">{formatProfileName(details.first_name, details.last_name, details.gender)}</h2>
@@ -691,6 +714,11 @@ export default function TeacherDetailsPage({ account, teacher }) {
                   />
                 </label>
 
+                <label>
+                  <span>Date d’embauche</span>
+                  <input type="date" value={personalForm.hire_date} onChange={(event) => handlePersonalFieldChange('hire_date', event.target.value)} />
+                </label>
+
                 <label className="tdp-edit-form__full">
                   <span>Qualification</span>
                   <textarea
@@ -796,10 +824,7 @@ export default function TeacherDetailsPage({ account, teacher }) {
                   {details.taught_subjects.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="tdp-empty">
-                        Aucune matière rattachée.{' '}
-                        <button type="button" className="tdp-empty-cta" onClick={openSubjectAssignModal}>
-                          Affecter une matière
-                        </button>
+                        Aucune matière rattachée.
                       </td>
                     </tr>
                   ) : (
@@ -845,7 +870,7 @@ export default function TeacherDetailsPage({ account, teacher }) {
         {activeTab === 'evaluations' && (
           <article className="tdp-panel">
             <section className="tdp-panel tdp-panel--nested">
-              <h3>Synthèse des performances</h3>
+              <h3>Synthèse</h3>
               <div className="tdp-kpi-grid">
                 <article><span>Évaluations créées</span><strong>{evaluationSummary.assessment_count}</strong></article>
                 <article><span>Classes couvertes</span><strong>{evaluationSummary.class_count}</strong></article>

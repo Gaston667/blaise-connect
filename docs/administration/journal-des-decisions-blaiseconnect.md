@@ -2,6 +2,13 @@
 
 Ce document conserve les décisions projet et leur état.
 
+## D-028 — Brouillons d’appréciations avant bulletin
+
+- Les appréciations de matière et générales sont enregistrées avant la génération du bulletin dans des tables dédiées.
+- Seul l’enseignant affecté écrit une appréciation de matière ; seul le professeur principal écrit l’appréciation générale.
+- Une appréciation devient non modifiable dès qu’un bulletin de l’élève et de la période est validé.
+- L’US-021 copiera ces brouillons dans le bulletin historique.
+
 ## Statuts
 
 - ⬜ Proposition

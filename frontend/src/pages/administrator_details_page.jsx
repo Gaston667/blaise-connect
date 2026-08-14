@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
-import { ArrowLeft, BadgeInfo, Briefcase, CalendarDays, Clock, Mail, MapPin, Phone, ShieldCheck, UserRound } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, BadgeInfo, Briefcase, CalendarDays, Clock, Mail, MapPin, Pencil, Phone, ShieldCheck, UserRound } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 
 import { getAdministratorOverview, updateAdministrator } from '../services/administrators_overview_service.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import { uploadAccountPhoto } from '../services/account_service.js'
 import '../styles/administrator_details_page.css'
 
 const DEFAULT_PHOTO = defaultPhoto
@@ -53,6 +54,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const photoInputRef = useRef(null)
 
   useEffect(function loadAdministratorDetailsEffect() {
     if (details || !administrator?.id) return
@@ -84,6 +86,23 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
   function updateField(event) {
     const { name, value } = event.target
     setForm((current) => ({ ...current, [name]: value }))
+  }
+
+  async function handlePhotoChange(event) {
+    const photo = event.target.files?.[0]
+    event.target.value = ''
+    if (!photo || !details?.account_id) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.type) || photo.size > 5 * 1024 * 1024) {
+      setSaveError('La photo doit être en JPEG, PNG ou WebP et ne pas dépasser 5 Mo.')
+      return
+    }
+    try {
+      await uploadAccountPhoto(details.account_id, photo)
+      setDetails(await getAdministratorOverview(details.id))
+      setSuccessMessage('Photo de l’administrateur mise à jour.')
+    } catch (error) {
+      setSaveError(error.message)
+    }
   }
 
   async function handleSave(event) {
@@ -144,7 +163,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
       )}
 
       <section className="addp-identity">
-        <ProfilePhoto photoPath={details.photo_path} />
+        <div className="addp-photo-wrap"><ProfilePhoto photoPath={details.photo_path} /><input ref={photoInputRef} className="addp-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} /><button type="button" className="addp-photo-edit" onClick={function openPhotoPicker() { photoInputRef.current?.click() }} aria-label="Modifier la photo"><Pencil size={14} /></button></div>
         <div className="addp-name">
           <h2>{formatProfileName(details.first_name, details.last_name, details.gender)}</h2>
           <span className={`adp-badge ${details.status === 'ACTIVE' ? 'adp-badge--active' : 'adp-badge--inactive'}`}>
