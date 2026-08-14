@@ -1,0 +1,16 @@
+# Extension réseau local du Compose de développement.
+#
+# Utilisation :
+# docker compose -f compose.yaml -f compose.lan.yaml up -d --build
+#
+# Ce fichier ne remplace pas compose.yaml. Il modifie seulement la publication
+# du frontend pour que les appareils du même réseau local puissent l'ouvrir.
+# PostgreSQL, FastAPI et pgAdmin restent volontairement accessibles uniquement
+# depuis ce PC.
+
+services:
+  frontend:
+    ports:
+      # Sans 127.0.0.1, Docker écoute sur toutes les interfaces réseau du PC.
+      # Depuis un autre appareil : http://IP_DU_PC:5173
+      - "5173:5173"

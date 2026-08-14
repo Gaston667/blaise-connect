@@ -72,6 +72,12 @@ function initials(first, last) {
   return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase()
 }
 
+function getRequiredSpecialtyCount(levelCode) {
+  if (levelCode === 'PREMIERE') return 3
+  if (levelCode === 'TERMINALE') return 2
+  return 0
+}
+
 const DEFAULT_PHOTO = defaultPhoto
 
 function genderLabel(gender) {
@@ -125,6 +131,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
   const [enrollmentSaving, setEnrollmentSaving] = useState(false)
   const [enrollmentSpecialties, setEnrollmentSpecialties] = useState([])
   const [enrollmentSpecialtyIds, setEnrollmentSpecialtyIds] = useState([])
+  const [enrollmentError, setEnrollmentError] = useState('')
   const [informationMessage, setInformationMessage] = useState('')
   const [editPhoto, setEditPhoto] = useState(null)
   const [editPhotoPreview, setEditPhotoPreview] = useState('')
@@ -441,12 +448,15 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     setEnrollmentStartDate(new Date().toISOString().slice(0, 10))
     setEnrollmentSpecialties([])
     setEnrollmentSpecialtyIds([])
+    setEnrollmentError('')
     setEnrollmentModalOpen(true)
     setError('')
   }
 
   function closeEnrollmentModal() {
+    if (enrollmentSaving) return
     setEnrollmentModalOpen(false)
+    setEnrollmentError('')
   }
 
   async function updateEnrollmentClass(event) {
@@ -454,6 +464,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     setEnrollmentClassId(classId)
     setEnrollmentSpecialties([])
     setEnrollmentSpecialtyIds([])
+    setEnrollmentError('')
     const selectedClass = classes.find(function findClass(item) {
       return String(item.id) === String(classId)
     })
@@ -469,9 +480,16 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
   function toggleEnrollmentSpecialty(subjectId) {
     setEnrollmentSpecialtyIds(function updateSelection(currentIds) {
       const id = String(subjectId)
+      const selectedClass = classes.find(function findClass(item) {
+        return String(item.id) === String(enrollmentClassId)
+      })
+      const requiredCount = getRequiredSpecialtyCount(selectedClass?.level_code)
+
       return currentIds.includes(id)
         ? currentIds.filter(function removeId(currentId) { return currentId !== id })
-        : [...currentIds, id]
+        : currentIds.length >= requiredCount
+          ? currentIds
+          : [...currentIds, id]
     })
   }
 
@@ -480,14 +498,22 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     const selectedClass = classes.find(function findClass(item) {
       return String(item.id) === String(enrollmentClassId)
     })
-    const requiredCount = selectedClass?.level_code === 'PREMIERE'
-      ? 3
-      : selectedClass?.level_code === 'TERMINALE' ? 2 : 0
-    if (enrollmentSpecialtyIds.length !== requiredCount) {
+    const requiredCount = getRequiredSpecialtyCount(selectedClass?.level_code)
+    if (!selectedClass) {
+      setEnrollmentError('Sélectionnez une classe.')
+      return
+    }
+    if (!enrollmentStartDate) {
+      setEnrollmentError('Renseignez la date d’inscription.')
+      return
+    }
+    if (requiredCount > 0 && enrollmentSpecialtyIds.length !== requiredCount) {
+      setEnrollmentError(`Sélectionnez exactement ${requiredCount} spécialités.`)
       setError(`Sélectionnez exactement ${requiredCount} spécialité${requiredCount > 1 ? 's' : ''}.`)
       return
     }
     setEnrollmentSaving(true)
+    setEnrollmentError('')
     setError('')
     try {
       const updatedStudent = await enrollStudent(details.id, {
@@ -500,6 +526,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
       setInformationMessage('L’élève a été inscrit dans la classe.')
       await load()
     } catch (requestError) {
+      setEnrollmentError(requestError.message || 'Impossible d’inscrire l’élève dans cette classe.')
       setError(requestError.message)
     } finally {
       setEnrollmentSaving(false)
@@ -743,6 +770,15 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     }
   }
 
+  function isEnrollmentSpecialtySelectionComplete() {
+    const selectedClass = classes.find(function findSelectedEnrollmentClass(item) {
+      return String(item.id) === String(enrollmentClassId)
+    })
+    const requiredCount = getRequiredSpecialtyCount(selectedClass?.level_code)
+
+    return requiredCount === 0 || enrollmentSpecialtyIds.length === requiredCount
+  }
+
   async function handleAction(actionFn) {
     setMenuOpen(false)
     setError('')
@@ -904,11 +940,20 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                   required
                 />
               </label>
+              {enrollmentError && (
+                <p className="sdp-enrollment-error" role="alert">
+                  {enrollmentError}
+                </p>
+              )}
               <footer>
                 <button type="button" className="sdp-btn-secondary" onClick={closeEnrollmentModal}>
                   Annuler
                 </button>
-                <button type="submit" className="sdp-btn-primary" disabled={enrollmentSaving}>
+                <button
+                  type="submit"
+                  className="sdp-btn-primary"
+                  disabled={enrollmentSaving || !isEnrollmentSpecialtySelectionComplete()}
+                >
                   {enrollmentSaving ? 'Inscription…' : 'Confirmer l’inscription'}
                 </button>
               </footer>
@@ -1784,4 +1829,3 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     </main>
   )
 }
-

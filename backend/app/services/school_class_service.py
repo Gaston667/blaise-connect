@@ -311,7 +311,16 @@ def list_school_class_subjects(
                 JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
                 WHERE assignment.class_subject_id = cs.id
                   AND assignment.end_date IS NULL
-            ) AS teacher_name
+            ) AS teacher_name,
+            (
+                SELECT teacher.qualification
+                FROM teacher_assignments AS assignment
+                JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+                WHERE assignment.class_subject_id = cs.id
+                  AND assignment.end_date IS NULL
+                ORDER BY assignment.start_date DESC, assignment.created_at DESC
+                LIMIT 1
+            ) AS teacher_qualification
         FROM class_subjects cs
         JOIN subjects s ON s.id = cs.subject_id
         WHERE {" AND ".join(where_clauses)}

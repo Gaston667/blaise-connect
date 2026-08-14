@@ -979,6 +979,42 @@
 .sdp-enrollment-specialties p { font-size: var(--font-size-sm); }
 .sdp-enrollment-specialty { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-2); min-height: 42px; padding: var(--space-2); border-radius: var(--radius-md); background: var(--color-background-alt); cursor: pointer; }
 .sdp-enrollment-specialty input { min-height: auto; width: 1rem; height: 1rem; }
+.sdp-enrollment-error {
+  margin: 0;
+  padding: var(--space-3);
+  border: var(--border-width-thin) solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-text);
+  background: var(--color-danger-light);
+  font-size: var(--font-size-sm);
+}
+
+.sdp-specialties-section {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: var(--border-width-thin) solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-surface));
+}
+
+.sdp-specialties-section h3 { margin: 0; color: var(--color-primary-active); }
+.sdp-specialties-section p,
+.sdp-specialties-section small { margin: 0; color: var(--color-text-secondary); }
+.sdp-specialties-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.sdp-specialty-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: var(--border-width-thin) solid var(--color-primary);
+  border-radius: var(--radius-full);
+  color: var(--color-primary-active);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
 
 @media (max-width: 900px) {
   .sdp-body { grid-template-columns: 1fr; }

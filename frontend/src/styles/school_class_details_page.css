@@ -156,3 +156,12 @@
   .scd-student-filters { grid-template-columns: minmax(16rem, 1fr) minmax(11rem, 0.35fr) auto auto; }
   .scd-subject-filters { grid-template-columns: minmax(16rem, 1fr) minmax(11rem, 0.35fr) auto auto; }
 }
+.scd-assigned-teacher {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.scd-assigned-teacher small {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}

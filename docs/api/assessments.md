@@ -11,4 +11,4 @@
 - `GET /grades/{id}/documents/{document_id}/content` : téléchargement authentifié.
 - `PATCH /grades/{id}/absence-review` : validation ou rejet administratif.
 
-Les notes sont normalisées sur 20 côté backend. Une absence justifiée ou en attente est exclue ; une absence non justifiée ou rejetée vaut zéro pendant le calcul. L’arrondi définitif reste à valider : l’interface limite seulement l’affichage à deux décimales.
+Les notes sont normalisées sur 20 côté backend. Une absence justifiée ou en attente est exclue ; une absence non justifiée ou rejetée vaut zéro pendant le calcul. L’arrondi est fixé à deux décimales et l’interface affiche la même précision.

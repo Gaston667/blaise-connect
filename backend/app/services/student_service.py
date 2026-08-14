@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.account import Account
@@ -352,7 +353,15 @@ def enroll_student(
             ),
             {"enrollment_id": enrollment_id, "subject_id": subject_id},
         )
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError as error:
+        db.rollback()
+        raise ValueError(
+            "L'inscription n'a pas pu être enregistrée. Vérifiez la classe, "
+            "la date et les spécialités choisies."
+        ) from error
+
     return get_student(db=db, student_id=student_id)
 
 

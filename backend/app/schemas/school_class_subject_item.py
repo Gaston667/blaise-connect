@@ -17,3 +17,4 @@ class SchoolClassSubjectItem(BaseModel):
     is_specialty: bool
     teacher_id: UUID | None = None
     teacher_name: str | None = None
+    teacher_qualification: str | None = None
