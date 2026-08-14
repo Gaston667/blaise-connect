@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  X,
   FlaskConical,
   Globe2,
   Languages,
@@ -16,7 +17,12 @@ import {
   TrendingUp,
 } from 'lucide-react'
 
-import { getMyGrades, getMyGradesSummary, getMyProfile } from '../services/student_grades_service.js'
+import {
+  getMyAssessmentDetail,
+  getMyGrades,
+  getMyGradesSummary,
+  getMyProfile,
+} from '../services/student_grades_service.js'
 import '../styles/student_grades_page.css'
 
 const PALETTE = ['violet', 'green', 'blue', 'orange']
@@ -86,6 +92,9 @@ export default function StudentGradesPage() {
   const [selectedSubjectId, setSelectedSubjectId] = useState(null)
   const [selectedPeriodId, setSelectedPeriodId] = useState(null)
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false)
+  const [assessmentDetail, setAssessmentDetail] = useState(null)
+  const [assessmentDetailError, setAssessmentDetailError] = useState('')
+  const [isAssessmentDetailLoading, setIsAssessmentDetailLoading] = useState(false)
 
   useEffect(function loadDashboardEffect() {
     async function load() {
@@ -139,12 +148,41 @@ export default function StudentGradesPage() {
     setIsPeriodMenuOpen(false)
   }
 
+  async function openAssessmentDetail(assessmentId) {
+    setAssessmentDetailError('')
+    setAssessmentDetail(null)
+    setIsAssessmentDetailLoading(true)
+
+    try {
+      setAssessmentDetail(await getMyAssessmentDetail(assessmentId))
+    } catch (error) {
+      setAssessmentDetailError(error.message)
+    } finally {
+      setIsAssessmentDetailLoading(false)
+    }
+  }
+
+  function handleEvaluationClick(event) {
+    openAssessmentDetail(event.currentTarget.dataset.assessmentId)
+  }
+
+  function closeAssessmentDetail() {
+    setAssessmentDetail(null)
+    setAssessmentDetailError('')
+  }
+
   /** Ligne d'évaluation partagée entre l'aperçu et l'onglet "Toutes mes évaluations". */
   function renderEvaluationRow(grade) {
     const SubjectIcon = getSubjectIcon(grade.subject_name)
     const color = subjectColorBySubjectId.get(grade.subject_id) ?? 'violet'
     return (
-      <div key={grade.id} className={`sgp-evaluation-row sgp-evaluation-row--${scoreTone(grade).replace('sgp-score--', '')}`}>
+      <button
+        key={grade.id}
+        type="button"
+        className={`sgp-evaluation-row sgp-evaluation-row--${scoreTone(grade).replace('sgp-score--', '')}`}
+        data-assessment-id={grade.assessment_id}
+        onClick={handleEvaluationClick}
+      >
         <span className={`sgp-evaluation-row__icon sgp-evaluation-row__icon--${color}`}>
           <SubjectIcon aria-hidden="true" size={17} />
         </span>
@@ -156,7 +194,7 @@ export default function StudentGradesPage() {
         <span className="sgp-evaluation-row__date">
           <CalendarDays aria-hidden="true" size={13} /> {formatDate(grade.assessment_date)}
         </span>
-      </div>
+      </button>
     )
   }
 
@@ -269,13 +307,19 @@ export default function StudentGradesPage() {
                             <p className="sgp-empty">Aucune note dans cette matière.</p>
                           ) : (
                             subjectGrades.map((grade) => (
-                              <div key={grade.id} className="sgp-subject-row__grade">
+                              <button
+                                key={grade.id}
+                                type="button"
+                                className="sgp-subject-row__grade"
+                                data-assessment-id={grade.assessment_id}
+                                onClick={handleEvaluationClick}
+                              >
                                 <div>
                                   <strong>{grade.assessment_title}</strong>
                                   <span>{formatDate(grade.assessment_date)}</span>
                                 </div>
                                 <span className={`sgp-score ${scoreTone(grade)}`}>{formatScore(grade)}</span>
-                              </div>
+                              </button>
                             ))
                           )}
                         </div>
@@ -336,6 +380,44 @@ export default function StudentGradesPage() {
           </section>
         </aside>
       </div>
+
+      {(isAssessmentDetailLoading || assessmentDetail || assessmentDetailError) && (
+        <div className="sgp-modal-backdrop" role="presentation" onMouseDown={closeAssessmentDetail}>
+          <section
+            className="sgp-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sgp-assessment-detail-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button type="button" className="sgp-modal__close" onClick={closeAssessmentDetail} aria-label="Fermer">
+              <X aria-hidden="true" size={20} />
+            </button>
+            {isAssessmentDetailLoading && <p>Chargement du détail de l'évaluation…</p>}
+            {assessmentDetailError && <p className="sgp-error">{assessmentDetailError}</p>}
+            {assessmentDetail && (
+              <>
+                <h2 id="sgp-assessment-detail-title">{assessmentDetail.title}</h2>
+                <p className="sgp-modal__subtitle">
+                  {assessmentDetail.subject_name} · {assessmentDetail.class_name} · {formatDate(assessmentDetail.assessment_date)}
+                </p>
+                {assessmentDetail.description && <p>{assessmentDetail.description}</p>}
+                <div className="sgp-detail-grid">
+                  <article><span>Votre note</span><strong>{formatScore(assessmentDetail)}</strong></article>
+                  <article><span>Meilleure note</span><strong>{formatAverage(assessmentDetail.highest_score)} /20</strong></article>
+                  <article><span>Note la plus basse</span><strong>{formatAverage(assessmentDetail.lowest_score)} /20</strong></article>
+                  <article><span>Moyenne de classe</span><strong>{formatAverage(assessmentDetail.class_average)} /20</strong><small>{assessmentDetail.class_appreciation ?? 'Non disponible'}</small></article>
+                  <article><span>Rang</span><strong>{assessmentDetail.rank ? `${assessmentDetail.rank} / ${assessmentDetail.ranked_students_count}` : 'Non classé'}</strong></article>
+                  <article><span>Coefficient</span><strong>{assessmentDetail.coefficient}</strong><small>Barème : {assessmentDetail.maximum_score}</small></article>
+                </div>
+                <section className="sgp-detail-comment">
+                  <h3>Appréciation de l'enseignant</h3>
+                  <p>{assessmentDetail.comment || 'Aucune appréciation renseignée.'}</p>
+                </section>
+              </>
+            )}
+          </section>
+        </div>
       )}
     </main>
   )

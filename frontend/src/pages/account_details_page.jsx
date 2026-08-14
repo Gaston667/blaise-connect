@@ -24,6 +24,8 @@ import {
 } from '../services/account_service.js'
 import { generateSecurePassword } from '../services/password_generator.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import { NATIONALITIES } from '../constants/nationalities.js'
+import { INTERNATIONAL_PHONE_PATTERN } from '../utils/phone.js'
 
 const ROLE_LABELS = {
   ADMIN: 'Administrateur',
@@ -604,10 +606,10 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
               <div className="sdp-row">
                 <label>Date de naissance<input type="date" name="birth_date" value={personalForm.birth_date || ''} onChange={updatePersonalField} /></label>
                 <label>Lieu de naissance<input name="birth_place" value={personalForm.birth_place || ''} onChange={updatePersonalField} /></label>
-                <label>Nationalité<input name="nationality" value={personalForm.nationality || ''} onChange={updatePersonalField} /></label>
+                <label>Nationalité *<select name="nationality" value={personalForm.nationality || ''} onChange={updatePersonalField} required><option value="">Sélectionner une nationalité</option>{NATIONALITIES.map(function nationalityOption(nationality) { return <option key={nationality} value={nationality}>{nationality}</option> })}</select></label>
               </div>
               <div className="sdp-row">
-                <label>Téléphone<input name="phone" value={personalForm.phone || ''} onChange={updatePersonalField} /></label>
+                <label>Téléphone<input name="phone" value={personalForm.phone || ''} onChange={updatePersonalField} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" /></label>
                 <label>Email<input type="email" name="email" value={personalForm.email || personalForm.personal_email || ''} onChange={updatePersonalField} /></label>
               </div>
               <label className="sdp-full">Adresse<input name="address" value={personalForm.address || ''} onChange={updatePersonalField} /></label>

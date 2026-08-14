@@ -66,6 +66,29 @@ function statusTone(value) {
   }[value] || 'neutral'
 }
 
+function getCallValidationMessage({ assignmentId, attendanceDate, startTime, endTime }) {
+  if (!assignmentId) return 'Sélectionnez d’abord une classe, puis une matière.'
+  if (!attendanceDate || Number.isNaN(new Date(`${attendanceDate}T00:00:00`).getTime())) return 'La date de l’appel est invalide.'
+  if (attendanceDate > todayValue()) return 'Un appel ne peut pas être enregistré pour une date future.'
+  if (!startTime || !endTime) return 'Renseignez les heures de début et de fin.'
+  if (startTime >= endTime) return 'L’heure de fin doit être postérieure à l’heure de début.'
+  return ''
+}
+
+function AttendanceCourseFields({ options, classId, assignmentId, onClassChange, onAssignmentChange }) {
+  const classOptions = Array.from(new Map(options.map(function mapClass(option) {
+    return [option.class_id, option.class_name]
+  })).entries())
+  const subjectOptions = options.filter(function keepClassAssignment(option) {
+    return option.class_id === classId
+  })
+
+  return <>
+    <label>Classe *<select value={classId} onChange={onClassChange} required><option value="">Sélectionner une classe</option>{classOptions.map(function renderClassOption([id, name]) { return <option key={id} value={id}>{name}</option> })}</select></label>
+    <label>Matière *<select value={assignmentId} onChange={onAssignmentChange} disabled={!classId} required><option value="">{classId ? 'Sélectionner une matière' : 'Choisissez d’abord une classe'}</option>{subjectOptions.map(function renderSubjectOption(option) { return <option key={option.id} value={option.id}>{option.subject_name} — {option.teacher_name}</option> })}</select></label>
+  </>
+}
+
 export default function AttendancePage({ account, onNavigate }) {
   if (account.role === 'STUDENT') return <StudentAttendanceView onNavigate={onNavigate} />
   if (account.role === 'TEACHER') return <TeacherAttendanceView onNavigate={onNavigate} />
@@ -132,6 +155,7 @@ function TeacherAttendanceView({ onNavigate }) {
   const [events, setEvents] = useState([])
   const [records, setRecords] = useState([])
   const [assignmentId, setAssignmentId] = useState('')
+  const [classId, setClassId] = useState('')
   const [attendanceDate, setAttendanceDate] = useState(todayValue())
   const [startTime, setStartTime] = useState('08:00')
   const [endTime, setEndTime] = useState('09:00')
@@ -140,6 +164,7 @@ function TeacherAttendanceView({ onNavigate }) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [correctionRecord, setCorrectionRecord] = useState(null)
+  const [callError, setCallError] = useState('')
 
   useEffect(function loadTeacherDataEffect() {
     async function loadTeacherData() {
@@ -160,8 +185,14 @@ function TeacherAttendanceView({ onNavigate }) {
   }, [])
 
   async function loadRoster() {
-    if (!assignmentId || !attendanceDate) return
+    const validationMessage = getCallValidationMessage({ assignmentId, attendanceDate, startTime, endTime })
+    if (validationMessage) {
+      setCallError(validationMessage)
+      setRoster([])
+      return
+    }
     try {
+      setCallError('')
       const rows = await getAttendanceRoster(assignmentId, attendanceDate)
       setRoster(rows)
       setStates({})
@@ -184,6 +215,11 @@ function TeacherAttendanceView({ onNavigate }) {
 
   async function submitCall(event) {
     event.preventDefault()
+    const validationMessage = getCallValidationMessage({ assignmentId, attendanceDate, startTime, endTime })
+    if (validationMessage) {
+      setCallError(validationMessage)
+      return
+    }
     setSubmitting(true)
     const incidents = roster.flatMap(function buildIncident(student) {
       const state = states[student.student_enrollment_id] || { status: 'PRESENT' }
@@ -226,15 +262,19 @@ function TeacherAttendanceView({ onNavigate }) {
         <form className="attendance-panel" onSubmit={submitCall}>
           <h2>Nouvel appel</h2>
           <div className="attendance-call-fields">
-            <label>Cours<select required value={assignmentId} onChange={(e) => setAssignmentId(e.target.value)}>
-              <option value="">Sélectionner une classe et une matière</option>
-              {options.map((option) => <option key={option.id} value={option.id}>{option.class_name} — {option.subject_name}</option>)}
-            </select></label>
+            <AttendanceCourseFields
+              options={options}
+              classId={classId}
+              assignmentId={assignmentId}
+              onClassChange={function changeClass(event) { setClassId(event.target.value); setAssignmentId(''); setRoster([]); setCallError('') }}
+              onAssignmentChange={function changeAssignment(event) { setAssignmentId(event.target.value); setRoster([]); setCallError('') }}
+            />
             <label>Date<input type="date" required value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} /></label>
             <label>Début<input type="time" required value={startTime} onChange={(e) => setStartTime(e.target.value)} /></label>
             <label>Fin<input type="time" required value={endTime} onChange={(e) => setEndTime(e.target.value)} /></label>
             <button className="attendance-button attendance-button--outline" type="button" onClick={loadRoster}>Charger les élèves</button>
           </div>
+          {callError && <p className="attendance-form-error" role="alert">{callError}</p>}
           {roster.length > 0 && <RosterTable roster={roster} states={states} onChange={updateStudentState} />}
           {roster.length > 0 && <div className="attendance-form-actions"><button className="attendance-button" disabled={submitting}>{submitting ? 'Enregistrement…' : 'Enregistrer l’appel'}</button></div>}
         </form>
@@ -254,14 +294,14 @@ function TeacherAttendanceView({ onNavigate }) {
 function RosterTable({ roster, states, onChange }) {
   return (
     <div className="attendance-table-wrap"><table className="attendance-table">
-      <thead><tr><th>Élève</th><th>Matricule</th><th>Statut</th><th>Minutes</th><th>Motif initial</th></tr></thead>
+      <thead><tr><th>Élève</th><th>Matricule</th><th>Statut</th><th>Minutes</th><th>Motif constaté</th></tr></thead>
       <tbody>{roster.map(function renderStudent(student) {
         const state = states[student.student_enrollment_id] || { status: 'PRESENT', late_minutes: '', reason: '' }
         return <tr key={student.student_enrollment_id}>
           <td><strong>{student.last_name} {student.first_name}</strong></td><td>{student.registration_number}</td>
           <td><select value={state.status} onChange={(e) => onChange(student.student_enrollment_id, 'status', e.target.value)}><option value="PRESENT">Présent</option><option value="ABSENT">Absent</option><option value="LATE">En retard</option></select></td>
           <td><input aria-label="Minutes de retard" type="number" min="1" disabled={state.status !== 'LATE'} required={state.status === 'LATE'} value={state.late_minutes} onChange={(e) => onChange(student.student_enrollment_id, 'late_minutes', e.target.value)} /></td>
-          <td><input aria-label="Motif" value={state.reason} disabled={state.status === 'PRESENT'} onChange={(e) => onChange(student.student_enrollment_id, 'reason', e.target.value)} /></td>
+          <td><input aria-label="Motif constaté" placeholder="Facultatif" value={state.reason} disabled={state.status === 'PRESENT'} onChange={(e) => onChange(student.student_enrollment_id, 'reason', e.target.value)} /></td>
         </tr>
       })}</tbody>
     </table></div>
@@ -366,12 +406,14 @@ function AdminCallPanel({ onSaved }) {
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [options, setOptions] = useState([])
+  const [classId, setClassId] = useState('')
   const [assignmentId, setAssignmentId] = useState('')
   const [attendanceDate, setAttendanceDate] = useState(todayValue())
   const [startTime, setStartTime] = useState('08:00')
   const [endTime, setEndTime] = useState('09:00')
   const [roster, setRoster] = useState([])
   const [states, setStates] = useState({})
+  const [callError, setCallError] = useState('')
 
   async function togglePanel() {
     const nextOpen = !open
@@ -382,8 +424,14 @@ function AdminCallPanel({ onSaved }) {
   }
 
   async function loadRoster() {
-    if (!assignmentId) return
+    const validationMessage = getCallValidationMessage({ assignmentId, attendanceDate, startTime, endTime })
+    if (validationMessage) {
+      setCallError(validationMessage)
+      setRoster([])
+      return
+    }
     try {
+      setCallError('')
       setRoster(await getAttendanceRoster(assignmentId, attendanceDate))
       setStates({})
     } catch (error) { toast.error(error.message) }
@@ -397,6 +445,11 @@ function AdminCallPanel({ onSaved }) {
 
   async function submit(event) {
     event.preventDefault()
+    const validationMessage = getCallValidationMessage({ assignmentId, attendanceDate, startTime, endTime })
+    if (validationMessage) {
+      setCallError(validationMessage)
+      return
+    }
     const incidents = roster.flatMap(function makeIncident(student) {
       const state = states[student.student_enrollment_id] || { status: 'PRESENT' }
       if (state.status === 'PRESENT') return []
@@ -411,7 +464,7 @@ function AdminCallPanel({ onSaved }) {
     } catch (error) { toast.error(error.message) }
   }
 
-  return <section className="attendance-panel"><div className="attendance-panel-heading"><div><h2>Enregistrer un appel</h2><p>Intervenez sur n’importe quelle classe en cas de besoin.</p></div><button className="attendance-button attendance-button--outline" type="button" onClick={togglePanel}>{open ? 'Fermer' : 'Nouvel appel'}</button></div>{open && <form onSubmit={submit}><div className="attendance-call-fields"><label>Cours<select required value={assignmentId} onChange={(event) => setAssignmentId(event.target.value)}><option value="">Sélectionner une classe et une matière</option>{options.map((option) => <option key={option.id} value={option.id}>{option.class_name} — {option.subject_name} — {option.teacher_name}</option>)}</select></label><label>Date<input required type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><label>Début<input required type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></label><label>Fin<input required type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></label><button className="attendance-button attendance-button--outline" type="button" onClick={loadRoster}>Charger</button></div>{roster.length > 0 && <RosterTable roster={roster} states={states} onChange={updateStudentState} />}{roster.length > 0 && <div className="attendance-form-actions"><button className="attendance-button">Enregistrer l’appel</button></div>}</form>}</section>
+  return <section className="attendance-panel"><div className="attendance-panel-heading"><div><h2>Enregistrer un appel</h2><p>Intervenez sur n’importe quelle classe en cas de besoin.</p></div><button className="attendance-button attendance-button--outline" type="button" onClick={togglePanel}>{open ? 'Fermer' : 'Nouvel appel'}</button></div>{open && <form onSubmit={submit}><div className="attendance-call-fields"><AttendanceCourseFields options={options} classId={classId} assignmentId={assignmentId} onClassChange={function changeClass(event) { setClassId(event.target.value); setAssignmentId(''); setRoster([]); setCallError('') }} onAssignmentChange={function changeAssignment(event) { setAssignmentId(event.target.value); setRoster([]); setCallError('') }} /><label>Date<input required type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><label>Début<input required type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></label><label>Fin<input required type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></label><button className="attendance-button attendance-button--outline" type="button" onClick={loadRoster}>Charger</button></div>{callError && <p className="attendance-form-error" role="alert">{callError}</p>}{roster.length > 0 && <RosterTable roster={roster} states={states} onChange={updateStudentState} />}{roster.length > 0 && <div className="attendance-form-actions"><button className="attendance-button">Enregistrer l’appel</button></div>}</form>}</section>
 }
 
 function StudentAttendanceView({ onNavigate }) {

@@ -4,6 +4,7 @@ import defaultPhoto from '../assets/image_phtoto_default.png'
 
 import { getAdministratorOverview, updateAdministrator } from '../services/administrators_overview_service.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import { INTERNATIONAL_PHONE_PATTERN, normalizeInternationalPhone } from '../utils/phone.js'
 import { uploadAccountPhoto } from '../services/account_service.js'
 import '../styles/administrator_details_page.css'
 
@@ -115,7 +116,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
         last_name: form.last_name,
         gender: form.gender || null,
         email: form.email || null,
-        phone: form.phone || null,
+        phone: form.phone ? normalizeInternationalPhone(form.phone) : null,
         address: form.address || null,
         job_title: form.job_title,
       })
@@ -212,7 +213,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
                 </label>
                 <label>Fonction / Rôle *<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" required /></label>
                 <label>Email<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" /></label>
-                <label>Téléphone<input name="phone" value={form.phone} onChange={updateField} maxLength="30" /></label>
+                <label>Téléphone<input name="phone" value={form.phone} onChange={updateField} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" maxLength="30" /></label>
                 <label className="addp-form-wide">Adresse<input name="address" value={form.address} onChange={updateField} /></label>
               </div>
 

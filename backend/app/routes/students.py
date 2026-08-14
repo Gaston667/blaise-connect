@@ -43,6 +43,7 @@ from app.services.student_document_service import (
 )
 from app.services.student_service import (
     archive_student,
+    unenroll_student,
     count_students,
     deactivate_student,
     enroll_student,
@@ -132,6 +133,23 @@ def post_student_enrollment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Eleve introuvable.",
         )
+    return student
+
+
+@router.post("/{student_id}/unenroll", response_model=StudentResponse)
+def post_student_unenrollment(
+    student_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Désinscrit un élève de sa classe annuelle ouverte."""
+
+    try:
+        student = unenroll_student(db=db, student_id=student_id)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    if student is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Élève introuvable.")
     return student
 
 
@@ -448,4 +466,3 @@ def put_student_specialties(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
         ) from error
-

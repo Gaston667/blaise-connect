@@ -389,6 +389,49 @@ def _archive_student_account(
     account.updated_at = change_time
 
 
+def _close_open_enrollment(
+    db: Session,
+    student_id: str,
+    requested_end_date,
+) -> bool:
+    """Clôture l'inscription ouverte en conservant un historique cohérent."""
+
+    enrollment = db.execute(
+        text(
+            """
+            SELECT se.id, se.start_date, sy.end_date AS school_year_end_date
+            FROM student_enrollments AS se
+            JOIN classes AS c ON c.id = se.class_id
+            JOIN school_years AS sy ON sy.id = c.school_year_id
+            WHERE se.student_id = :student_id
+              AND se.end_date IS NULL
+            FOR UPDATE
+            """
+        ),
+        {"student_id": student_id},
+    ).first()
+    if enrollment is None:
+        return False
+
+    effective_end_date = min(
+        max(requested_end_date, enrollment.start_date),
+        enrollment.school_year_end_date,
+    )
+    db.execute(
+        text(
+            """
+            UPDATE student_enrollments
+            SET end_date = :end_date,
+                end_reason = 'LEFT_SCHOOL',
+                updated_at = now()
+            WHERE id = :enrollment_id
+            """
+        ),
+        {"enrollment_id": enrollment.id, "end_date": effective_end_date},
+    )
+    return True
+
+
 def _restore_archived_student_account(
     db: Session,
     student: Student,
@@ -426,6 +469,11 @@ def _apply_status_change(
     change_time = datetime.now(timezone.utc)
 
     if new_status == "ARCHIVED":
+        _close_open_enrollment(
+            db=db,
+            student_id=str(student.id),
+            requested_end_date=change_time.date(),
+        )
         _archive_student_account(
             db=db,
             student=student,
@@ -466,6 +514,22 @@ def update_student(db: Session, student_id: str, data: StudentUpdate, admin_acco
 def archive_student(db: Session, student_id: str, admin_account_id) -> dict | None:
     """Archive un élève (statut terminal)."""
     return _apply_status_change(db, student_id, "ARCHIVED", admin_account_id)
+
+
+def unenroll_student(db: Session, student_id: str) -> dict | None:
+    """Désinscrit un élève de sa classe annuelle ouverte."""
+
+    student = db.get(Student, student_id)
+    if student is None:
+        return None
+    if not _close_open_enrollment(
+        db=db,
+        student_id=str(student.id),
+        requested_end_date=datetime.now(timezone.utc).date(),
+    ):
+        raise ValueError("Cet élève ne possède pas d'inscription en cours.")
+    db.commit()
+    return get_student(db=db, student_id=str(student.id))
 
 
 def deactivate_student(db: Session, student_id: str, admin_account_id) -> dict | None:

@@ -47,6 +47,13 @@ export function enrollStudent(studentId, enrollmentData) {
   })
 }
 
+export function unenrollStudent(studentId) {
+  return apiRequestJson(`${STUDENTS_API_URL}${studentId}/unenroll`, {
+    method: 'POST',
+    fallbackMessage: 'Impossible de désinscrire cet élève de sa classe.',
+  })
+}
+
 export function updateStudent(id, payload) {
   return apiRequestJson(`${STUDENTS_API_URL}${id}`, {
     method: 'PATCH',
@@ -193,4 +200,3 @@ export function updateStudentSpecialties(studentId, subjectIds) {
     },
   )
 }
-

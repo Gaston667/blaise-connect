@@ -75,6 +75,7 @@ INSERT INTO administrators (
     first_name,
     last_name,
     gender,
+    nationality,
     email,
     phone,
     address,
@@ -87,6 +88,7 @@ SELECT
     (ARRAY['Aminata', 'Mamadou', 'Hawa'])[profile_number],
     (ARRAY['Diallo', 'Camara', 'Bah'])[profile_number],
     CASE WHEN profile_number = 1 THEN 'FEMALE' ELSE 'MALE' END,
+    'Guinéenne',
     account.registration_number || '@blaiseconnect.test',
     '+224620100' || lpad(profile_number::text, 3, '0'),
     profile_number || ' rue de l''Administration, Kamsar',
@@ -112,6 +114,7 @@ INSERT INTO teachers (
     last_name,
     birth_date,
     gender,
+    nationality,
     email,
     phone,
     address,
@@ -135,6 +138,7 @@ SELECT
         WHEN profile_number % 2 = 0 THEN 'FEMALE'
         ELSE 'MALE'
     END,
+    'Guinéenne',
     account.registration_number || '@blaiseconnect.test',
     '+224621200' || lpad(profile_number::text, 3, '0'),
     profile_number || ' rue des Enseignants, Kamsar',
@@ -258,6 +262,7 @@ INSERT INTO guardians (
     first_name,
     last_name,
     gender,
+    nationality,
     email,
     phone,
     address,
@@ -285,6 +290,8 @@ SELECT
         WHEN profile_number % 2 = 0 THEN 'FEMALE'
         ELSE 'MALE'
     END,
+
+    'Guinéenne',
 
     account.registration_number || '@blaiseconnect.test',
 

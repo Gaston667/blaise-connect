@@ -2,7 +2,9 @@
 
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.schemas.phone_number import normalize_international_phone
 
 
 class AccountProfileCreate(BaseModel):
@@ -16,6 +18,7 @@ class AccountProfileCreate(BaseModel):
     gender: str | None = Field(default=None, max_length=20)
     email: str | None = Field(default=None, max_length=254)
     phone: str | None = Field(default=None, max_length=30)
+    nationality: str = Field(min_length=1, max_length=100)
     address: str | None = None
     admission_date: date | None = None
     hire_date: date | None = None
@@ -23,3 +26,10 @@ class AccountProfileCreate(BaseModel):
     job_title: str | None = Field(default=None, max_length=100)
     occupation: str | None = Field(default=None, max_length=150)
     employer: str | None = Field(default=None, max_length=150)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, phone: str | None) -> str | None:
+        """Valide le téléphone lorsqu'il est renseigné."""
+
+        return normalize_international_phone(phone)

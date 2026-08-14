@@ -2,7 +2,9 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.schemas.phone_number import normalize_international_phone
 
 
 class GuardianCreate(BaseModel):
@@ -12,6 +14,7 @@ class GuardianCreate(BaseModel):
     last_name: str
     phone: str
     gender: str | None = None
+    nationality: str = Field(min_length=1, max_length=100)
     email: str | None = None
     address: str | None = None
     occupation: str | None = None
@@ -22,6 +25,16 @@ class GuardianCreate(BaseModel):
     relationship_details: str | None = Field(default=None, max_length=100)
     is_legal_guardian: bool = False
     is_emergency_contact: bool = False
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, phone: str) -> str:
+        """Valide le téléphone obligatoire du responsable."""
+
+        normalized_phone = normalize_international_phone(phone)
+        if normalized_phone is None:
+            raise ValueError("Le téléphone est obligatoire.")
+        return normalized_phone
 
     @model_validator(mode="after")
     def validate_optional_student_link(self) -> "GuardianCreate":

@@ -92,6 +92,125 @@ def list_my_grades(db: Session, student_id: UUID) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def _get_class_appreciation(average: float | None) -> str | None:
+    """Traduit une moyenne de classe sur 20 en appréciation informative."""
+
+    if average is None:
+        return None
+    if average >= 16:
+        return "Très bien"
+    if average >= 14:
+        return "Bien"
+    if average >= 12:
+        return "Assez bien"
+    if average >= 10:
+        return "Passable"
+    return "À renforcer"
+
+
+def get_my_assessment_detail(
+    db: Session,
+    student_id: UUID,
+    assessment_id: UUID,
+) -> dict:
+    """Retourne une évaluation de l'élève et ses statistiques de classe anonymisées.
+
+    La requête part toujours de l'inscription de l'élève connecté : il ne peut
+    donc jamais lire une évaluation ou une note qui ne lui appartient pas.
+    """
+
+    sql = """
+        WITH target AS (
+            SELECT
+                assessment.id AS assessment_id,
+                assessment.title,
+                assessment.description,
+                assessment.assessment_date,
+                assessment.maximum_score,
+                assessment.coefficient,
+                subject.name AS subject_name,
+                concat_ws(' ', class_level.name, school_class.group_label) AS class_name,
+                concat_ws(' ', teacher.first_name, teacher.last_name) AS teacher_name,
+                grade.result_type,
+                grade.score,
+                grade.comment,
+                grade.justification_status,
+                enrollment.class_id
+            FROM grades AS grade
+            JOIN assessments AS assessment ON assessment.id = grade.assessment_id
+            JOIN teacher_assignments AS assignment ON assignment.id = assessment.teacher_assignment_id
+            JOIN class_subjects AS class_subject ON class_subject.id = assignment.class_subject_id
+            JOIN subjects AS subject ON subject.id = class_subject.subject_id
+            JOIN classes AS school_class ON school_class.id = class_subject.class_id
+            JOIN class_levels AS class_level ON class_level.id = school_class.class_level_id
+            LEFT JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+            JOIN student_enrollments AS enrollment ON enrollment.id = grade.student_enrollment_id
+            WHERE enrollment.student_id = :student_id
+              AND assessment.id = :assessment_id
+        ),
+        class_results AS (
+            SELECT
+                enrollment.student_id,
+                CASE
+                    WHEN grade.result_type = 'SCORED'
+                        THEN (grade.score / assessment.maximum_score) * 20
+                    WHEN grade.result_type = 'ABSENT'
+                        AND grade.justification_status IN ('UNJUSTIFIED', 'REJECTED')
+                        THEN 0
+                    ELSE NULL
+                END AS effective_score
+            FROM grades AS grade
+            JOIN student_enrollments AS enrollment ON enrollment.id = grade.student_enrollment_id
+            JOIN assessments AS assessment ON assessment.id = grade.assessment_id
+            JOIN target ON target.assessment_id = assessment.id
+            WHERE enrollment.class_id = target.class_id
+              AND enrollment.start_date <= assessment.assessment_date
+              AND (enrollment.end_date IS NULL OR enrollment.end_date >= assessment.assessment_date)
+        ),
+        ranked_results AS (
+            SELECT
+                student_id,
+                effective_score,
+                RANK() OVER (ORDER BY effective_score DESC) AS rank,
+                COUNT(*) OVER () AS ranked_students_count
+            FROM class_results
+            WHERE effective_score IS NOT NULL
+        ),
+        statistics AS (
+            SELECT
+                MAX(effective_score) AS highest_score,
+                MIN(effective_score) AS lowest_score,
+                AVG(effective_score) AS class_average
+            FROM class_results
+            WHERE effective_score IS NOT NULL
+        )
+        SELECT
+            target.*,
+            statistics.highest_score,
+            statistics.lowest_score,
+            statistics.class_average,
+            ranked_results.rank,
+            COALESCE(ranked_results.ranked_students_count, 0) AS ranked_students_count
+        FROM target
+        CROSS JOIN statistics
+        LEFT JOIN ranked_results ON ranked_results.student_id = :student_id
+    """
+    row = db.execute(
+        text(sql),
+        {"student_id": student_id, "assessment_id": assessment_id},
+    ).mappings().one_or_none()
+
+    if row is None:
+        raise LookupError("Cette évaluation n'est pas disponible pour votre compte.")
+
+    detail = dict(row)
+    class_average = detail["class_average"]
+    detail["class_appreciation"] = _get_class_appreciation(
+        float(class_average) if class_average is not None else None
+    )
+    return detail
+
+
 def get_my_grade_summary(db: Session, student_id: UUID) -> dict:
     """Calcule la moyenne générale, les moyennes par matière et les évaluations à venir."""
 
