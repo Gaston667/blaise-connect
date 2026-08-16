@@ -157,6 +157,9 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - `report_card_grades` conserve la liste exacte des notes utilisées.
 - Une fois validé, le bulletin et ses lignes deviennent immuables, sauf procédure explicite d'invalidation autorisée et auditée.
 - Les moyennes stockées sont des instantanés historiques volontaires, pas une erreur de normalisation.
+- À l'affichage, le rang et les moyennes de classe sont calculés sur la dernière
+  version générée de chaque élève pour la même classe et la même période. Ils ne
+  sont pas encore figés dans le bulletin historique.
 
 ### 3.9 Emploi du temps
 

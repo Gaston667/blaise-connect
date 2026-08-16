@@ -1,4 +1,4 @@
-import { apiRequestJson } from '../utils/apiErrorHandler.js'
+import { apiRequestJson, parseApiError } from '../utils/apiErrorHandler.js'
 
 /** Charge les bulletins existants selon les filtres sélectionnés. */
 export function getReportCards(filters = {}) {
@@ -12,4 +12,29 @@ export function getReportCards(filters = {}) {
     method: 'GET',
     fallbackMessage: 'Impossible de charger les bulletins.',
   })
+}
+
+/** Charge le contenu figé d'un bulletin. */
+export function getReportCard(reportCardId) {
+  return apiRequestJson(`/api/report-cards/${reportCardId}`, {
+    method: 'GET',
+    fallbackMessage: 'Impossible de charger ce bulletin.',
+  })
+}
+
+/** Génère un PDF distant de test sans modifier le bulletin. */
+export async function getReportCardTestPdf(reportCardId) {
+  const response = await fetch(`/api/report-cards/${reportCardId}/test-pdf`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    throw await parseApiError(
+      response,
+      'Impossible de générer le PDF de test.',
+    )
+  }
+
+  return response.blob()
 }

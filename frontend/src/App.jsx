@@ -32,6 +32,7 @@ import AttendancePage from './pages/attendance_page.jsx'
 import AttendanceRecordDetailsPage from './pages/attendance_record_details_page.jsx'
 import AppreciationsPage from './pages/appreciations_page.jsx'
 import ReportCardsPage from './pages/report_cards_page.jsx'
+import ReportCardDetailsPage from './pages/report_card_details_page.jsx'
 import { getCurrentAccount } from './services/auth_service.js'
 
 const PAGE_PATHS = {
@@ -60,6 +61,7 @@ const PAGE_PATHS = {
  */
 function getCurrentPage(pathname) {
   if (/^\/attendance\/records\/[^/]+$/.test(pathname)) return 'attendance-record-details'
+  if (/^\/report-cards\/[^/]+$/.test(pathname)) return 'report-card-details'
   if (pathname === '/accounts/new') return 'account-new'
   if (/^\/accounts\/[^/]+$/.test(pathname)) return 'account-details'
   if (/^\/students\/[^/]+$/.test(pathname)) return 'student-details'
@@ -102,6 +104,7 @@ function getNavigationPath(page, entity) {
   if (page === 'subject-details' && entityId) return `/subjects/${entityId}`
   if (page === 'administrator-details' && entityId) return `/administrators/${entityId}`
   if (page === 'attendance-record-details' && entityId) return `/attendance/records/${entityId}`
+  if (page === 'report-card-details' && entityId) return `/report-cards/${entityId}`
   return PAGE_PATHS[page] || '/'
 }
 
@@ -286,7 +289,15 @@ export default function App() {
     pageContent = <AppreciationsPage />
   }
   else if (currentPage === 'report-cards' && canManageSchool) {
-    pageContent = <ReportCardsPage />
+    pageContent = <ReportCardsPage onNavigate={handleNavigate} />
+  }
+  else if (currentPage === 'report-card-details' && canManageSchool) {
+    pageContent = (
+      <ReportCardDetailsPage
+        reportCardId={selectedEntity?.id || selectedEntity || pathId}
+        onNavigate={handleNavigate}
+      />
+    )
   }
   else if (currentPage === 'administrators' && canManageSchool) {
     pageContent = <AdministratorsPage onNavigate={handleNavigate} />
