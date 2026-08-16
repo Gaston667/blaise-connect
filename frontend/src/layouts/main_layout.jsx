@@ -13,6 +13,7 @@ export default function MainLayout({
   currentPage,
   onNavigate,
   onLogoutSuccess,
+  onStartTour,
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
@@ -41,6 +42,7 @@ export default function MainLayout({
         onClose={handleSidebarClose}
         onNavigate={onNavigate}
         onLogoutSuccess={onLogoutSuccess}
+        onStartTour={onStartTour}
       />
 
       {isSidebarOpen ? (

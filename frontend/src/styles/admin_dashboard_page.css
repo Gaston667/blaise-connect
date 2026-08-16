@@ -1,4 +1,6 @@
 .adp-main { padding: var(--space-8) var(--space-10); font-family: var(--font-family-base); color: var(--color-text-primary); background: var(--color-background); }
+.adp-error { padding: var(--space-4); color: var(--color-danger-text); background: var(--color-danger-light); border: 1px solid var(--color-danger-border); border-radius: var(--radius-md); }
+.adp-empty { padding: var(--space-4); text-align: center; color: var(--color-text-muted); }
 
 .adp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-6); }
 .adp-header h1 { margin: 0 0 var(--space-1); font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); }
@@ -18,10 +20,15 @@
 .adp-stat-card__link:hover:not(:disabled) { text-decoration: underline; }
 .adp-stat-card__link:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
 
-/* Rangées de panneaux */
-.adp-row { display: grid; grid-template-columns: 1fr; gap: var(--space-5); margin-bottom: var(--space-5); }
+/* Colonnes de panneaux : chaque colonne empile ses cartes indépendamment,
+   pour qu'une carte courte (ex. Performance avec un seul cycle) ne laisse
+   pas de vide en attendant la hauteur de sa voisine. */
+.adp-columns { display: flex; flex-direction: column; gap: var(--space-5); }
+.adp-column { display: flex; flex-direction: column; gap: var(--space-5); }
 @media (min-width: 1050px) {
-  .adp-row { grid-template-columns: 1.2fr 1fr; align-items: start; }
+  .adp-columns { flex-direction: row; align-items: flex-start; }
+  .adp-column { flex: 1.2; min-width: 0; }
+  .adp-column + .adp-column { flex: 1; }
 }
 
 .adp-panel { padding: var(--space-5); background: var(--color-surface); border: var(--border-default); border-radius: var(--radius-xl); box-shadow: var(--shadow-xs); }

@@ -10,6 +10,9 @@
 
 services:
   frontend:
+    # !override remplace la liste "ports" de compose.yaml au lieu de s'y
+    # ajouter (comportement par défaut de Compose), sinon les deux règles
+    # ("127.0.0.1:5173" et "5173:5173") entrent en conflit sur le même port.
     ports: !override
       # Sans 127.0.0.1, Docker écoute sur toutes les interfaces réseau du PC.
       # Depuis un autre appareil : http://IP_DU_PC:5173

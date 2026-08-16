@@ -121,6 +121,7 @@ def list_guardians(db: Session, q: str | None = None) -> list[dict]:
             first_name,
             last_name,
             gender,
+            nationality,
             email,
             phone,
             address,

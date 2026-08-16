@@ -34,7 +34,10 @@ import AttendanceRecordDetailsPage from './pages/attendance_record_details_page.
 import AppreciationsPage from './pages/appreciations_page.jsx'
 import ReportCardsPage from './pages/report_cards_page.jsx'
 import ReportCardDetailsPage from './pages/report_card_details_page.jsx'
+import GuidedTour from './components/guided_tour.jsx'
+import { ADMIN_TOUR_STEPS } from './tour/admin_tour_steps.js'
 import { getCurrentAccount } from './services/auth_service.js'
+import './styles/guided_tour.css'
 
 const PAGE_PATHS = {
   home: '/',
@@ -123,6 +126,8 @@ function getPathId(pathname) {
 export default function App() {
   const [currentAccount, setCurrentAccount] = useState(null)
   const [isSessionLoading, setIsSessionLoading] = useState(true)
+  const [isTourActive, setIsTourActive] = useState(false)
+  const [tourStepIndex, setTourStepIndex] = useState(0)
   const location = useLocation()
   const navigate = useNavigate()
   const currentPage = getCurrentPage(location.pathname)
@@ -158,6 +163,30 @@ export default function App() {
   function handleLogoutSuccess() {
     setCurrentAccount(null)
     navigate('/login', { replace: true })
+  }
+
+  /**
+   * Démarre ou reprend la visite guidée administrateur depuis le début.
+   */
+  function handleStartTour() {
+    setTourStepIndex(0)
+    setIsTourActive(true)
+  }
+
+  function handleTourNext() {
+    setTourStepIndex(function increment(current) {
+      return Math.min(current + 1, ADMIN_TOUR_STEPS.length - 1)
+    })
+  }
+
+  function handleTourPrev() {
+    setTourStepIndex(function decrement(current) {
+      return Math.max(current - 1, 0)
+    })
+  }
+
+  function handleTourClose() {
+    setIsTourActive(false)
   }
 
   /**
@@ -344,13 +373,27 @@ export default function App() {
     )
   }
   return (
-    <MainLayout
-      account={currentAccount}
-      currentPage={currentPage}
-      onNavigate={handleNavigate}
-      onLogoutSuccess={handleLogoutSuccess}
-    >
-      {pageContent}
-    </MainLayout>
+    <>
+      <MainLayout
+        account={currentAccount}
+        currentPage={currentPage}
+        onNavigate={handleNavigate}
+        onLogoutSuccess={handleLogoutSuccess}
+        onStartTour={handleStartTour}
+      >
+        {pageContent}
+      </MainLayout>
+
+      {isTourActive && (
+        <GuidedTour
+          steps={ADMIN_TOUR_STEPS}
+          stepIndex={tourStepIndex}
+          onNavigate={handleNavigate}
+          onNext={handleTourNext}
+          onPrev={handleTourPrev}
+          onClose={handleTourClose}
+        />
+      )}
+    </>
   )
 }

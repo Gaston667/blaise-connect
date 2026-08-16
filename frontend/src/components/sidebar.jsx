@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  BookOpen, CalendarDays, CalendarRange, ChevronDown, ContactRound,
+  BookOpen, CalendarDays, CalendarRange, ChevronDown, Compass, ContactRound,
   FileText, GraduationCap, House, NotebookPen, Presentation, ShieldCheck, UserRoundX,
   Users, X,
 } from 'lucide-react'
@@ -40,7 +40,7 @@ function AccountNavigation({ currentPage, onNavigate, open, onToggle }) {
   </div>
 }
 
-export default function Sidebar({ account, currentPage, isOpen, onClose, onNavigate, onLogoutSuccess }) {
+export default function Sidebar({ account, currentPage, isOpen, onClose, onNavigate, onLogoutSuccess, onStartTour }) {
   const isAdmin = account.role === 'ADMIN'
   const isTeacher = account.role === 'TEACHER'
   const isStudent = account.role === 'STUDENT'
@@ -77,6 +77,14 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
       </> : null}
       {isTeacher ? <NavigationButton page="teacher-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Mon emploi du temps</NavigationButton> : null}
     </nav>
-    <div className="sidebar-bottom-card"><SidebarProfile account={account} /><LogoutButton onLogoutSuccess={onLogoutSuccess} /></div>
+    <div className="sidebar-bottom-card">
+      {isAdmin ? (
+        <button type="button" className="sidebar-tour-button" onClick={() => { onStartTour?.(); onClose() }}>
+          <Compass size={17} /> Visite guidée
+        </button>
+      ) : null}
+      <SidebarProfile account={account} />
+      <LogoutButton onLogoutSuccess={onLogoutSuccess} />
+    </div>
   </aside>
 }

@@ -68,6 +68,25 @@
   background: var(--color-primary-lighter);
 }
 
+.sidebar-tour-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: calc(100% - 2 * var(--space-3));
+  margin: 0 var(--space-3) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-primary);
+  background: var(--color-primary-lighter);
+  border: 1px dashed var(--color-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+.sidebar-tour-button:hover {
+  background: var(--color-primary-light);
+}
+
 .sidebar-bottom-card {
   position: relative;
   flex: 0 0 auto;
