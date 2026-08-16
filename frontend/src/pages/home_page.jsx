@@ -158,7 +158,7 @@ export default function HomePage({ account, onNavigate }) {
               <ShieldCheck aria-hidden="true" size={26} />
             </span>
             <h2>Session sécurisée</h2>
-            <p>Votre session expire après 15 minutes sans activité.</p>
+            <p>Votre session expire après 15 minutes d'inactivité.</p>
           </article>
         </section>
       )}

@@ -1,0 +1,97 @@
+.adp-main { padding: var(--space-8) var(--space-10); font-family: var(--font-family-base); color: var(--color-text-primary); background: var(--color-background); }
+
+.adp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-6); }
+.adp-header h1 { margin: 0 0 var(--space-1); font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); }
+.adp-header p { margin: 0; color: var(--color-text-muted); }
+
+/* Cartes de statistiques */
+.adp-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6); }
+.adp-stat-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-5); background: var(--color-surface); border: var(--border-default); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); }
+.adp-stat-card__icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: var(--radius-full); }
+.adp-stat-card__icon--orange { color: var(--sgp-orange-fg); background: var(--sgp-orange-bg); }
+.adp-stat-card__icon--blue { color: var(--sgp-blue-fg); background: var(--sgp-blue-bg); }
+.adp-stat-card__icon--violet { color: var(--sgp-violet-fg); background: var(--sgp-violet-bg); }
+.adp-stat-card__icon--green { color: var(--sgp-green-fg); background: var(--sgp-green-bg); }
+.adp-stat-card__label { display: flex; flex-direction: column; margin: 0; font-size: var(--font-size-sm); color: var(--color-text-secondary); line-height: var(--line-height-tight); }
+.adp-stat-card__value { font-size: var(--font-size-3xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
+.adp-stat-card__link { align-self: flex-start; margin-top: auto; padding: 0; color: var(--color-primary); background: transparent; border: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); cursor: pointer; }
+.adp-stat-card__link:hover:not(:disabled) { text-decoration: underline; }
+.adp-stat-card__link:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+
+/* Rangées de panneaux */
+.adp-row { display: grid; grid-template-columns: 1fr; gap: var(--space-5); margin-bottom: var(--space-5); }
+@media (min-width: 1050px) {
+  .adp-row { grid-template-columns: 1.2fr 1fr; align-items: start; }
+}
+
+.adp-panel { padding: var(--space-5); background: var(--color-surface); border: var(--border-default); border-radius: var(--radius-xl); box-shadow: var(--shadow-xs); }
+.adp-panel h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 2px; font-size: var(--font-size-md); }
+.adp-panel h2 svg { color: var(--color-primary); }
+.adp-panel-hint { margin: 0 0 var(--space-5); font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.adp-panel-link { display: flex; align-items: center; gap: 4px; margin-top: var(--space-4); padding: 0; color: var(--color-primary); background: transparent; border: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); cursor: pointer; }
+.adp-panel-link:hover:not(:disabled) { text-decoration: underline; }
+.adp-panel-link:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+
+/* Performance par cycle : mini bar-charts */
+.adp-performance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-5); }
+.adp-performance-cell { display: flex; flex-direction: column; gap: var(--space-1); }
+.adp-performance-cell__label { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.adp-performance-cell__value { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-primary); }
+.adp-performance-cell__value small { font-size: var(--font-size-xs); font-weight: var(--font-weight-regular); color: var(--color-text-muted); }
+
+.adp-mini-chart { position: relative; display: flex; align-items: flex-end; gap: 4px; height: 70px; margin-top: var(--space-2); padding-left: 18px; }
+.adp-mini-chart__bar { flex: 1; min-width: 6px; background: var(--color-primary-light); border-radius: 3px 3px 0 0; }
+.adp-mini-chart__bar--current { background: var(--color-primary); }
+.adp-mini-chart__axis { position: absolute; left: 0; font-size: 0.6rem; color: var(--color-text-disabled); }
+.adp-mini-chart__axis:not(.adp-mini-chart__axis--bottom) { top: 0; }
+.adp-mini-chart__axis--bottom { bottom: 0; }
+
+/* Suivi des absences */
+.adp-attendance-table { width: 100%; border-collapse: collapse; }
+.adp-attendance-table th { text-align: left; padding: var(--space-2) 0; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.03em; color: var(--table-header-text); }
+.adp-attendance-table th:last-child { text-align: right; }
+.adp-attendance-table td { padding: var(--space-2) 0; border-top: var(--border-width-thin) solid var(--table-border); }
+.adp-attendance-table td:last-child { text-align: right; }
+.adp-student { display: flex; align-items: center; gap: var(--space-3); }
+.adp-student__avatar { display: grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); }
+.adp-student__avatar--blue { background: var(--sgp-blue-bg); color: var(--sgp-blue-fg); }
+.adp-student__avatar--green { background: var(--sgp-green-bg); color: var(--sgp-green-fg); }
+.adp-student__avatar--violet { background: var(--sgp-violet-bg); color: var(--sgp-violet-fg); }
+.adp-student__avatar--orange { background: var(--sgp-orange-bg); color: var(--sgp-orange-fg); }
+.adp-student__info { display: flex; flex-direction: column; gap: 1px; }
+.adp-student__info strong { font-size: var(--font-size-sm); }
+.adp-student__info span { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.adp-attendance-count { display: inline-flex; min-width: 28px; justify-content: center; padding: 2px var(--space-2); color: var(--color-danger-text); background: var(--color-danger-light); border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+
+/* Progression des notes */
+.adp-progress-body { display: flex; align-items: center; gap: var(--space-6); }
+.adp-progress-ring {
+  --progress: 0%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 108px;
+  height: 108px;
+  border-radius: var(--radius-full);
+  background: conic-gradient(var(--color-primary) var(--progress), var(--color-primary-light) 0);
+}
+.adp-progress-ring::before { content: ''; position: absolute; inset: 10px; background: var(--color-surface); border-radius: var(--radius-full); }
+.adp-progress-ring span { position: relative; font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-primary); }
+.adp-progress-details { display: flex; flex-direction: column; gap: var(--space-2); flex: 1; min-width: 0; }
+.adp-progress-details > span:first-child { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.adp-progress-details strong { color: var(--color-primary); }
+.adp-progress-bar { position: relative; height: 8px; background: var(--color-primary-light); border-radius: var(--radius-full); overflow: hidden; }
+.adp-progress-bar span { position: absolute; inset: 0; width: 0; background: var(--color-primary); border-radius: var(--radius-full); }
+.adp-progress-count { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
+/* Activité récente */
+.adp-activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.adp-activity-list li { display: flex; align-items: flex-start; gap: var(--space-3); }
+.adp-activity-list__icon { display: grid; place-items: center; flex: 0 0 auto; width: 32px; height: 32px; border-radius: var(--radius-full); }
+.adp-activity-list__icon--green { background: var(--sgp-green-bg); color: var(--sgp-green-fg); }
+.adp-activity-list__icon--violet { background: var(--sgp-violet-bg); color: var(--sgp-violet-fg); }
+.adp-activity-list__body { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.adp-activity-list__body strong { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
+.adp-activity-list__body span { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.adp-activity-list__when { flex: 0 0 auto; font-size: var(--font-size-xs); color: var(--color-text-disabled); white-space: nowrap; }

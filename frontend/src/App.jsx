@@ -6,6 +6,7 @@ import AccountDetailsPage from './pages/account_details_page.jsx'
 import AccountCreatePage from './pages/account_create_page.jsx'
 import AccountsPage from './pages/accounts_page.jsx'
 import HomePage from './pages/home_page.jsx'
+import AdminDashboardPage from './pages/admin_dashboard_page.jsx'
 import GuardianDetailsPage from './pages/guardian_details_page.jsx'
 import GuardiansPage from './pages/guardians_page.jsx'
 import LoginPage from './pages/login_page.jsx'
@@ -206,7 +207,9 @@ export default function App() {
   const canManageSchool = currentAccount.role === 'ADMIN'
   const canViewSchoolDirectory = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
   const canManageNotes = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
-  let pageContent = <HomePage account={currentAccount} onNavigate={handleNavigate} />
+  let pageContent = canManageSchool
+    ? <AdminDashboardPage account={currentAccount} onNavigate={handleNavigate} />
+    : <HomePage account={currentAccount} onNavigate={handleNavigate} />
 
   if (currentPage === 'students' && canViewSchoolDirectory) {
     pageContent = <StudentsPage onNavigate={handleNavigate} />
