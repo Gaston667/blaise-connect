@@ -10,7 +10,7 @@
 
 services:
   frontend:
-    ports:
+    ports: !override
       # Sans 127.0.0.1, Docker écoute sur toutes les interfaces réseau du PC.
       # Depuis un autre appareil : http://IP_DU_PC:5173
       - "5173:5173"
