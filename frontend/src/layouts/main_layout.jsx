@@ -14,8 +14,13 @@ export default function MainLayout({
   onNavigate,
   onLogoutSuccess,
   onStartTour,
+  isTourActive,
 }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isSidebarOpenState, setIsSidebarOpen] = useState(false)
+  // Sur téléphone, la sidebar est repliée par défaut : pendant la visite
+  // guidée, on la force ouverte pour que le halo pointe vers un élément
+  // réellement visible à l'écran, au lieu de rester caché derrière le menu.
+  const isSidebarOpen = isTourActive || isSidebarOpenState
 
   /**
    * Ouvre le menu sur téléphone.
@@ -45,7 +50,7 @@ export default function MainLayout({
         onStartTour={onStartTour}
       />
 
-      {isSidebarOpen ? (
+      {isSidebarOpen && !isTourActive ? (
         <button
           className="layout-overlay"
           type="button"

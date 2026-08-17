@@ -380,6 +380,7 @@ export default function App() {
         onNavigate={handleNavigate}
         onLogoutSuccess={handleLogoutSuccess}
         onStartTour={handleStartTour}
+        isTourActive={isTourActive}
       >
         {pageContent}
       </MainLayout>

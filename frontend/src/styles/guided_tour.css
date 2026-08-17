@@ -1,12 +1,13 @@
 .gtour-overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--z-modal);
+  z-index: var(--z-toast);
   pointer-events: none;
 }
 
 .gtour-spotlight {
   position: fixed;
+  z-index: var(--z-toast);
   border-radius: var(--radius-md);
   box-shadow: 0 0 0 9999px rgba(0, 20, 46, 0.6);
   border: 2px solid var(--color-accent);
@@ -16,7 +17,7 @@
 
 .gtour-tooltip {
   position: fixed;
-  z-index: var(--z-modal);
+  z-index: var(--z-toast);
   width: 340px;
   max-width: calc(100vw - 32px);
   padding: var(--space-5);
