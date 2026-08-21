@@ -27,7 +27,7 @@ INSERT INTO school_years (
 )
 SELECT
     '2026-2027',
-    DATE '2026-09-01',
+    DATE '2026-08-01',
     DATE '2027-07-15',
     true
 WHERE NOT EXISTS (
@@ -70,7 +70,7 @@ SELECT
 FROM school_years AS school_year
 CROSS JOIN (
     VALUES
-        ('Période 1', DATE '2026-09-01', DATE '2026-12-18'),
+        ('Période 1', DATE '2026-08-01', DATE '2026-12-18'),
         ('Période 2', DATE '2026-12-19', DATE '2027-03-31'),
         ('Période 3', DATE '2027-04-01', DATE '2027-07-15')
 ) AS period_data(name, start_date, end_date)
@@ -343,7 +343,7 @@ INSERT INTO student_enrollments (
 SELECT
     student.id,
     school_class.id,
-    DATE '2026-09-01'
+    DATE '2026-08-01'
 FROM ordered_students AS student
 JOIN class_count
     ON class_count.total > 0

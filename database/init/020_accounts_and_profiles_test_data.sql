@@ -220,7 +220,7 @@ SELECT
 
     ((profile_number - 1) % 20 + 1) || ' quartier scolaire, Kamsar',
 
-    DATE '2026-09-01',
+    DATE '2026-08-01',
 
     CASE
         WHEN profile_number IN (20, 40) THEN 'INACTIVE'::student_status_enum

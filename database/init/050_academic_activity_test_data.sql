@@ -182,14 +182,14 @@ CROSS JOIN (
         (
             'Évaluation diagnostique',
             'Première évaluation fictive de développement.',
-            DATE '2026-10-05',
+            DATE '2026-08-05',
             20.00::numeric,
             1.00::numeric
         ),
         (
             'Contrôle de la période 1',
             'Deuxième évaluation fictive de développement.',
-            DATE '2026-11-10',
+            DATE '2026-08-12',
             20.00::numeric,
             2.00::numeric
         )
