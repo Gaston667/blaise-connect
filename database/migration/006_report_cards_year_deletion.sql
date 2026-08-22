@@ -530,6 +530,7 @@ REVOKE DELETE ON TABLE
 FROM blaise_app;
 
 -- Appréciations saisies pendant une période, réutilisables lors du bulletin.
+/* US-017 est reportée : aucune appréciation préparatoire n'est créée ici.
 CREATE TABLE student_subject_appreciations (
     id uuid CONSTRAINT pk_student_subject_appreciations PRIMARY KEY DEFAULT gen_random_uuid(),
     student_enrollment_id uuid NOT NULL,
@@ -581,5 +582,6 @@ GRANT UPDATE (comment, created_by_teacher_id) ON student_subject_appreciations T
 GRANT INSERT (student_enrollment_id, reporting_period_id, comment, created_by_teacher_id)
     ON student_overall_appreciations TO blaise_app;
 GRANT UPDATE (comment, created_by_teacher_id) ON student_overall_appreciations TO blaise_app;
+*/
 
 COMMIT;

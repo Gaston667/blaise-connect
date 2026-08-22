@@ -1746,6 +1746,10 @@ BEGIN
         SELECT 1
           FROM timetable_slots AS slot
          WHERE slot.timetable_id = NEW.id
+    ) AND NOT EXISTS (
+        SELECT 1
+          FROM timetable_date_slots AS date_slot
+         WHERE date_slot.timetable_id = NEW.id
     ) THEN
         RAISE EXCEPTION USING ERRCODE = '23514',
             MESSAGE = 'Un emploi du temps vide ne peut pas être publié.';
@@ -2485,5 +2489,138 @@ GRANT SELECT
 ON v_student_timetable_entries
 TO blaise_app;
 
+
+-- CrÃ©neaux ajoutÃ©s manuellement pour une date unique.
+-- Ils complÃ¨tent les crÃ©neaux hebdomadaires rÃ©currents de timetable_slots.
+CREATE TABLE timetable_date_slots (
+    id uuid CONSTRAINT pk_timetable_date_slots PRIMARY KEY DEFAULT gen_random_uuid(),
+    timetable_id uuid NOT NULL,
+    teacher_assignment_id uuid NOT NULL,
+    room_id uuid,
+    course_date date NOT NULL,
+    start_time time NOT NULL,
+    end_time time NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_timetable_date_slots_timetable
+        FOREIGN KEY (timetable_id) REFERENCES timetables(id) ON DELETE CASCADE,
+    CONSTRAINT fk_timetable_date_slots_teacher_assignment
+        FOREIGN KEY (teacher_assignment_id) REFERENCES teacher_assignments(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_timetable_date_slots_room
+        FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE RESTRICT,
+    CONSTRAINT ck_timetable_date_slots_times CHECK (start_time < end_time)
+);
+
+CREATE INDEX idx_timetable_date_slots_timetable_id
+    ON timetable_date_slots (timetable_id);
+CREATE INDEX idx_timetable_date_slots_assignment_date
+    ON timetable_date_slots (teacher_assignment_id, course_date);
+CREATE INDEX idx_timetable_date_slots_room_date
+    ON timetable_date_slots (room_id, course_date)
+    WHERE room_id IS NOT NULL;
+
+CREATE TRIGGER trg_timetable_date_slots_set_updated_at
+BEFORE UPDATE ON timetable_date_slots
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE OR REPLACE FUNCTION check_timetable_date_slot_context()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    target_timetable_id uuid;
+    target_status timetable_status_enum;
+    target_class_id uuid;
+    target_start_date date;
+    target_end_date date;
+    assignment_class_id uuid;
+    assignment_teacher_id uuid;
+BEGIN
+    target_timetable_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.timetable_id ELSE NEW.timetable_id END;
+
+    SELECT timetable.status, timetable.class_id, school_year.start_date, school_year.end_date
+      INTO target_status, target_class_id, target_start_date, target_end_date
+      FROM timetables AS timetable
+      JOIN classes AS class ON class.id = timetable.class_id
+      JOIN school_years AS school_year ON school_year.id = class.school_year_id
+     WHERE timetable.id = target_timetable_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE = '23503', MESSAGE = 'L''emploi du temps est introuvable.';
+    END IF;
+
+    IF target_status <> 'DRAFT' THEN
+        RAISE EXCEPTION USING ERRCODE = '55000', MESSAGE = 'Seul un brouillon peut Ãªtre modifiÃ©.';
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+
+    IF NEW.course_date NOT BETWEEN target_start_date AND target_end_date THEN
+        RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'La date du cours doit appartenir Ã  l''annÃ©e scolaire.';
+    END IF;
+
+    SELECT class_subject.class_id, assignment.teacher_id
+      INTO assignment_class_id, assignment_teacher_id
+      FROM teacher_assignments AS assignment
+      JOIN class_subjects AS class_subject ON class_subject.id = assignment.class_subject_id
+     WHERE assignment.id = NEW.teacher_assignment_id
+       AND assignment.start_date <= NEW.course_date
+       AND (assignment.end_date IS NULL OR assignment.end_date >= NEW.course_date);
+
+    IF NOT FOUND OR assignment_class_id <> target_class_id THEN
+        RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'L''affectation enseignant-matiÃ¨re n''est pas valable pour cette classe et cette date.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM timetable_date_slots AS slot
+         WHERE slot.timetable_id = NEW.timetable_id
+           AND slot.course_date = NEW.course_date
+           AND slot.id IS DISTINCT FROM NEW.id
+           AND slot.start_time < NEW.end_time AND NEW.start_time < slot.end_time
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '23P01', MESSAGE = 'La classe possÃ¨de dÃ©jÃ  un crÃ©neau Ã  cet horaire.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM timetable_slots AS slot
+         WHERE slot.timetable_id = NEW.timetable_id
+           AND slot.day_of_week = EXTRACT(ISODOW FROM NEW.course_date)::smallint
+           AND slot.start_time < NEW.end_time AND NEW.start_time < slot.end_time
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '23P01', MESSAGE = 'Ce crÃ©neau chevauche un cours rÃ©gulier de la classe.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM timetable_date_slots AS slot
+          JOIN timetables AS timetable ON timetable.id = slot.timetable_id
+          JOIN teacher_assignments AS assignment ON assignment.id = slot.teacher_assignment_id
+         WHERE timetable.status = 'PUBLISHED'
+           AND timetable.class_id <> target_class_id
+           AND slot.course_date = NEW.course_date
+           AND slot.start_time < NEW.end_time AND NEW.start_time < slot.end_time
+           AND (assignment.teacher_id = assignment_teacher_id
+                OR (NEW.room_id IS NOT NULL AND slot.room_id = NEW.room_id))
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '23P01', MESSAGE = 'L''enseignant ou la salle est dÃ©jÃ  occupÃ© Ã  cet horaire.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_timetable_date_slots_check_context
+BEFORE INSERT OR UPDATE OR DELETE ON timetable_date_slots
+FOR EACH ROW EXECUTE FUNCTION check_timetable_date_slot_context();
+
+GRANT SELECT ON timetable_date_slots TO blaise_app;
+GRANT INSERT (timetable_id, teacher_assignment_id, room_id, course_date, start_time, end_time)
+    ON timetable_date_slots TO blaise_app;
+GRANT UPDATE (teacher_assignment_id, room_id, course_date, start_time, end_time)
+    ON timetable_date_slots TO blaise_app;
+GRANT DELETE ON timetable_date_slots TO blaise_app;
 
 COMMIT;

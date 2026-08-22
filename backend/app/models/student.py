@@ -42,6 +42,12 @@ class Student(Base):
     birth_place: Mapped[str | None] = mapped_column(String(150), nullable=True)
     nationality: Mapped[str | None] = mapped_column(String(100), nullable=True)
     previous_level: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    previous_establishment: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    medical_condition: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_enrolled_in_cned: Mapped[bool] = mapped_column(
+        nullable=False,
+        server_default=text("false"),
+    )
     updated_by_account_id: Mapped[UUID | None] = mapped_column(
         Uuid, ForeignKey("accounts.id"), nullable=True
     )

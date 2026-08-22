@@ -28,8 +28,9 @@ import {
 } from '../services/school_classes_overview_service.js'
 import {
   createSpecialCourse,
-  createTimetableSlot,
+  createTimetableDateSlot,
   deleteSpecialCourse,
+  deleteTimetableDateSlot,
   deleteTimetableSlot,
   generateTimetable,
   getClassSpecialCourses,
@@ -67,7 +68,7 @@ const SUBJECT_PALETTE = ['violet', 'green', 'blue', 'orange', 'pink', 'teal', 'y
 
 const EMPTY_SLOT_FORM = {
   classSubjectId: '',
-  dayOfWeek: '1',
+  courseDate: '',
   startTime: '',
   endTime: '',
   roomId: '',
@@ -93,10 +94,40 @@ function formatClassName(schoolClass) {
 }
 
 function sortTimetableSlots(firstSlot, secondSlot) {
+  const firstDate = firstSlot.course_date ?? ''
+  const secondDate = secondSlot.course_date ?? ''
+  if (firstDate !== secondDate) return firstDate.localeCompare(secondDate)
   if (firstSlot.day_of_week !== secondSlot.day_of_week) {
     return firstSlot.day_of_week - secondSlot.day_of_week
   }
   return String(firstSlot.start_time).localeCompare(String(secondSlot.start_time))
+}
+
+function getLocalIsoDate(value) {
+  const localDate = value ? new Date(`${value}T12:00:00`) : new Date()
+  const year = localDate.getFullYear()
+  const month = String(localDate.getMonth() + 1).padStart(2, '0')
+  const day = String(localDate.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getWeekStart(value) {
+  const currentDate = new Date(`${getLocalIsoDate(value)}T12:00:00`)
+  const day = currentDate.getDay() || 7
+  currentDate.setDate(currentDate.getDate() - day + 1)
+  return getLocalIsoDate(currentDate.toISOString().slice(0, 10))
+}
+
+function addDays(value, count) {
+  const currentDate = new Date(`${value}T12:00:00`)
+  currentDate.setDate(currentDate.getDate() + count)
+  return getLocalIsoDate(currentDate.toISOString().slice(0, 10))
+}
+
+function formatDayWithDate(value) {
+  const dateValue = new Date(`${value}T12:00:00`)
+  const dayName = DAY_LABELS[dateValue.getDay() || 7]
+  return `${dayName} ${dateValue.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}`
 }
 
 /** Fusionne les pauses de chaque jour configuré en une seule liste, sans doublons. */
@@ -113,20 +144,26 @@ function flattenBreaks(days) {
 /**
  * Grille hebdomadaire réutilisable (aperçu du brouillon comme planning publié).
  */
-function TimetableGrid({ slots, breaks, editable = false, onDeleteSlot, deletingSlotId }) {
-  const gridDayLabels = [1, 2, 3, 4, 5, 6, 7].map(function toLabel(dayNumber) { return DAY_LABELS[dayNumber] })
-  const daySchedule = getScheduleRows(slots, breaks)
+function TimetableGrid({ slots, breaks, weekStart, editable = false, onDeleteSlot, deletingSlotId }) {
+  const currentWeekStart = weekStart || getWeekStart('')
+  const gridDayDates = [0, 1, 2, 3, 4, 5, 6].map(function getDayDate(index) { return addDays(currentWeekStart, index) })
+  const visibleSlots = slots.filter(function filterVisibleSlots(slot) {
+    if (slot.course_date) return slot.course_date >= currentWeekStart && slot.course_date <= addDays(currentWeekStart, 6)
+    return (!slot.effective_start_date || currentWeekStart >= slot.effective_start_date)
+      && (!slot.effective_end_date || currentWeekStart <= slot.effective_end_date)
+  })
+  const daySchedule = getScheduleRows(visibleSlots, breaks)
   const subjectColorByName = new Map()
-  slots.forEach(function assignSubjectColor(slot) {
+  visibleSlots.forEach(function assignSubjectColor(slot) {
     if (!subjectColorByName.has(slot.subject_name)) {
       subjectColorByName.set(slot.subject_name, SUBJECT_PALETTE[subjectColorByName.size % SUBJECT_PALETTE.length])
     }
   })
 
   function findSlotsForCell(dayIndex, period) {
-    return slots.filter(
-      (slot) =>
-        slot.day_of_week === dayIndex + 1 &&
+      return visibleSlots.filter(
+        (slot) =>
+          (slot.course_date ? slot.course_date === gridDayDates[dayIndex] : slot.day_of_week === dayIndex + 1) &&
         formatTime(slot.start_time) < period.end &&
         formatTime(slot.end_time) > period.start
     )
@@ -140,7 +177,7 @@ function TimetableGrid({ slots, breaks, editable = false, onDeleteSlot, deleting
         className="tmp-icon-button stp-cell__delete"
         disabled={deletingSlotId === slot.id}
         title="Retirer ce créneau"
-        onClick={function deleteSelectedSlot(event) { event.stopPropagation(); onDeleteSlot(slot.id) }}
+        onClick={function deleteSelectedSlot(event) { event.stopPropagation(); onDeleteSlot(slot) }}
       >
         <Trash2 aria-hidden="true" size={size} />
       </button>
@@ -151,8 +188,8 @@ function TimetableGrid({ slots, breaks, editable = false, onDeleteSlot, deleting
     <div className="stp-grid-wrapper">
       <div className="stp-grid">
         <div className="stp-grid__corner" />
-        {gridDayLabels.map((day) => (
-          <div key={day} className="stp-grid__day-head">{day}</div>
+        {gridDayDates.map((dayDate) => (
+          <div key={dayDate} className="stp-grid__day-head">{formatDayWithDate(dayDate)}</div>
         ))}
 
         {daySchedule.map((entry) => (
@@ -166,16 +203,17 @@ function TimetableGrid({ slots, breaks, editable = false, onDeleteSlot, deleting
                 <strong>{entry.start}</strong>
                 <span>{entry.end}</span>
               </div>
-              {gridDayLabels.map((day, dayIndex) => {
+              {gridDayDates.map((dayDate, dayIndex) => {
+                const day = dayDate
                 const cellSlots = findSlotsForCell(dayIndex, entry)
                 if (cellSlots.length === 0) {
-                  return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
+                  return <div key={`${dayDate}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
                 }
                 if (cellSlots.length === 1) {
                   const slot = cellSlots[0]
                   const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
                   return (
-                    <div key={`${day}-${entry.start}`} className={`stp-cell stp-cell--${color}`}>
+                    <div key={`${dayDate}-${entry.start}`} className={`stp-cell stp-cell--${color}`}>
                       <span className="stp-cell__title"><BookOpen aria-hidden="true" size={14} /> {slot.subject_name}</span>
                       <span className="stp-cell__meta">
                         {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
@@ -230,6 +268,8 @@ export default function TimetableManagementPage() {
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
   const [slotForm, setSlotForm] = useState(EMPTY_SLOT_FORM)
+  const [visibleWeekStart, setVisibleWeekStart] = useState('')
+  const [generationDates, setGenerationDates] = useState({ startDate: '', endDate: '' })
 
   const [requirements, setRequirements] = useState([])
   const [configLoading, setConfigLoading] = useState(false)
@@ -279,6 +319,14 @@ export default function TimetableManagementPage() {
         setRooms(availableRooms)
         setScheduleBreaks(flattenBreaks(configuration.days))
         setDraftConflicts(conflicts)
+        setVisibleWeekStart(getWeekStart(configuration.school_year_start_date))
+        setSlotForm(function setDefaultCourseDate(currentForm) {
+          return { ...currentForm, courseDate: configuration.school_year_start_date }
+        })
+        setGenerationDates({
+          startDate: configuration.school_year_start_date,
+          endDate: configuration.school_year_end_date,
+        })
       } catch (loadError) {
         setError(loadError.message)
       } finally {
@@ -358,6 +406,7 @@ export default function TimetableManagementPage() {
     setSelectedClassId(pendingClassId)
     setActiveTab('overview')
     setBuildMode(null)
+    setVisibleWeekStart('')
     setShowClassPicker(false)
   }
 
@@ -408,6 +457,10 @@ export default function TimetableManagementPage() {
       setError('Cette matière ne possède pas encore d’enseignant actif.')
       return
     }
+    if (!slotForm.courseDate) {
+      setError('Sélectionnez la date précise du cours.')
+      return
+    }
     if (slotForm.endTime <= slotForm.startTime) {
       setError('L’heure de fin doit être postérieure à l’heure de début.')
       return
@@ -415,15 +468,17 @@ export default function TimetableManagementPage() {
 
     setSavingSlot(true)
     try {
-      await createTimetableSlot(selectedClassId, {
+      await createTimetableDateSlot(selectedClassId, {
         class_subject_id: slotForm.classSubjectId,
-        day_of_week: Number(slotForm.dayOfWeek),
+        course_date: slotForm.courseDate,
         start_time: slotForm.startTime,
         end_time: slotForm.endTime,
         room_id: slotForm.roomId || null,
       })
       await refreshTimetable()
-      setSlotForm(EMPTY_SLOT_FORM)
+      setSlotForm(function keepCourseDate() {
+        return { ...EMPTY_SLOT_FORM, courseDate: slotForm.courseDate }
+      })
       toast.success('Le créneau a été ajouté au brouillon de l’emploi du temps. Voir l’aperçu ci-dessous.')
     } catch (saveError) {
       setError(saveError.message)
@@ -432,11 +487,15 @@ export default function TimetableManagementPage() {
     }
   }
 
-  async function handleDeleteSlot(slotId) {
-    setDeletingSlotId(slotId)
+  async function handleDeleteSlot(slot) {
+    setDeletingSlotId(slot.id)
     setError('')
     try {
-      await deleteTimetableSlot(slotId)
+      if (slot.slot_kind === 'DATED') {
+        await deleteTimetableDateSlot(slot.id)
+      } else {
+        await deleteTimetableSlot(slot.id)
+      }
       await refreshTimetable()
       toast.success('Le créneau a été retiré du brouillon.')
     } catch (deleteError) {
@@ -460,6 +519,14 @@ export default function TimetableManagementPage() {
     event.preventDefault()
     setError('')
     setUnplacedRequirements([])
+    if (!generationDates.startDate || !generationDates.endDate) {
+      setError('Sélectionnez les dates de début et de fin de génération.')
+      return
+    }
+    if (generationDates.endDate < generationDates.startDate) {
+      setError('La date de fin de génération doit être postérieure à la date de début.')
+      return
+    }
     setGenerating(true)
     try {
       const result = await generateTimetable(
@@ -470,6 +537,8 @@ export default function TimetableManagementPage() {
             weekly_minutes: Number(row.weekly_minutes),
           }
         }),
+        generationDates.startDate,
+        generationDates.endDate,
       )
       await refreshTimetable()
       setUnplacedRequirements(result.unplaced_requirements ?? [])
@@ -693,12 +762,8 @@ export default function TimetableManagementPage() {
                   </label>
 
                   <label className="tmp-field">
-                    <span>Jour *</span>
-                    <select name="dayOfWeek" value={slotForm.dayOfWeek} onChange={handleSlotFieldChange} required>
-                      {Object.entries(DAY_LABELS).map(function renderDayOption([dayNumber, dayLabel]) {
-                        return <option key={dayNumber} value={dayNumber}>{dayLabel}</option>
-                      })}
-                    </select>
+                    <span>Date du cours *</span>
+                    <input name="courseDate" type="date" value={slotForm.courseDate} onChange={handleSlotFieldChange} required />
                   </label>
 
                   <label className="tmp-field">
@@ -748,6 +813,32 @@ export default function TimetableManagementPage() {
                   </div>
                 ) : (
                   <form className="tmp-manual-form tmp-build-form" onSubmit={handleGenerateTimetable}>
+                    <label className="tmp-field">
+                      <span>Date de début *</span>
+                      <input
+                        type="date"
+                        value={generationDates.startDate}
+                        onChange={function changeGenerationStartDate(event) {
+                          setGenerationDates(function updateGenerationDates(currentDates) {
+                            return { ...currentDates, startDate: event.target.value }
+                          })
+                        }}
+                        required
+                      />
+                    </label>
+                    <label className="tmp-field">
+                      <span>Date de fin *</span>
+                      <input
+                        type="date"
+                        value={generationDates.endDate}
+                        onChange={function changeGenerationEndDate(event) {
+                          setGenerationDates(function updateGenerationDates(currentDates) {
+                            return { ...currentDates, endDate: event.target.value }
+                          })
+                        }}
+                        required
+                      />
+                    </label>
                     {requirements.map(function renderRequirementField(requirement) {
                       const totalMinutes = Number(requirement.weekly_minutes) || 0
                       const hoursValue = Math.round((totalMinutes / 60) * 4) / 4
@@ -832,6 +923,17 @@ export default function TimetableManagementPage() {
                     )}
                   </div>
 
+                  <label className="tmp-field tmp-week-picker">
+                    <span>Semaine affichée</span>
+                    <input
+                      type="date"
+                      value={visibleWeekStart}
+                      onChange={function changeVisibleWeek(event) {
+                        setVisibleWeekStart(getWeekStart(event.target.value))
+                      }}
+                    />
+                  </label>
+
                   {draftConflicts.length > 0 && (
                     <div className="tmp-conflict-banner" role="alert">
                       <AlertTriangle aria-hidden="true" size={20} />
@@ -861,6 +963,7 @@ export default function TimetableManagementPage() {
                     <TimetableGrid
                       slots={savedSlots}
                       breaks={scheduleBreaks}
+                      weekStart={visibleWeekStart}
                       editable
                       onDeleteSlot={handleDeleteSlot}
                       deletingSlotId={deletingSlotId}
@@ -997,6 +1100,17 @@ export default function TimetableManagementPage() {
                 </button>
               </div>
 
+              <label className="tmp-field tmp-week-picker">
+                <span>Semaine affichée</span>
+                <input
+                  type="date"
+                  value={visibleWeekStart}
+                  onChange={function changePublishedWeek(event) {
+                    setVisibleWeekStart(getWeekStart(event.target.value))
+                  }}
+                />
+              </label>
+
               {classDataLoading ? (
                 <p className="tmp-empty">Chargement de l’emploi du temps…</p>
               ) : publishedSlots.length === 0 ? (
@@ -1006,7 +1120,7 @@ export default function TimetableManagementPage() {
                   <p>Utilisez la création manuelle ou la génération automatique, puis publiez le brouillon.</p>
                 </div>
               ) : (
-                <TimetableGrid slots={publishedSlots} breaks={scheduleBreaks} />
+                <TimetableGrid slots={publishedSlots} breaks={scheduleBreaks} weekStart={visibleWeekStart} />
               )}
             </section>
           )}

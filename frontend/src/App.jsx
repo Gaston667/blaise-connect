@@ -31,7 +31,6 @@ import TeacherTimetablePage from './pages/teacher_timetable_page.jsx'
 import TimetableManagementPage from './pages/timetable_management_page.jsx'
 import AttendancePage from './pages/attendance_page.jsx'
 import AttendanceRecordDetailsPage from './pages/attendance_record_details_page.jsx'
-import AppreciationsPage from './pages/appreciations_page.jsx'
 import ReportCardsPage from './pages/report_cards_page.jsx'
 import ReportCardDetailsPage from './pages/report_card_details_page.jsx'
 import GuidedTour from './components/guided_tour.jsx'
@@ -56,7 +55,6 @@ const PAGE_PATHS = {
   'teacher-timetable': '/my-teaching-schedule',
   timetables: '/timetables',
   attendance: '/attendance',
-  appreciations: '/appreciations',
   'report-cards': '/report-cards',
 }
 
@@ -89,7 +87,6 @@ function getCurrentPage(pathname) {
   if (pathname === '/my-teaching-schedule') return 'teacher-timetable'
   if (pathname === '/timetables') return 'timetables'
   if (pathname === '/attendance') return 'attendance'
-  if (pathname === '/appreciations') return 'appreciations'
   if (pathname === '/report-cards') return 'report-cards'
   return 'home'
 }
@@ -316,9 +313,6 @@ export default function App() {
   }
   else if (currentPage === 'notes' && canManageNotes) {
     pageContent = <NotesPage account={currentAccount} onNavigate={handleNavigate} initialAssessmentId={selectedEntity?.assessmentId} />
-  }
-  else if (currentPage === 'appreciations' && currentAccount.role === 'TEACHER') {
-    pageContent = <AppreciationsPage />
   }
   else if (currentPage === 'report-cards' && canManageSchool) {
     pageContent = <ReportCardsPage onNavigate={handleNavigate} />

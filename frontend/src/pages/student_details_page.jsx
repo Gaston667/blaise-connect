@@ -715,6 +715,9 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
       phone: d.phone ?? '',
       email: d.email ?? '',
       address: d.address ?? '',
+      previous_establishment: d.previous_establishment ?? '',
+      medical_condition: d.medical_condition ?? '',
+      is_enrolled_in_cned: d.is_enrolled_in_cned ?? false,
     })
   }
 
@@ -1071,6 +1074,11 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                   <label>Email<input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} /></label>
                 </div>
                 <label className="sdp-full">Adresse<input value={form.address} onChange={(e) => update('address', e.target.value)} /></label>
+                <div className="sdp-row">
+                  <label>Établissement précédent<input value={form.previous_establishment} onChange={(e) => update('previous_establishment', e.target.value)} /></label>
+                  <label className="sdp-checkbox"><input type="checkbox" checked={form.is_enrolled_in_cned} onChange={(e) => update('is_enrolled_in_cned', e.target.checked)} /> Inscrit au CNED</label>
+                </div>
+                <label className="sdp-full">Maladie particulière<textarea value={form.medical_condition} onChange={(e) => update('medical_condition', e.target.value)} /></label>
 
                 <div className="sdp-form-actions">
                   <button type="button" className="sdp-btn-outline" onClick={cancelStudentEditing}>Annuler</button>
@@ -1109,6 +1117,14 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                       <div><dt>Adresse</dt><dd>{details.address ?? '—'}</dd></div>
                       <div><dt>Téléphone</dt><dd>{details.phone ?? '—'}</dd></div>
                       <div><dt>Email</dt><dd>{details.email ?? '—'}</dd></div>
+                    </dl>
+                  </section>
+                  <section>
+                    <h3>Informations complémentaires</h3>
+                    <dl>
+                      <div><dt>Établissement précédent</dt><dd>{details.previous_establishment ?? '—'}</dd></div>
+                      <div><dt>Inscrit au CNED</dt><dd>{details.is_enrolled_in_cned ? 'Oui' : 'Non'}</dd></div>
+                      <div><dt>Maladie particulière</dt><dd>{details.medical_condition ?? 'Aucune renseignée'}</dd></div>
                     </dl>
                   </section>
                 </div>

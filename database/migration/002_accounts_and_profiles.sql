@@ -73,6 +73,9 @@ CREATE TABLE students (
     birth_place varchar(150),
     nationality varchar(100) NOT NULL,
     previous_level varchar(100),
+    previous_establishment varchar(150),
+    medical_condition text,
+    is_enrolled_in_cned boolean NOT NULL DEFAULT false,
     updated_by_account_id uuid,
     archived_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -99,6 +102,18 @@ CREATE TABLE students (
 
     CONSTRAINT ck_students_birth_date
         CHECK (birth_date IS NULL OR birth_date <= admission_date),
+
+    CONSTRAINT ck_students_previous_establishment_not_blank
+        CHECK (
+            previous_establishment IS NULL
+            OR char_length(btrim(previous_establishment)) > 0
+        ),
+
+    CONSTRAINT ck_students_medical_condition_not_blank
+        CHECK (
+            medical_condition IS NULL
+            OR char_length(btrim(medical_condition)) > 0
+        ),
 
     CONSTRAINT ck_students_archived_at
         CHECK (archived_at IS NULL OR archived_at >= created_at),
@@ -558,14 +573,16 @@ GRANT UPDATE (
 GRANT INSERT (
     account_id, first_name, last_name, birth_date, gender,
     email, phone, address, admission_date, status, photo_path,
-    birth_place, nationality, previous_level,
+    birth_place, nationality, previous_level, previous_establishment,
+    medical_condition, is_enrolled_in_cned,
     updated_by_account_id, archived_at
 ) ON students TO blaise_app;
 
 GRANT UPDATE (
     first_name, last_name, birth_date, gender,
     email, phone, address, admission_date, status, photo_path,
-    birth_place, nationality, previous_level,
+    birth_place, nationality, previous_level, previous_establishment,
+    medical_condition, is_enrolled_in_cned,
     updated_by_account_id, archived_at, updated_at
 ) ON students TO blaise_app;
 

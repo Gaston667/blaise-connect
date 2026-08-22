@@ -161,6 +161,7 @@
 
 .tmp-manual-form { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
 .tmp-field { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.tmp-week-picker { width: min(100%, 16rem); margin: 0 0 var(--space-4); }
 .tmp-field > span { color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
 .tmp-field input, .tmp-field select { width: 100%; min-height: 2.85rem; padding: 0 var(--space-3); color: var(--input-text); background: var(--input-bg); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); font: inherit; }
 .tmp-field input:focus, .tmp-field select:focus { border-color: var(--color-primary); outline: 2px solid color-mix(in srgb, var(--color-primary) 15%, transparent); }

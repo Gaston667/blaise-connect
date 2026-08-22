@@ -299,9 +299,12 @@ def get_class_timetable_configuration(db: Session, class_id: UUID) -> dict:
         text(
             """
             SELECT class.school_year_id, class.class_level_id,
-                   level.education_stage
+                   level.education_stage,
+                   school_year.start_date AS school_year_start_date,
+                   school_year.end_date AS school_year_end_date
             FROM classes AS class
             JOIN class_levels AS level ON level.id = class.class_level_id
+            JOIN school_years AS school_year ON school_year.id = class.school_year_id
             WHERE class.id = :class_id
             """
         ),
@@ -340,6 +343,8 @@ def get_class_timetable_configuration(db: Session, class_id: UUID) -> dict:
         "school_year_id": context["school_year_id"],
         "class_level_id": context["class_level_id"],
         "education_stage": context["education_stage"],
+        "school_year_start_date": context["school_year_start_date"],
+        "school_year_end_date": context["school_year_end_date"],
         "days": stage_schedules,
         "requirements": [dict(row) for row in requirements],
     }
@@ -526,6 +531,8 @@ def generate_timetable(
     db: Session,
     class_id: UUID,
     requirements: list[WeeklySubjectRequirementUpsert],
+    target_start_date: date,
+    target_end_date: date,
     generated_by_account_id: UUID,
 ) -> dict:
     """Produit et enregistre une proposition déterministe à valider."""
@@ -543,10 +550,13 @@ def generate_timetable(
         raise ValueError("Aucune matière avec enseignant et volume horaire n'est disponible.")
 
     school_year_id = configuration["school_year_id"]
-    school_year = db.execute(
-        text("SELECT start_date, end_date FROM school_years WHERE id = :school_year_id"),
-        {"school_year_id": school_year_id},
-    ).mappings().one()
+    if target_start_date > target_end_date:
+        raise ValueError("La date de fin de génération doit être postérieure à la date de début.")
+    if (
+        target_start_date < configuration["school_year_start_date"]
+        or target_end_date > configuration["school_year_end_date"]
+    ):
+        raise ValueError("La plage de génération doit rester comprise dans l'année scolaire.")
 
     db.execute(
         text("DELETE FROM timetables WHERE class_id = :class_id AND status = 'DRAFT'"),
@@ -571,8 +581,8 @@ def generate_timetable(
         {
             "school_year_id": school_year_id,
             "requested_by_account_id": generated_by_account_id,
-            "target_start_date": school_year["start_date"],
-            "target_end_date": school_year["end_date"],
+            "target_start_date": target_start_date,
+            "target_end_date": target_end_date,
         },
     ).mappings().one()
 
@@ -593,8 +603,8 @@ def generate_timetable(
         ),
         {
             "class_id": class_id,
-            "effective_start_date": school_year["start_date"],
-            "effective_end_date": school_year["end_date"],
+            "effective_start_date": target_start_date,
+            "effective_end_date": target_end_date,
             "created_by_account_id": generated_by_account_id,
             "generation_run_id": generation_run["id"],
         },
@@ -886,18 +896,31 @@ def get_teacher_busy_slots(
 
 
 def get_class_timetable(db: Session, class_id: str, published_only: bool = False) -> list[dict]:
-    """Retourne le planning publié, ou le brouillon prioritaire pour l'admin."""
+    """Retourne le brouillon prioritaire ou le planning publié, avec ses cours datés."""
 
     status_filter = "timetable.status = 'PUBLISHED'" if published_only else "timetable.status IN ('DRAFT', 'PUBLISHED')"
+    selected_status = """
+        timetable.status = (
+            SELECT CASE
+                WHEN :published_only THEN 'PUBLISHED'::timetable_status_enum
+                WHEN EXISTS (
+                    SELECT 1 FROM timetables AS draft
+                    WHERE draft.class_id = :class_id AND draft.status = 'DRAFT'
+                ) THEN 'DRAFT'::timetable_status_enum
+                ELSE 'PUBLISHED'::timetable_status_enum
+            END
+        )
+    """
     rows = db.execute(
         text(
             f"""
             SELECT detail.slot_id AS id, detail.timetable_id, detail.version,
                    detail.status, detail.day_of_week, detail.start_time,
-                   detail.end_time, detail.class_subject_id,
-                   detail.subject_id, subject.is_specialty,
-                   detail.subject_name, detail.teacher_name, detail.room_name,
-                   level.education_stage
+                   detail.end_time, detail.class_subject_id, detail.subject_id,
+                   subject.is_specialty, detail.subject_name, detail.teacher_name,
+                   detail.room_name, level.education_stage,
+                   timetable.effective_start_date, timetable.effective_end_date,
+                   NULL::date AS course_date, 'RECURRING'::text AS slot_kind
             FROM v_timetable_slots_detailed AS detail
             JOIN timetables AS timetable ON timetable.id = detail.timetable_id
             JOIN classes AS class ON class.id = detail.class_id
@@ -905,17 +928,31 @@ def get_class_timetable(db: Session, class_id: str, published_only: bool = False
             JOIN subjects AS subject ON subject.id = detail.subject_id
             WHERE detail.class_id = :class_id
               AND {status_filter}
-              AND timetable.status = (
-                  SELECT CASE
-                      WHEN :published_only THEN 'PUBLISHED'::timetable_status_enum
-                      WHEN EXISTS (
-                          SELECT 1 FROM timetables AS draft
-                          WHERE draft.class_id = :class_id AND draft.status = 'DRAFT'
-                      ) THEN 'DRAFT'::timetable_status_enum
-                      ELSE 'PUBLISHED'::timetable_status_enum
-                  END
-              )
-            ORDER BY detail.day_of_week, detail.start_time
+              AND {selected_status}
+
+            UNION ALL
+
+            SELECT dated_slot.id, timetable.id, timetable.version, timetable.status,
+                   EXTRACT(ISODOW FROM dated_slot.course_date)::smallint,
+                   dated_slot.start_time, dated_slot.end_time,
+                   class_subject.id, subject.id, subject.is_specialty,
+                   subject.name, teacher.first_name || ' ' || teacher.last_name,
+                   room.name, level.education_stage,
+                   timetable.effective_start_date, timetable.effective_end_date,
+                   dated_slot.course_date, 'DATED'::text
+            FROM timetable_date_slots AS dated_slot
+            JOIN timetables AS timetable ON timetable.id = dated_slot.timetable_id
+            JOIN teacher_assignments AS assignment ON assignment.id = dated_slot.teacher_assignment_id
+            JOIN class_subjects AS class_subject ON class_subject.id = assignment.class_subject_id
+            JOIN subjects AS subject ON subject.id = class_subject.subject_id
+            JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+            JOIN classes AS class ON class.id = timetable.class_id
+            JOIN class_levels AS level ON level.id = class.class_level_id
+            LEFT JOIN rooms AS room ON room.id = dated_slot.room_id
+            WHERE timetable.class_id = :class_id
+              AND {status_filter}
+              AND {selected_status}
+            ORDER BY course_date NULLS FIRST, day_of_week, start_time
             """
         ),
         {"class_id": class_id, "published_only": published_only},
@@ -1063,6 +1100,21 @@ def _get_or_create_draft(
             ),
             {"new_draft_id": new_draft_id, "published_id": published_id},
         )
+        db.execute(
+            text(
+                """
+                INSERT INTO timetable_date_slots (
+                    timetable_id, teacher_assignment_id, room_id,
+                    course_date, start_time, end_time
+                )
+                SELECT :new_draft_id, teacher_assignment_id, room_id,
+                       course_date, start_time, end_time
+                FROM timetable_date_slots
+                WHERE timetable_id = :published_id
+                """
+            ),
+            {"new_draft_id": new_draft_id, "published_id": published_id},
+        )
 
     return new_draft_id
 
@@ -1150,6 +1202,78 @@ def create_timetable_slot(
     return dict(row)
 
 
+def create_timetable_date_slot(
+    db: Session,
+    class_id: UUID,
+    class_subject_id: UUID,
+    course_date: date,
+    start_time: time,
+    end_time: time,
+    room_id: UUID | None,
+    created_by_account_id: UUID,
+) -> dict:
+    """Ajoute un cours unique, daté, dans le brouillon de la classe."""
+
+    if end_time <= start_time:
+        raise ValueError("L'heure de fin doit être postérieure à l'heure de début.")
+
+    assignment_id = db.execute(
+        text(
+            """
+            SELECT assignment.id
+            FROM teacher_assignments AS assignment
+            JOIN class_subjects AS class_subject
+              ON class_subject.id = assignment.class_subject_id
+            WHERE class_subject.id = :class_subject_id
+              AND class_subject.class_id = :class_id
+              AND assignment.start_date <= :course_date
+              AND (assignment.end_date IS NULL OR assignment.end_date >= :course_date)
+            """
+        ),
+        {
+            "class_subject_id": class_subject_id,
+            "class_id": class_id,
+            "course_date": course_date,
+        },
+    ).scalar_one_or_none()
+    if assignment_id is None:
+        raise ValueError("Aucun enseignant n'est affecté à cette matière à cette date.")
+
+    try:
+        timetable_id = _get_or_create_draft(
+            db=db,
+            class_id=class_id,
+            created_by_account_id=created_by_account_id,
+        )
+        row = db.execute(
+            text(
+                """
+                INSERT INTO timetable_date_slots (
+                    timetable_id, teacher_assignment_id, room_id,
+                    course_date, start_time, end_time
+                ) VALUES (
+                    :timetable_id, :teacher_assignment_id, :room_id,
+                    :course_date, :start_time, :end_time
+                )
+                RETURNING id, course_date, start_time, end_time
+                """
+            ),
+            {
+                "timetable_id": timetable_id,
+                "teacher_assignment_id": assignment_id,
+                "room_id": room_id,
+                "course_date": course_date,
+                "start_time": start_time,
+                "end_time": end_time,
+            },
+        ).mappings().one()
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise ValueError(extract_postgres_error_message(error)) from error
+    return dict(row)
+
+
 def clear_class_timetable(db: Session, class_id: str) -> None:
     """Retire uniquement le brouillon ; le planning publié reste visible."""
 
@@ -1167,6 +1291,25 @@ def delete_timetable_slot(db: Session, slot_id: str) -> bool:
         text(
             """
             DELETE FROM timetable_slots AS slot
+            USING timetables AS timetable
+            WHERE slot.id = :slot_id
+              AND timetable.id = slot.timetable_id
+              AND timetable.status = 'DRAFT'
+            """
+        ),
+        {"slot_id": slot_id},
+    )
+    db.commit()
+    return result.rowcount > 0
+
+
+def delete_timetable_date_slot(db: Session, slot_id: str) -> bool:
+    """Supprime un cours daté appartenant à un brouillon."""
+
+    result = db.execute(
+        text(
+            """
+            DELETE FROM timetable_date_slots AS slot
             USING timetables AS timetable
             WHERE slot.id = :slot_id
               AND timetable.id = slot.timetable_id

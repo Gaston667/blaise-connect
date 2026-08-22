@@ -17,6 +17,9 @@ class StudentUpdate(BaseModel):
     phone: str | None = None
     address: str | None = None
     previous_level: str | None = None
+    previous_establishment: str | None = None
+    medical_condition: str | None = None
+    is_enrolled_in_cned: bool | None = None
     admission_date: date | None = None
 
     @field_validator("phone")

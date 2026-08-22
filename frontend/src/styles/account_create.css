@@ -391,6 +391,18 @@
   cursor: wait;
 }
 
+.creation-compte-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--input-height-md);
+}
+
+.creation-compte-checkbox input {
+  width: auto;
+  min-height: auto;
+}
+
 @media (min-width: 760px) {
   .creation-compte-page {
     padding: var(--space-8) var(--space-10);
@@ -606,4 +618,3 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
 }
-

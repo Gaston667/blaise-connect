@@ -22,7 +22,11 @@ const INITIAL_FORM = {
   email: '',
   phone: '',
   address: '',
+  birth_place: '',
   admission_date: '',
+  previous_establishment: '',
+  medical_condition: '',
+  is_enrolled_in_cned: false,
   hire_date: '',
   qualification: '',
   job_title: '',
@@ -80,9 +84,9 @@ export default function AccountCreatePage({ onNavigate }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false)
 
   function updateField(event) {
-    const { name, value } = event.target
+    const { name, value, type, checked } = event.target
     setForm(function updateCurrentForm(currentForm) {
-      return { ...currentForm, [name]: value }
+      return { ...currentForm, [name]: type === 'checkbox' ? checked : value }
     })
   }
 
@@ -224,10 +228,14 @@ export default function AccountCreatePage({ onNavigate }) {
           gender: form.gender || null,
           email: cleanOptionalValue(form.email),
           phone: cleanOptionalValue(normalizeInternationalPhone(form.phone)),
-          nationality: cleanOptionalValue(form.nationality),
-          address: cleanOptionalValue(form.address),
-          admission_date: form.admission_date || null,
-          hire_date: form.hire_date || null,
+            nationality: cleanOptionalValue(form.nationality),
+            address: cleanOptionalValue(form.address),
+            birth_place: cleanOptionalValue(form.birth_place),
+            admission_date: form.admission_date || null,
+            previous_establishment: cleanOptionalValue(form.previous_establishment),
+            medical_condition: cleanOptionalValue(form.medical_condition),
+            is_enrolled_in_cned: form.is_enrolled_in_cned,
+            hire_date: form.hire_date || null,
           qualification: cleanOptionalValue(form.qualification),
           job_title: cleanOptionalValue(form.job_title),
           occupation: cleanOptionalValue(form.occupation),
@@ -329,10 +337,14 @@ export default function AccountCreatePage({ onNavigate }) {
               <div><dt>Nom</dt><dd>{summaryProfile.last_name}</dd></div>
               <div><dt>Sexe</dt><dd>{summaryProfile.gender || 'Non renseigné'}</dd></div>
               <div><dt>Date de naissance</dt><dd>{summaryProfile.birth_date || 'Non renseignée'}</dd></div>
+              <div><dt>Lieu de naissance</dt><dd>{summaryProfile.birth_place || 'Non renseigné'}</dd></div>
               <div><dt>Email</dt><dd>{summaryProfile.email || 'Non renseigné'}</dd></div>
               <div><dt>Téléphone</dt><dd>{summaryProfile.phone || 'Non renseigné'}</dd></div>
               <div><dt>Adresse</dt><dd>{summaryProfile.address || 'Non renseignée'}</dd></div>
               <div><dt>Date d’admission</dt><dd>{summaryProfile.admission_date || 'Non concerné'}</dd></div>
+              <div><dt>Établissement précédent</dt><dd>{summaryProfile.previous_establishment || 'Non renseigné'}</dd></div>
+              <div><dt>Maladie particulière</dt><dd>{summaryProfile.medical_condition || 'Aucune renseignée'}</dd></div>
+              <div><dt>Inscrit au CNED</dt><dd>{summaryProfile.is_enrolled_in_cned ? 'Oui' : 'Non'}</dd></div>
               <div><dt>Date d’embauche</dt><dd>{summaryProfile.hire_date || 'Non concerné'}</dd></div>
               <div><dt>Qualification</dt><dd>{summaryProfile.qualification || 'Non concerné'}</dd></div>
               <div><dt>Fonction</dt><dd>{summaryProfile.job_title || 'Non concerné'}</dd></div>
@@ -488,6 +500,7 @@ export default function AccountCreatePage({ onNavigate }) {
             {(isStudent || isTeacher) && (
               <label>Date de naissance *<input name="birth_date" type="date" value={form.birth_date} onChange={updateField} required /></label>
             )}
+            {isStudent && <label>Lieu de naissance<input name="birth_place" value={form.birth_place} onChange={updateField} maxLength="150" autoComplete="off" /></label>}
 
             <label>
               Sexe *
@@ -524,6 +537,9 @@ export default function AccountCreatePage({ onNavigate }) {
               {isAdministrator && <label>Fonction / Poste *<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" required /></label>}
               {isGuardian && <label>Profession *<input name="occupation" value={form.occupation} onChange={updateField} maxLength="150" required /></label>}
               {isGuardian && <label>Employeur *<input name="employer" value={form.employer} onChange={updateField} maxLength="150" required /></label>}
+              {isStudent && <label>Établissement précédent<input name="previous_establishment" value={form.previous_establishment} onChange={updateField} maxLength="150" autoComplete="off" /></label>}
+              {isStudent && <label className="creation-compte-wide">Maladie particulière<textarea name="medical_condition" value={form.medical_condition} onChange={updateField} autoComplete="off" /></label>}
+              {isStudent && <label className="creation-compte-checkbox"><input name="is_enrolled_in_cned" type="checkbox" checked={form.is_enrolled_in_cned} onChange={updateField} /> Inscrit au CNED</label>}
             </div>
           </section>
         )}

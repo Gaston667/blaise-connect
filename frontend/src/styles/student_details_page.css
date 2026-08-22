@@ -761,6 +761,17 @@
   border-color: var(--input-border-focus);
   box-shadow: var(--shadow-focus);
 }
+.sdp-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: var(--space-5);
+}
+.sdp-checkbox input {
+  width: auto;
+  min-height: auto;
+  padding: 0;
+}
 .sdp-form-actions {
   display: flex;
   justify-content: flex-end;

@@ -56,7 +56,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 | US-014 | Notes | Saisir les notes d’une évaluation | Indispensable pour le MVP | L | 🟩 Terminé |
 | US-015 | Moyennes | Calculer les moyennes automatiquement | Indispensable pour le MVP | L | 🟩 Terminé |
 | US-016 | Notes | Demander et valider la modification d’une note | Important | L | 🟩 Terminé |
-| US-017 | Appréciations | Saisir les appréciations des élèves | Important | M | 🟨 À tester |
+| US-017 | Appréciations | Saisir les appréciations des élèves | Important | M | ⬜ Reportée |
 | US-018 | Absences | Enregistrer et consulter une absence | Indispensable pour le MVP | L | 🟨 En cours — migration à appliquer et tests réels à faire |
 | US-019 | Absences | Justifier, corriger et historiser une absence | Important | L | 🟨 En cours — migration à appliquer et tests réels à faire |
 | US-020 | Absence à une évaluation | Appliquer ABS, rattrapage ou zéro | Important | L | 🟩 Terminé |
@@ -327,7 +327,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** appréciation par matière et appréciation générale du professeur principal.
 - **Utilisateur concerné :** enseignant, professeur principal.
 - **Priorité :** Important.
-- **Statut :** À tester.
+- **Statut :** Reportée. Cette US est retirée de la version actuelle et sera redéfinie avant sa reprise.
 - **Règles de gestion :** l’enseignant écrit pour ses classes et matières ; seul le professeur principal saisit l’appréciation générale de sa classe.
 - **Critères d’acceptation :** une appréciation peut être enregistrée et modifiée avant validation du bulletin ; l’accès respecte les affectations ; l’appréciation apparaît dans le bulletin.
 - **Dépendances :** US-007, US-011, US-021.

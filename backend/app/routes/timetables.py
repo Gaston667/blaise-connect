@@ -10,6 +10,7 @@ from app.schemas.special_course_create import SpecialCourseCreate
 from app.schemas.break_schedule_create import BreakScheduleCreate
 from app.schemas.school_day_schedule_upsert import SchoolDayScheduleUpsert
 from app.schemas.timetable_generation_request import TimetableGenerationRequest
+from app.schemas.timetable_date_slot_create import TimetableDateSlotCreate
 from app.schemas.timetable_slot_create import TimetableSlotCreate
 from app.services import timetable_service
 
@@ -112,6 +113,8 @@ def post_timetable_generation(
             db=db,
             class_id=class_id,
             requirements=payload.requirements,
+            target_start_date=payload.target_start_date,
+            target_end_date=payload.target_end_date,
             generated_by_account_id=current_admin.id,
         )
     except (ValueError, LookupError, PermissionError, IntegrityError) as error:
@@ -171,6 +174,29 @@ def post_class_timetable_slot(
         _raise_service_error(error)
 
 
+@router.post("/school-classes/{class_id}/timetable/date-slots", status_code=201)
+def post_class_timetable_date_slot(
+    class_id: str,
+    payload: TimetableDateSlotCreate,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Ajoute un cours unique à une date précise dans le brouillon."""
+    try:
+        return timetable_service.create_timetable_date_slot(
+            db=db,
+            class_id=class_id,
+            class_subject_id=payload.class_subject_id,
+            course_date=payload.course_date,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            room_id=payload.room_id,
+            created_by_account_id=current_admin.id,
+        )
+    except (ValueError, LookupError, PermissionError, IntegrityError) as error:
+        _raise_service_error(error)
+
+
 @router.delete("/school-classes/{class_id}/timetable", status_code=204)
 def delete_class_timetable(class_id: str, db: DatabaseSession, current_admin: CurrentAdminDependency):
     """Supprime tous les créneaux de la classe, avant régénération."""
@@ -185,6 +211,15 @@ def delete_timetable_slot(slot_id: str, db: DatabaseSession, current_admin: Curr
     """Supprime un créneau précis."""
     try:
         timetable_service.delete_timetable_slot(db=db, slot_id=slot_id)
+    except (ValueError, LookupError, PermissionError, IntegrityError) as error:
+        _raise_service_error(error)
+
+
+@router.delete("/timetable-date-slots/{slot_id}", status_code=204)
+def delete_timetable_date_slot(slot_id: str, db: DatabaseSession, current_admin: CurrentAdminDependency):
+    """Supprime un cours daté appartenant au brouillon."""
+    try:
+        timetable_service.delete_timetable_date_slot(db=db, slot_id=slot_id)
     except (ValueError, LookupError, PermissionError, IntegrityError) as error:
         _raise_service_error(error)
 

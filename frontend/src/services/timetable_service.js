@@ -72,11 +72,15 @@ export function deleteBreakSchedule(breakId) {
 }
 
 /** Demande au backend de créer un brouillon de planning. */
-export function generateTimetable(classId, requirements) {
+export function generateTimetable(classId, requirements, targetStartDate, targetEndDate) {
   return apiRequestJson(`/api/school-classes/${classId}/timetable/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requirements }),
+    body: JSON.stringify({
+      requirements,
+      target_start_date: targetStartDate,
+      target_end_date: targetEndDate,
+    }),
     fallbackMessage: "Échec de la génération de l'emploi du temps",
   })
 }
@@ -118,12 +122,31 @@ export function createTimetableSlot(classId, payload) {
   })
 }
 
+/** Ajoute un cours ponctuel à une date précise. */
+export function createTimetableDateSlot(classId, payload) {
+  return apiRequestJson(`/api/school-classes/${classId}/timetable/date-slots`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    fallbackMessage: 'Échec de la création du cours daté',
+  })
+}
+
 /** Supprime un créneau précis appartenant au brouillon courant. */
 export function deleteTimetableSlot(slotId) {
   return apiRequest(`/api/timetable-slots/${slotId}`, {
     method: 'DELETE',
     expectJson: false,
     fallbackMessage: 'Échec de la suppression du créneau',
+  })
+}
+
+/** Supprime un cours ponctuel du brouillon. */
+export function deleteTimetableDateSlot(slotId) {
+  return apiRequest(`/api/timetable-date-slots/${slotId}`, {
+    method: 'DELETE',
+    expectJson: false,
+    fallbackMessage: 'Échec de la suppression du cours daté',
   })
 }
 

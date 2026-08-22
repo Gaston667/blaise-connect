@@ -24,7 +24,6 @@ from app.routes.student_timetable import router as student_timetable_router
 from app.routes.teacher_timetable import router as teacher_timetable_router
 from app.routes.timetables import router as timetables_router
 from app.routes.attendance import router as attendance_router
-from app.routes.appreciations import router as appreciations_router
 from app.routes.report_cards import router as report_cards_router
 from app.routes.admin_dashboard import router as admin_dashboard_router
 
@@ -66,6 +65,5 @@ app.include_router(assessments_router)
 app.include_router(grade_change_requests_router)
 app.include_router(timetables_router)
 app.include_router(attendance_router)
-app.include_router(appreciations_router)
 app.include_router(report_cards_router)
 app.include_router(admin_dashboard_router)

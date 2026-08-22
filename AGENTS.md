@@ -176,6 +176,12 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
   l'administrateur valide après contrôle. Les brouillons peuvent être supprimés.
 - Un emploi du temps d'une année clôturée est immuable, comme le reste de
   l'activité pédagogique.
+- `timetable_slots` reste le modèle d'un cours hebdomadaire récurrent. Un cours
+  saisi manuellement pour une date unique est stocké dans `timetable_date_slots`,
+  avec `course_date`, afin de ne pas transformer un cours ponctuel en récurrence.
+- La génération automatique reçoit obligatoirement une date de début et une date
+  de fin incluses dans l'année scolaire. Le brouillon produit ne vaut que sur
+  cette plage ; l'interface affiche ensuite les jours avec leurs dates réelles.
 
 ## 4. Conventions PostgreSQL obligatoires
 
@@ -234,11 +240,18 @@ Dossier propre à un élève. Il ne contient pas son matricule.
 | `phone` | `varchar(30)` | Numéro de téléphone, facultatif. |
 | `address` | `text` | Adresse postale, facultative. |
 | `admission_date` | `date` | Date d'entrée initiale dans l'établissement. |
+| `previous_establishment` | `varchar(150)` | Établissement fréquenté auparavant, facultatif. |
+| `medical_condition` | `text` | Information médicale particulière, facultative et à accès restreint. |
+| `is_enrolled_in_cned` | `boolean` | Indique si l'élève est inscrit au CNED. |
 | `status` | `student_status_enum` | Situation scolaire : `ACTIVE`, `INACTIVE` ou `ARCHIVED`. |
 | `photo_path` | `varchar(500)` | Chemin de la photo facultative de l'élève. |
+| `previous_establishment` | `varchar(150)` | Établissement fréquenté avant l'admission, facultatif. |
+| `medical_condition` | `text` | Information médicale particulière, facultative et réservée au personnel. |
+| `is_enrolled_in_cned` | `boolean` | Indique si l'élève est inscrit au CNED ; faux par défaut. |
 | `archived_at` | `timestamptz` | Date d'archivage logique du dossier élève. |
 
 `account_id` est obligatoire et unique. Le compte référencé doit avoir le rôle `STUDENT`. Le statut scolaire est indépendant de l'état du compte. `ARCHIVED` exige `archived_at`; `ACTIVE` et `INACTIVE` exigent que `archived_at` soit nul.
+Les informations médicales particulières sont facultatives et accessibles uniquement aux administrateurs et enseignants depuis la fiche élève.
 
 ### 5.3 `teachers`
 
@@ -548,15 +561,13 @@ La note doit appartenir au même élève, à une matière de sa classe et à une
 - `attendance_record_history` conserve les anciennes et nouvelles valeurs de
   chaque correction effectivement appliquée, son auteur, son motif et sa date.
 
-### 5.24 bis Appréciations préparatoires
+### 5.24 bis Appréciations (US-017 reportée)
 
-- `student_subject_appreciations` contient le brouillon d'appréciation d'un
-  enseignant pour un élève, une matière de classe et une période. La combinaison
-  est unique.
-- `student_overall_appreciations` contient le brouillon général du professeur
-  principal pour un élève et une période. La combinaison est unique.
-- Ces données sont modifiables uniquement avant la validation du bulletin ;
-  l'US-021 les copie ensuite dans les tables historiques du bulletin.
+- L'US-017 n'est pas implémentée dans cette version : il n'existe ni écran,
+  ni route, ni table de brouillon d'appréciations.
+- Les colonnes historiques `report_card_subjects.teacher_comment` et
+  `report_cards.overall_comment` sont conservées pour une future implémentation
+  validée de l'US-017.
 
 ## 6. Contraintes et protections obligatoires
 
