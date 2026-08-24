@@ -45,12 +45,6 @@ services:
       - ./database/migration/007_timetable.sql:/docker-entrypoint-initdb.d/007_timetable.sql:ro
 
       # Données fictives exécutées après les migrations, dans leur ordre de dépendance.
-      - ./database/init/020_accounts_and_profiles_test_data.sql:/docker-entrypoint-initdb.d/020_accounts_and_profiles_test_data.sql:ro
-      - ./database/init/030_relationships_and_documents_test_data.sql:/docker-entrypoint-initdb.d/030_relationships_and_documents_test_data.sql:ro
-      - ./database/init/040_school_structure_test_data.sql:/docker-entrypoint-initdb.d/040_school_structure_test_data.sql:ro
-      - ./database/init/050_academic_activity_test_data.sql:/docker-entrypoint-initdb.d/050_academic_activity_test_data.sql:ro
-      - ./database/init/060_report_cards_year_deletion_test_data.sql:/docker-entrypoint-initdb.d/060_report_cards_year_deletion_test_data.sql:ro
-      - ./database/init/070_timetable_test_data.sql:/docker-entrypoint-initdb.d/070_timetable_test_data.sql:ro
       
     # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
     healthcheck:
