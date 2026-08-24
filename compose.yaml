@@ -1,246 +1,78 @@
-# Nom commun donné au projet et à ses ressources Docker Compose.
 name: blaiseconnect
 
-
-
-# Déclare les services qui composent l'application.
 services:
-  # Base de données PostgreSQL utilisée par le backend.
   postgres:
-    # Image officielle, limitée à la version majeure PostgreSQL 16.
-    image: postgres:16
-    # Nom lisible et stable du conteneur dans Docker Desktop.
-    container_name: container-postgres
-    # Redémarre le service après l'arrêt du processus ou un redémarrage de Docker, sauf arrêt manuel.
+    build:
+      context: .
+      dockerfile: database/Dockerfile.production
     restart: unless-stopped
-    # Initialise PostgreSQL avec le compte d'administration, jamais utilisé par FastAPI.
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_ADMIN_USER}
       POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
       POSTGRES_APP_USER: ${POSTGRES_APP_USER}
       POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
-    # Rend PostgreSQL accessible uniquement depuis ce PC sur le port défini dans .env.
-    # Dans cette configuration, le port interne de PostgreSQL reste 5432.
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT}:5432"
-    # Conserve les données dans un volume Docker et expose le dossier local des sauvegardes.
     volumes:
-      # Données permanentes de PostgreSQL.
       - postgres_data:/var/lib/postgresql/data
-
-      # Sauvegardes PostgreSQL accessibles depuis Windows.
-      - ./storage/postgres/backups:/backups
-
-      # Crée le rôle applicatif avant les migrations.
-      - ./database/init/000_create_application_role.sh:/docker-entrypoint-initdb.d/000_create_application_role.sh:ro
-
-      # Migrations exécutées dans l'ordre lors de la première initialisation.
-      - ./database/migration/001_db_access.sql:/docker-entrypoint-initdb.d/001_db_access.sql:ro
-      - ./database/migration/002_accounts_and_profiles.sql:/docker-entrypoint-initdb.d/002_accounts_and_profiles.sql:ro
-      - ./database/migration/003_relationships_and_documents.sql:/docker-entrypoint-initdb.d/003_relationships_and_documents.sql:ro
-      - ./database/migration/004_school_structure.sql:/docker-entrypoint-initdb.d/004_school_structure.sql:ro
-      - ./database/migration/005_academic_activity.sql:/docker-entrypoint-initdb.d/005_academic_activity.sql:ro
-      - ./database/migration/006_report_cards_year_deletion.sql:/docker-entrypoint-initdb.d/006_report_cards_year_deletion.sql:ro
-      - ./database/migration/007_timetable.sql:/docker-entrypoint-initdb.d/007_timetable.sql:ro
-
-      # Données fictives exécutées après les migrations, dans leur ordre de dépendance.
-      
-    # Vérifie que PostgreSQL accepte réellement les connexions avant de déclarer le service sain.
     healthcheck:
-      # pg_isready utilise l'utilisateur et la base définis dans .env.
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER} -d ${POSTGRES_DB}"]
-      # Relance le contrôle toutes les 10 secondes.
       interval: 10s
-      # Considère un contrôle comme échoué s'il dure plus de 5 secondes.
       timeout: 5s
-      # Déclare le service défaillant après 10 échecs consécutifs.
       retries: 10
-      # Laisse 10 secondes à PostgreSQL pour démarrer avant de compter les échecs.
       start_period: 10s
-    # Relie PostgreSQL au réseau privé partagé par les services du projet.
     networks:
-      - reseau-container
+      - application_network
 
-
-
-
-
-
-
-
-    # Interface React exécutée par le serveur de développement Vite.
-  frontend:
-    # Construit l'image avec les fichiers présents dans ./frontend.
+  backend:
     build:
-      # Définit le dossier envoyé à Docker pendant la construction.
-      context: ./frontend
-
-      # Indique le nom du Dockerfile à utiliser.
-      dockerfile: Dockerfile.frontend
-
-    # Donne un nom facilement reconnaissable au conteneur.
-    container_name: container-frontend
-
-    # Redémarre le conteneur automatiquement, sauf après un arrêt manuel.
+      context: ./backend
+      dockerfile: Dockerfile.backend
     restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+    volumes:
+      - account_storage:/app/storage/accounts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - application_network
 
-    # Attend que le backend soit sain avant de démarrer React.
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.production
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      CADDY_EMAIL: ${CADDY_EMAIL}
     depends_on:
       backend:
         condition: service_healthy
-
-    # Donne à Vite l'adresse du backend dans le réseau Docker.
-    environment:
-      VITE_API_PROXY_TARGET: http://backend:8000
-
-    # Relie le port 5173 de Windows au port 5173 du conteneur.
-    # 127.0.0.1 empêche l'exposition du frontend sur le réseau local.
     ports:
-      - "127.0.0.1:5173:5173"
-
-    # Partage le code local avec le conteneur pour voir les modifications.
+      - "80:80"
+      - "443:443"
     volumes:
-      # Le code modifié sur Windows apparaît immédiatement dans /app.
-      - ./frontend:/app
-
-      # Conserve les dépendances Linux à l'intérieur de Docker.
-      - frontend_node_modules:/app/node_modules
-
-    # Place React sur le même réseau privé que FastAPI.
+      - caddy_data:/data
+      - caddy_config:/config
     networks:
-      - reseau-container
+      - application_network
 
-
-
-
-
-
-
-
-
-  # API FastAPI contenant les règles métier et les accès à la base.
-  backend:
-    # Construit l'image à partir du dossier backend et de son Dockerfile dédié.
-    build:
-      # Définit ./backend comme contexte envoyé à Docker pendant la construction.
-      context: ./backend
-      # Sélectionne explicitement le Dockerfile, car son nom n'est pas Dockerfile.
-      dockerfile: Dockerfile.backend
-    # Nom lisible et stable du conteneur dans Docker Desktop.
-    container_name: container-backend
-    # Redémarre le backend après l'arrêt du processus ou un redémarrage de Docker, sauf arrêt manuel.
-    restart: unless-stopped
-    # Attend que PostgreSQL soit sain avant de démarrer le backend.
-    depends_on:
-      postgres:
-        condition: service_healthy
-    # Charge les variables locales utilisées par FastAPI.
-    env_file:
-      - .env
-    # Fournit au backend les paramètres de connexion internes à PostgreSQL.
-    environment:
-      # Dans le réseau Docker, le nom du service postgres sert de nom d'hôte.
-      POSTGRES_HOST: postgres
-      # Les conteneurs communiquent sur le port interne 5432, pas sur le port publié par Windows.
-      POSTGRES_PORT: "5432"
-    # Publie l'API uniquement sur ce PC : localhost:8000 vers le port 8000 du conteneur.
-    ports:
-      - "127.0.0.1:8000:8000"
-    # Monte le code local dans le conteneur afin que FastAPI recharge les modifications.
-    volumes:
-      - ./backend/app:/app/app
-      # Conserve les photos et futurs documents dans un dossier par compte.
-      - ./storage/accounts:/app/storage/accounts
-      # Rend les tests locaux accessibles dans le conteneur de développement.
-      - ./backend/tests:/app/tests:ro
-    # Remplace le CMD du Dockerfile par le serveur de développement avec rechargement automatique.
-    command:
-      - fastapi
-      - dev
-      - app/main.py
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
-    # Appelle /health pour vérifier que l'API répond réellement.
-    healthcheck:
-      # Utilise uniquement la bibliothèque standard Python déjà présente dans l'image.
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
-      # Relance le contrôle toutes les 10 secondes.
-      interval: 10s
-      # Considère un contrôle comme échoué s'il dure plus de 5 secondes.
-      timeout: 5s
-      # Déclare le backend défaillant après 5 échecs consécutifs.
-      retries: 5
-      # Laisse 10 secondes à FastAPI pour démarrer avant de compter les échecs.
-      start_period: 10s
-    # Relie le backend au même réseau privé que PostgreSQL.
-    networks:
-      - reseau-container
-
-
-
-
-
-
-
-# Interface web d'administration de PostgreSQL.
-  # Interface d’administration pgAdmin.
-  pgadmin:
-    image: dpage/pgadmin4:9.13.0
-    container_name: container-pgadmin
-    restart: unless-stopped
-
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-
-    # Accessible depuis le navigateur
-    ports:
-      - "127.0.0.1:15050:80"
-
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-    volumes:
-      - donnees_pgadmin:/var/lib/pgadmin
-
-    networks:
-      - reseau-container
-
-
-
-
-
-# Déclare les réseaux Docker utilisés par les services.
 networks:
-  # Réseau privé permettant au backend de joindre postgres par son nom de service.
-  reseau-container:
-    # Le pilote bridge convient aux communications locales entre conteneurs.
-    driver: bridge
+  application_network:
+    internal: true
 
-
-
-
-
-# Déclare les volumes persistants gérés par Docker.
 volumes:
-  # Stocke les fichiers internes de PostgreSQL en dehors du cycle de vie du conteneur.
   postgres_data:
-  # Conserve les comptes et serveurs enregistrés dans pgAdmin.
-  donnees_pgadmin:
-
-  # Stocke les dépendances Node.js utilisées par le conteneur frontend.
-  frontend_node_modules:
+  account_storage:
+  caddy_data:
+  caddy_config:

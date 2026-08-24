@@ -18,6 +18,7 @@ RUN python -m pip install --no-cache-dir .
 
 # Crée un utilisateur non-root fixe, puis lui donne la propriété de /app.
 RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p /app/storage/accounts \
     && chown -R appuser:appuser /app
 
 # Exécute l'API avec l'utilisateur non privilégié créé ci-dessus.
@@ -27,4 +28,4 @@ USER appuser
 EXPOSE 8000
 
 # Lance l'API en mode production ; Compose remplace cette commande en développement.
-CMD ["fastapi", "run", "app/main.py", "--port", "8000"]
+CMD ["fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

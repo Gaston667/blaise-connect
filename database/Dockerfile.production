@@ -1,0 +1,10 @@
+FROM postgres:16
+
+COPY --chmod=755 database/init/000_create_application_role.sh /docker-entrypoint-initdb.d/000_create_application_role.sh
+COPY database/migration/001_db_access.sql /docker-entrypoint-initdb.d/001_db_access.sql
+COPY database/migration/002_accounts_and_profiles.sql /docker-entrypoint-initdb.d/002_accounts_and_profiles.sql
+COPY database/migration/003_relationships_and_documents.sql /docker-entrypoint-initdb.d/003_relationships_and_documents.sql
+COPY database/migration/004_school_structure.sql /docker-entrypoint-initdb.d/004_school_structure.sql
+COPY database/migration/005_academic_activity.sql /docker-entrypoint-initdb.d/005_academic_activity.sql
+COPY database/migration/006_report_cards_year_deletion.sql /docker-entrypoint-initdb.d/006_report_cards_year_deletion.sql
+COPY database/migration/007_timetable.sql /docker-entrypoint-initdb.d/007_timetable.sql

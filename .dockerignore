@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.production.example
+storage
+docs
+**/node_modules
+**/dist
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+**/coverage
+**/.coverage*
