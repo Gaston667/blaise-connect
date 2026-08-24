@@ -1,9 +1,13 @@
 """Point d'entrée de l'API FastAPI de BlaiseConnect."""
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.core.exception_handlers import register_exception_handlers
 from app.core.api_response import wrap_success_responses
+from app.core.http_security_config import ALLOWED_HOSTS, ALLOWED_ORIGINS
+from app.core.http_security_middleware import add_security_headers
 from app.routes.accounts import router as accounts_router
 from app.routes.school_years import router as school_years_router
 from app.routes.reporting_periods import router as reporting_periods_router
@@ -36,12 +40,29 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Refuse les requetes provenant d'hotes ou d'origines non declares.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(ALLOWED_HOSTS))
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(ALLOWED_ORIGINS),
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Requested-With"],
+)
+
 register_exception_handlers(app)
 
 
 @app.middleware("http")
 async def standardize_success_response(request: Request, call_next):
     return await wrap_success_responses(request, call_next)
+
+
+@app.middleware("http")
+async def secure_http_responses(request: Request, call_next):
+    """Ajoute les en-tetes de securite aux reponses HTTP."""
+
+    return await add_security_headers(request, call_next)
 
 # Enregistre les routes dans l'application principale.
 app.include_router(health_router)

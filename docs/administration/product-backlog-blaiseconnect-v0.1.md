@@ -64,7 +64,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 | US-022 | Bulletins | Conserver les versions successives d’un bulletin | Important | M | 🟥 À faire |
 | US-023 | Tableau de bord | Consulter le tableau de bord administrateur | Utile | M | 🟥 À faire |
 | US-024 | Tableau de bord | Consulter le tableau de bord enseignant | Utile | M | 🟥 À faire |
-| US-025 | Sécurité | Sécuriser les accès, sessions et échanges | Indispensable pour le MVP | L | 🟨 En cours |
+| US-025 | Sécurité | Sécuriser les accès, sessions et échanges | Indispensable pour le MVP | L | 🟨 À valider en production |
 | US-026 | Traçabilité | Consulter l’historique des actions importantes | Important | M | 🟥 À faire |
 | US-027 | Sauvegardes | Sauvegarder et restaurer les données et fichiers | Indispensable pour le MVP | L | 🟥 À faire |
 | US-028 | Déploiement | Installer et utiliser la version pilote | Indispensable pour le MVP | L | 🟥 À faire |

@@ -539,7 +539,17 @@ export default function AccountCreatePage({ onNavigate }) {
               {isGuardian && <label>Employeur *<input name="employer" value={form.employer} onChange={updateField} maxLength="150" required /></label>}
               {isStudent && <label>Établissement précédent<input name="previous_establishment" value={form.previous_establishment} onChange={updateField} maxLength="150" autoComplete="off" /></label>}
               {isStudent && <label className="creation-compte-wide">Maladie particulière<textarea name="medical_condition" value={form.medical_condition} onChange={updateField} autoComplete="off" /></label>}
-              {isStudent && <label className="creation-compte-checkbox"><input name="is_enrolled_in_cned" type="checkbox" checked={form.is_enrolled_in_cned} onChange={updateField} /> Inscrit au CNED</label>}
+              {isStudent && (
+                <label className="creation-compte-checkbox">
+                  <input
+                    name="is_enrolled_in_cned"
+                    type="checkbox"
+                    checked={form.is_enrolled_in_cned}
+                    onChange={updateField}
+                  />
+                  <span>Inscrit au CNED</span>
+                </label>
+              )}
             </div>
           </section>
         )}

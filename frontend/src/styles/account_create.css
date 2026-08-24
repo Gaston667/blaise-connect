@@ -392,15 +392,34 @@
 }
 
 .creation-compte-checkbox {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--input-height-md);
+  width: fit-content;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width-thin) solid var(--input-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
 }
 
-.creation-compte-checkbox input {
-  width: auto;
-  min-height: auto;
+.creation-compte-checkbox:hover {
+  border-color: var(--color-primary);
+}
+
+.creation-compte-grid .creation-compte-checkbox input[type='checkbox'] {
+  width: 1.125rem;
+  height: 1.125rem;
+  min-height: 1.125rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--color-primary);
+}
+
+.creation-compte-checkbox span {
+  font-weight: var(--font-weight-semibold);
 }
 
 @media (min-width: 760px) {
