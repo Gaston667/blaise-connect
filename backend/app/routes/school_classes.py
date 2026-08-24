@@ -6,7 +6,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from app.schemas.school_class_overview import SchoolClassOverview
 from app.services.school_class_service import list_school_classes_overview
-from app.core.authentication import CurrentAdminDependency, DatabaseSession
+from sqlalchemy import text as sql_text
+from app.core.authentication import CurrentAdminDependency, CurrentStaffDependency, DatabaseSession
 from app.core.postgres_error_message import extract_postgres_error_message
 from app.core.school_class_not_found_error import SchoolClassNotFoundError
 from app.core.school_class_level_locked_error import SchoolClassLevelLockedError
@@ -46,9 +47,9 @@ router = APIRouter(
 )
 def get_school_classes(
     db: DatabaseSession,
-    current_admin: CurrentAdminDependency,
+    current_staff: CurrentStaffDependency,
 ) -> list[SchoolClassResponse]:
-    """Retourne toutes les classes à un administrateur connecté."""
+    """Retourne toutes les classes (lecture seule pour le personnel)."""
 
     school_classes = list_school_classes(db)
     return [
@@ -58,7 +59,7 @@ def get_school_classes(
 @router.get("/overview", response_model=list[SchoolClassOverview])
 def get_school_classes_overview(
     db: DatabaseSession,
-    current_admin: CurrentAdminDependency,
+    current_staff: CurrentStaffDependency,
     q: str | None = None,
     school_year_id: str | None = None,
     class_level_id: str | None = None,
@@ -66,10 +67,21 @@ def get_school_classes_overview(
     limit: int = 100,
     offset: int = 0,
 ) -> list[SchoolClassOverview]:
-    """Vue enrichie des classes pour l'écran de gestion (noms, effectif, statut)."""
+    """Vue enrichie des classes pour l'écran de gestion (noms, effectif, statut).
+    Un enseignant ne voit que les classes où il est professeur principal ou
+    affecté à une matière (forcé ici, indépendamment de toute requête)."""
+    teacher_id = None
+    if current_staff.role == "TEACHER":
+        row = db.execute(
+            sql_text("SELECT id FROM teachers WHERE account_id = :account_id"),
+            {"account_id": current_staff.id},
+        ).first()
+        if row is None:
+            return []
+        teacher_id = str(row.id)
     return list_school_classes_overview(
         db=db, q=q, school_year_id=school_year_id, class_level_id=class_level_id,
-        status=status, limit=limit, offset=offset,
+        status=status, teacher_id=teacher_id, limit=limit, offset=offset,
     )
 
 @router.get(
@@ -171,7 +183,7 @@ def patch_school_class(
 def get_school_class_detail_route(
     school_class_id: UUID,
     db: DatabaseSession,
-    current_admin: CurrentAdminDependency,
+    current_staff: CurrentStaffDependency,
 ):
     """Vue détaillée d'une classe avec effectif, professeur et statut."""
     detail = get_school_class_detail(db=db, school_class_id=str(school_class_id))
@@ -187,7 +199,7 @@ def get_school_class_detail_route(
 def get_school_class_subjects(
     school_class_id: UUID,
     db: DatabaseSession,
-    current_admin: CurrentAdminDependency,
+    current_staff: CurrentStaffDependency,
     q: str | None = Query(None, description="Recherche par nom de matière"),
     is_active: bool | None = Query(None, description="Filtre sur les matières actives"),
 ):
@@ -249,12 +261,17 @@ def post_class_subject(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cette matière est déjà associée à la classe.",
         ) from error
+    is_specialty = db.execute(
+        sql_text("SELECT is_specialty FROM subjects WHERE id = :subject_id"),
+        {"subject_id": cs.subject_id},
+    ).scalar_one()
     return {
         "id": cs.id,
         "subject_id": cs.subject_id,
         "name": "",
         "coefficient": cs.coefficient,
         "is_active": True,
+        "is_specialty": is_specialty,
         "teacher_name": None,
     }
 
@@ -279,12 +296,17 @@ def patch_class_subject(
     except IntegrityError as error:
         db.rollback()
         raise HTTPException(status_code=409, detail=extract_postgres_error_message(error)) from error
+    is_specialty = db.execute(
+        sql_text("SELECT is_specialty FROM subjects WHERE id = :subject_id"),
+        {"subject_id": cs.subject_id},
+    ).scalar_one()
     return {
         "id": cs.id,
         "subject_id": cs.subject_id,
         "name": "",
         "coefficient": cs.coefficient,
         "is_active": True,
+        "is_specialty": is_specialty,
         "teacher_name": None,
     }
 
@@ -301,12 +323,46 @@ def delete_class_subject(
         remove_class_subject(db=db, class_subject_id=class_subject_id)
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    except IntegrityError as error:
+    except DBAPIError as error:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Impossible de retirer cette matière : des évaluations y sont rattachées.",
-        ) from error
+        message = extract_postgres_error_message(error)
+        if "constraint" in message.lower() or "permission denied" in message.lower():
+            usage = db.execute(
+                sql_text(
+                    """
+                    SELECT
+                        COUNT(DISTINCT assessment.id) AS assessment_count,
+                        COUNT(DISTINCT slot.id) FILTER (WHERE timetable.status = 'PUBLISHED') AS published_slot_count
+                    FROM teacher_assignments AS assignment
+                    LEFT JOIN assessments AS assessment
+                      ON assessment.teacher_assignment_id = assignment.id
+                    LEFT JOIN timetable_slots AS slot
+                      ON slot.teacher_assignment_id = assignment.id
+                    LEFT JOIN timetables AS timetable
+                      ON timetable.id = slot.timetable_id
+                    WHERE assignment.class_subject_id = :class_subject_id
+                    """
+                ),
+                {"class_subject_id": class_subject_id},
+            ).mappings().one()
+            if usage["assessment_count"] > 0:
+                message = (
+                    "Impossible de retirer cette matière : l'enseignant a déjà commencé à "
+                    f"faire cours et {usage['assessment_count']} évaluation(s) avec des notes "
+                    "ont déjà été saisies. Supprimez d'abord ces évaluations si vous êtes "
+                    "certain de vouloir continuer."
+                )
+            elif usage["published_slot_count"] > 0:
+                message = (
+                    "Impossible de retirer cette matière : elle fait partie d'un emploi du "
+                    "temps déjà publié. Retirez d'abord ses créneaux du planning publié."
+                )
+            else:
+                message = (
+                    "Impossible de retirer cette matière : une affectation enseignant "
+                    "ou une donnée pédagogique y est rattachée."
+                )
+        raise HTTPException(status_code=409, detail=message) from error
 
 
 @router.delete("/{school_class_id}", status_code=status.HTTP_204_NO_CONTENT)

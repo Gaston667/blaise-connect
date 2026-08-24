@@ -14,6 +14,8 @@ import {
   UserRoundCheck,
   Users,
 } from 'lucide-react'
+import { formatProfileName } from '../utils/profileDisplay.js'
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import {
   deleteSchoolClass,
   getClassLevels,
@@ -26,7 +28,8 @@ import {
   getTeachers,
   updateSchoolClass,
 } from '../services/school_classes_overview_service.js'
-import { listStudents } from '../services/students_service.js'
+import { enrollStudent, listStudents } from '../services/students_service.js'
+import { createTeacherAssignment } from '../services/teachers_overview_service.js'
 import './../styles/school_class_details_page.css'
 
 const STATUS_LABEL = { ACTIVE: 'Actif', ARCHIVEE: 'Archivée' }
@@ -55,7 +58,12 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('fr-FR').format(new Date(value))
 }
 
-export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
+function isHighSchoolLevel(level) {
+  return level?.education_stage === 'HIGH_SCHOOL'
+}
+
+export default function SchoolClassDetailsPage({ account, schoolClass, onNavigate }) {
+  const canEdit = account?.role === 'ADMIN'
   const [details, setDetails] = useState(schoolClass)
   const [activeTab, setActiveTab] = useState('info')
   const [editing, setEditing] = useState(false)
@@ -72,6 +80,14 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   const [studentSearch, setStudentSearch] = useState('')
   const [studentStatus, setStudentStatus] = useState('')
   const [studentsLoading, setStudentsLoading] = useState(false)
+  // Inscription d'un élève dans la classe
+  const [enrollPickerOpen, setEnrollPickerOpen] = useState(false)
+  const [enrollableStudents, setEnrollableStudents] = useState([])
+  const [enrollPickerLoading, setEnrollPickerLoading] = useState(false)
+  const [enrollSearch, setEnrollSearch] = useState('')
+  const [enrollmentStartDate, setEnrollmentStartDate] = useState('')
+  const [enrolling, setEnrolling] = useState(false)
+  const [enrollError, setEnrollError] = useState('')
   const [subjects, setSubjects] = useState([])
   const [subjectSearch, setSubjectSearch] = useState('')
   const [subjectStatus, setSubjectStatus] = useState('')
@@ -90,42 +106,72 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
   // Retrait matière
   const [confirmRemoveSubjectId, setConfirmRemoveSubjectId] = useState(null)
   const [removingSubject, setRemovingSubject] = useState(false)
+  // Affectation d'un enseignant à une matière non affectée
+  const [assignPickerSubjectId, setAssignPickerSubjectId] = useState(null)
+  const [assignTeacherSearch, setAssignTeacherSearch] = useState('')
+  const [assigningTeacher, setAssigningTeacher] = useState(false)
+  const [assignError, setAssignError] = useState('')
+  const debouncedStudentSearch = useDebouncedValue(studentSearch)
+  const debouncedStudentStatus = useDebouncedValue(studentStatus)
+  const debouncedSubjectSearch = useDebouncedValue(subjectSearch)
+  const debouncedSubjectStatus = useDebouncedValue(subjectStatus)
 
   useEffect(() => {
     load()
     loadFormOptions()
   }, [schoolClass?.id])
 
-  useEffect(function loadClassStudentsEffect() {
+  useEffect(() => {
     if (activeTab === 'students') {
       loadClassStudents()
     }
   }, [activeTab, schoolClass?.id])
 
-  useEffect(function loadClassSubjectsEffect() {
+  useEffect(() => {
+    if (activeTab === 'students') {
+      loadClassStudents({
+        q: debouncedStudentSearch,
+        status: debouncedStudentStatus,
+      })
+    }
+  }, [activeTab, debouncedStudentSearch, debouncedStudentStatus, schoolClass?.id])
+
+  useEffect(() => {
     if (activeTab === 'subjects') {
       loadClassSubjects()
     }
   }, [activeTab, schoolClass?.id])
 
+  useEffect(function reactiveSubjectFiltersEffect() {
+    if (activeTab === 'subjects') {
+      loadClassSubjects({
+        q: debouncedSubjectSearch,
+        isActive: debouncedSubjectStatus,
+      })
+    }
+  }, [activeTab, debouncedSubjectSearch, debouncedSubjectStatus, schoolClass?.id])
+
   async function load() {
     if (!schoolClass?.id) return
+    setError('')
+    setMenuOpen(false)
+    setConfirmingDelete(false)
+    setEditing(false)
+    setSubjectPickerOpen(false)
+    setTeacherPickerOpen(false)
+    setAssignPickerSubjectId(null)
+    setConfirmRemoveSubjectId(null)
+    setEditingSubjectId(null)
+
     try {
       const full = await getSchoolClassDetail(schoolClass.id)
       setDetails(full)
       resetForm(full)
     } catch (e) {
-      console.error(e)
+      setError(e.message)
+      setDetails(schoolClass ?? null)
+      resetForm(schoolClass)
     }
-  }
-
-  function resetForm(d) {
-    setForm({
-      class_level_id: d.class_level_id ?? '',
-      group_label: d.group_label ?? '',
-      capacity: d.capacity ?? '',
-      main_teacher_id: d.main_teacher_id ?? '',
-    })
   }
 
   async function loadFormOptions() {
@@ -137,7 +183,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
       setClassLevels(availableLevels)
       setTeachers(availableTeachers)
     } catch (loadError) {
-      console.error(loadError)
+      setError(loadError.message)
     }
   }
 
@@ -182,26 +228,14 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     }
   }
 
-  function handleStudentSearch(event) {
-    event.preventDefault()
-    loadClassStudents()
-  }
-
   function resetStudentFilters() {
     setStudentSearch('')
     setStudentStatus('')
-    loadClassStudents({ q: '', status: '' })
-  }
-
-  function handleSubjectSearch(event) {
-    event.preventDefault()
-    loadClassSubjects()
   }
 
   function resetSubjectFilters() {
     setSubjectSearch('')
     setSubjectStatus('')
-    loadClassSubjects({ q: '', status: '' })
   }
 
   async function openSubjectPicker() {
@@ -281,6 +315,92 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
     }
   }
 
+  function openAssignPicker(subjectId) {
+    setAssignTeacherSearch('')
+    setAssignError('')
+    setAssignPickerSubjectId(subjectId)
+  }
+
+  function closeAssignPicker() {
+    if (assigningTeacher) return
+    setAssignPickerSubjectId(null)
+  }
+
+  function computeAssignmentStartDate() {
+    const today = new Date().toISOString().slice(0, 10)
+    if (details.school_year_start && today < details.school_year_start) return details.school_year_start
+    if (details.school_year_end && today > details.school_year_end) return details.school_year_end
+    return today
+  }
+
+  async function handleAssignTeacher(teacher) {
+    setAssigningTeacher(true)
+    setAssignError('')
+    try {
+      await createTeacherAssignment(teacher.id, {
+        class_subject_id: assignPickerSubjectId,
+        start_date: computeAssignmentStartDate(),
+      })
+      setAssignPickerSubjectId(null)
+      loadClassSubjects()
+    } catch (e) {
+      setAssignError(e.message)
+    } finally {
+      setAssigningTeacher(false)
+    }
+  }
+
+  const filteredAssignTeachers = teachers.filter((teacher) => {
+    const searchable = `${teacher.first_name} ${teacher.last_name} ${teacher.registration_number}`.toLowerCase()
+    return searchable.includes(assignTeacherSearch.trim().toLowerCase())
+  })
+
+  async function openEnrollPicker() {
+    setEnrollSearch('')
+    setEnrollError('')
+    setEnrollmentStartDate(computeAssignmentStartDate())
+    setEnrollPickerOpen(true)
+    setEnrollPickerLoading(true)
+    try {
+      const result = await listStudents({ status: 'ACTIVE', limit: 200 })
+      const candidates = Array.isArray(result) ? result : result.items ?? []
+      const enrolledIds = new Set(students.map((student) => student.id))
+      setEnrollableStudents(candidates.filter((student) => !enrolledIds.has(student.id)))
+    } catch (e) {
+      setEnrollError(e.message)
+    } finally {
+      setEnrollPickerLoading(false)
+    }
+  }
+
+  function closeEnrollPicker() {
+    if (enrolling) return
+    setEnrollPickerOpen(false)
+  }
+
+  async function handleEnrollStudent(student) {
+    setEnrolling(true)
+    setEnrollError('')
+    try {
+      await enrollStudent(student.id, {
+        class_id: schoolClass.id,
+        start_date: enrollmentStartDate || computeAssignmentStartDate(),
+      })
+      setEnrollPickerOpen(false)
+      loadClassStudents()
+      load()
+    } catch (e) {
+      setEnrollError(e.message)
+    } finally {
+      setEnrolling(false)
+    }
+  }
+
+  const filteredEnrollableStudents = enrollableStudents.filter((student) => {
+    const searchable = `${student.first_name} ${student.last_name} ${student.registration_number}`.toLowerCase()
+    return searchable.includes(enrollSearch.trim().toLowerCase())
+  })
+
   function openTeacherDetails() {
     onNavigate?.('teacher-details', {
       id: details.main_teacher_id,
@@ -295,6 +415,20 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
+  }
+
+  function resetForm(currentDetails) {
+    if (!currentDetails) {
+      setForm({})
+      return
+    }
+
+    setForm({
+      class_level_id: currentDetails.class_level_id ?? '',
+      group_label: currentDetails.group_label ?? '',
+      capacity: currentDetails.capacity ?? '',
+      main_teacher_id: currentDetails.main_teacher_id ?? '',
+    })
   }
 
   async function handleSave(e) {
@@ -390,25 +524,27 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
           </div>
         </div>
 
-        <div className="scd-header__actions">
-          <div className="scd-menu-wrapper">
-            <button type="button" className="scd-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
-              Actions ▾
-            </button>
-            {menuOpen && (
-              <div className="scd-menu">
-                <button className="scd-menu__danger" onClick={() => { setMenuOpen(false); setConfirmingDelete(true) }}>
-                  🗑 Supprimer la classe
-                </button>
-              </div>
-            )}
+        {canEdit && (
+          <div className="scd-header__actions">
+            <div className="scd-menu-wrapper">
+              <button type="button" className="scd-btn-primary" onClick={() => setMenuOpen((v) => !v)}>
+                Actions ▾
+              </button>
+              {menuOpen && (
+                <div className="scd-menu">
+                  <button className="scd-menu__danger" onClick={() => { setMenuOpen(false); setConfirmingDelete(true) }}>
+                    🗑 Supprimer la classe
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {error && <p className="scd-error">{error}</p>}
 
-      {confirmingDelete && (
+      {canEdit && confirmingDelete && (
         <div className="scd-confirm-overlay" onClick={() => setConfirmingDelete(false)}>
           <div className="scd-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Supprimer définitivement cette classe ?</h3>
@@ -443,7 +579,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                     </span>
                     <div className="scd-teacher-summary__identity">
                       <div className="scd-teacher-summary__heading">
-                        <strong>{details.teacher_first_name} {details.teacher_last_name}</strong>
+                        <strong>{formatProfileName(details.teacher_first_name, details.teacher_last_name, details.teacher_gender)}</strong>
                         <span className={`scd-teacher-status ${
                           details.teacher_status === 'ACTIVE'
                             ? 'scd-teacher-status--active'
@@ -460,13 +596,15 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                     <Phone aria-hidden="true" size={15} />
                     {details.teacher_phone ?? 'Téléphone non renseigné'}
                   </div>
-                  <button
-                    type="button"
-                    className="scd-teacher-link"
-                    onClick={openTeacherDetails}
-                  >
-                    Voir le profil de l’enseignant →
-                  </button>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      className="scd-teacher-link"
+                      onClick={openTeacherDetails}
+                    >
+                      Voir le profil de l’enseignant →
+                    </button>
+                  )}
                 </div>
                   </div>
                 </article>
@@ -494,7 +632,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                 </article>
               </section>
 
-              {editing ? (
+              {canEdit && editing ? (
               <form onSubmit={handleSave} className="scd-form">
                 <div className="scd-section-heading">
                   <h3>Informations générales</h3>
@@ -516,7 +654,14 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                         disabled={levelIsLocked}
                       >
                         {classLevels.map((level) => (
-                          <option key={level.id} value={level.id}>{level.name}</option>
+                          <option
+                            key={level.id}
+                            value={level.id}
+                            disabled={!isHighSchoolLevel(level)}
+                          >
+                            {level.name}
+                            {!isHighSchoolLevel(level) ? ' (indisponible)' : ''}
+                          </option>
                         ))}
                       </select>
                       {levelIsLocked && <Lock aria-label="Niveau verrouillé" size={17} />}
@@ -556,7 +701,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                       <span>
                         <strong>
                           {selectedTeacher
-                            ? `${selectedTeacher.first_name} ${selectedTeacher.last_name}`
+                            ? formatProfileName(selectedTeacher.first_name, selectedTeacher.last_name, selectedTeacher.gender)
                             : 'Choisir un enseignant'}
                         </strong>
                         {selectedTeacher && <small>{selectedTeacher.registration_number}</small>}
@@ -571,9 +716,11 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                 <div className="scd-view">
                   <div className="scd-section-heading">
                     <h3>Informations générales</h3>
-                    <button type="button" className="scd-btn-outline" onClick={handleEdit}>
-                      ✎ Modifier
-                    </button>
+                    {canEdit && (
+                      <button type="button" className="scd-btn-outline" onClick={handleEdit}>
+                        ✎ Modifier
+                      </button>
+                    )}
                   </div>
                   <dl>
                     <div>
@@ -622,9 +769,15 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   <h3>Élèves de la classe</h3>
                   <p>{students.length} élève(s) affiché(s)</p>
                 </div>
+                {canEdit && (
+                  <button type="button" className="scd-btn-primary" onClick={openEnrollPicker}>
+                    <UserRoundCheck aria-hidden="true" size={18} />
+                    Inscrire un élève
+                  </button>
+                )}
               </div>
 
-              <form className="scd-student-filters" onSubmit={handleStudentSearch}>
+              <form className="scd-student-filters" onSubmit={(event) => event.preventDefault()}>
                 <label className="scd-student-search">
                   <Search aria-hidden="true" size={18} />
                   <input
@@ -644,7 +797,6 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   <option value="INACTIVE">Inactifs</option>
                   <option value="ARCHIVED">Archivés</option>
                 </select>
-                <button type="submit" className="scd-btn-primary">Rechercher</button>
                 <button type="button" className="scd-btn-outline" onClick={resetStudentFilters}>
                   Réinitialiser
                 </button>
@@ -677,7 +829,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                             <span className="scd-student-avatar">
                               {initials(student.first_name, student.last_name)}
                             </span>
-                            <strong>{student.last_name} {student.first_name}</strong>
+                            <strong>{formatProfileName(student.first_name, student.last_name, student.gender, { order: 'last-first' })}</strong>
                           </span>
                         </td>
                         <td>{student.gender === 'MALE' ? 'Masculin' : student.gender === 'FEMALE' ? 'Féminin' : '—'}</td>
@@ -705,12 +857,14 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   <h3>Matières de la classe</h3>
                   <p>{subjects.length} matière(s) affichée(s)</p>
                 </div>
-                <button type="button" className="scd-btn-primary" onClick={openSubjectPicker}>
-                  + Ajouter une matière
-                </button>
+                {canEdit && (
+                  <button type="button" className="scd-btn-primary" onClick={openSubjectPicker}>
+                    + Ajouter une matière
+                  </button>
+                )}
               </div>
 
-              <form className="scd-subject-filters" onSubmit={handleSubjectSearch}>
+              <form className="scd-subject-filters" onSubmit={(event) => event.preventDefault()}>
                 <label className="scd-subject-search">
                   <Search aria-hidden="true" size={18} />
                   <input
@@ -729,7 +883,6 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                   <option value="true">Actives</option>
                   <option value="false">Inactives</option>
                 </select>
-                <button type="submit" className="scd-btn-primary">Rechercher</button>
                 <button type="button" className="scd-btn-outline" onClick={resetSubjectFilters}>
                   Réinitialiser
                 </button>
@@ -758,7 +911,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                           </span>
                         </td>
                         <td>
-                          {editingSubjectId === subject.id ? (
+                          {canEdit && editingSubjectId === subject.id ? (
                             <span className="scd-coef-edit">
                               <input
                                 type="number"
@@ -788,18 +941,43 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                           ) : (
                             <span className="scd-coef-display">
                               {Number(subject.coefficient).toLocaleString('fr-FR')}
-                              <button
-                                type="button"
-                                className="scd-btn-icon"
-                                title="Modifier le coefficient"
-                                onClick={() => startEditCoefficient(subject)}
-                              >
-                                ✎
-                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  className="scd-btn-icon"
+                                  title="Modifier le coefficient"
+                                  onClick={() => startEditCoefficient(subject)}
+                                >
+                                  ✎
+                                </button>
+                              )}
                             </span>
                           )}
                         </td>
-                        <td className="scd-col-teacher">{subject.teacher_name ?? <span className="scd-no-teacher">Non affecté</span>}</td>
+                        <td className="scd-col-teacher">
+                          {subject.teacher_name ? (
+                            <span className="scd-assigned-teacher">
+                              <strong>{subject.teacher_name}</strong>
+                              <small>
+                                {subject.teacher_qualification || 'Qualification non renseignée'}
+                              </small>
+                            </span>
+                          ) : (
+                            <span className="scd-no-teacher">
+                              Non affecté
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  className="scd-btn-icon"
+                                  title="Affecter un enseignant"
+                                  onClick={() => openAssignPicker(subject.id)}
+                                >
+                                  + Affecter
+                                </button>
+                              )}
+                            </span>
+                          )}
+                        </td>
                         <td>
                           <span className={subject.is_active
                             ? 'scd-subject-status scd-subject-status--active'
@@ -809,14 +987,16 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                           </span>
                         </td>
                         <td>
-                          <button
-                            type="button"
-                            className="scd-btn-danger scd-btn-sm"
-                            title="Retirer la matière"
-                            onClick={() => setConfirmRemoveSubjectId(subject.id)}
-                          >
-                            Retirer
-                          </button>
+                          {canEdit ? (
+                            <button
+                              type="button"
+                              className="scd-btn-danger scd-btn-sm"
+                              title="Retirer la matière"
+                              onClick={() => { setError(''); setConfirmRemoveSubjectId(subject.id) }}
+                            >
+                              Retirer
+                            </button>
+                          ) : '—'}
                         </td>
                       </tr>
                     ))}
@@ -833,7 +1013,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
 
       </div>
 
-      {teacherPickerOpen && (
+      {canEdit && teacherPickerOpen && (
         <div className="scd-confirm-overlay" onClick={closeTeacherPicker}>
           <section
             className="scd-teacher-picker"
@@ -879,8 +1059,10 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
                     {initials(teacher.first_name, teacher.last_name)}
                   </span>
                   <span>
-                    <strong>{teacher.first_name} {teacher.last_name}</strong>
+                    <strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong>
                     <small>Matricule : {teacher.registration_number}</small>
+                    <small>Qualification : {teacher.qualification || 'Non renseignée'}</small>
+                    <small>Competence : {teacher.qualification || 'Non renseignee'}</small>
                   </span>
                 </button>
               ))}
@@ -892,7 +1074,7 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
         </div>
       )}
 
-      {subjectPickerOpen && (
+      {canEdit && subjectPickerOpen && (
         <div className="scd-confirm-overlay" onClick={closeSubjectPicker}>
           <section
             className="scd-teacher-picker"
@@ -970,11 +1152,12 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
         </div>
       )}
 
-      {confirmRemoveSubjectId && (
+      {canEdit && confirmRemoveSubjectId && (
         <div className="scd-confirm-overlay" onClick={() => setConfirmRemoveSubjectId(null)}>
           <div className="scd-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Retirer cette matière ?</h3>
             <p>La matière sera dissociée de la classe. Les évaluations déjà saisies resteront intactes.</p>
+            {error && <p className="scd-error">{error}</p>}
             <div className="scd-confirm-actions">
               <button type="button" className="scd-btn-outline" onClick={() => setConfirmRemoveSubjectId(null)}>Annuler</button>
               <button type="button" className="scd-btn-danger" disabled={removingSubject} onClick={handleRemoveSubject}>
@@ -982,6 +1165,135 @@ export default function SchoolClassDetailsPage({ schoolClass, onNavigate }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {canEdit && assignPickerSubjectId && (
+        <div className="scd-confirm-overlay" onClick={closeAssignPicker}>
+          <section
+            className="scd-teacher-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="assign-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="scd-teacher-picker__header">
+              <div>
+                <h3 id="assign-picker-title">Affecter un enseignant</h3>
+                <p>Recherchez un enseignant par nom, prénom ou matricule.</p>
+              </div>
+              <button type="button" className="scd-btn-outline" onClick={closeAssignPicker}>Fermer</button>
+            </div>
+
+            <label className="scd-teacher-search">
+              <Search aria-hidden="true" size={18} />
+              <input
+                autoFocus
+                type="search"
+                placeholder="Nom ou matricule…"
+                value={assignTeacherSearch}
+                onChange={(event) => setAssignTeacherSearch(event.target.value)}
+              />
+            </label>
+
+            {assignError && <p className="scd-error">{assignError}</p>}
+
+            <div className="scd-teacher-results">
+              {filteredAssignTeachers.map((teacher) => (
+                <button
+                  key={teacher.id}
+                  type="button"
+                  className="scd-teacher-result"
+                  disabled={assigningTeacher}
+                  onClick={() => handleAssignTeacher(teacher)}
+                >
+                  <span className="scd-avatar">
+                    {initials(teacher.first_name, teacher.last_name)}
+                  </span>
+                  <span>
+                    <strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong>
+                    <small>Matricule : {teacher.registration_number}</small>
+                  </span>
+                </button>
+              ))}
+              {filteredAssignTeachers.length === 0 && (
+                <p className="scd-teacher-results__empty">Aucun enseignant trouvé.</p>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {enrollPickerOpen && (
+        <div className="scd-confirm-overlay" onClick={closeEnrollPicker}>
+          <section
+            className="scd-teacher-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="enroll-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="scd-teacher-picker__header">
+              <div>
+                <h3 id="enroll-picker-title">Inscrire un élève</h3>
+                <p>Recherchez un élève actif par nom, prénom ou matricule.</p>
+              </div>
+              <button type="button" className="scd-btn-outline" onClick={closeEnrollPicker}>Fermer</button>
+            </div>
+
+            <label className="scd-teacher-search">
+              <Search aria-hidden="true" size={18} />
+              <input
+                autoFocus
+                type="search"
+                placeholder="Nom ou matricule…"
+                value={enrollSearch}
+                onChange={(event) => setEnrollSearch(event.target.value)}
+              />
+            </label>
+
+            <label className="scd-enrollment-date">
+              Date d'inscription ou de changement
+              <input
+                type="date"
+                value={enrollmentStartDate}
+                min={details.school_year_start || undefined}
+                max={details.school_year_end || undefined}
+                onChange={(event) => setEnrollmentStartDate(event.target.value)}
+              />
+            </label>
+
+            {enrollError && <p className="scd-error">{enrollError}</p>}
+
+            <div className="scd-teacher-results">
+              {enrollPickerLoading ? (
+                <p className="scd-teacher-results__empty">Chargement des élèves…</p>
+              ) : (
+                <>
+                  {filteredEnrollableStudents.map((student) => (
+                    <button
+                      key={student.id}
+                      type="button"
+                      className="scd-teacher-result"
+                      disabled={enrolling}
+                      onClick={() => handleEnrollStudent(student)}
+                    >
+                      <span className="scd-avatar">
+                        {initials(student.first_name, student.last_name)}
+                      </span>
+                      <span>
+                        <strong>{formatProfileName(student.first_name, student.last_name, student.gender)}</strong>
+                        <small>Matricule : {student.registration_number}</small>
+                      </span>
+                    </button>
+                  ))}
+                  {filteredEnrollableStudents.length === 0 && (
+                    <p className="scd-teacher-results__empty">Aucun élève disponible à inscrire.</p>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
         </div>
       )}
 

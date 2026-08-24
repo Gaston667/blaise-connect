@@ -33,6 +33,7 @@ frontend/.vite/
 # IDE and operating system
 .idea/
 .vscode/
+.claude/
 .DS_Store
 Thumbs.db
 
@@ -42,6 +43,8 @@ Thumbs.db
 cookies.txt
 login.json
 guardian_test.json
+student_cookies.txt
+student_login.json
 
 # Runtime files containing personal or generated data
 storage/photos/*

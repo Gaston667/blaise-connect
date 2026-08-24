@@ -23,16 +23,18 @@ package "VUE - React" #E8F5E9 {
   class "pages/accounts_page.jsx" as AccountsPage
   class "pages/school_years_page.jsx" as SchoolYearsPage
   class "pages/school_year_details_page.jsx" as SchoolYearDetailsPage
-  class "pages/school_classes_page.jsx" as SchoolClassesPage <<préparé US-004>>
-  class "pages/subjects_page.jsx" as SubjectsPage <<préparé US-005>>
-  class "pages/teachers_page.jsx" as TeachersPage <<préparé US-006>>
+  class "pages/school_classes_page.jsx" as SchoolClassesPage
+  class "pages/subjects_page.jsx" as SubjectsPage
+  class "pages/subject_details_page.jsx" as SubjectDetailsPage
+  class "pages/teachers_page.jsx" as TeachersPage
+  class "pages/teacher_details_page.jsx" as TeacherDetailsPage
 
   class "services/auth_service.js" as FrontAuthService
   class "services/account_service.js" as FrontAccountService
   class "services/school_year_service.js" as FrontSchoolYearService
-  class "services/school_class_service.js" as FrontSchoolClassService <<préparé>>
-  class "services/subject_service.js" as FrontSubjectService <<préparé>>
-  class "services/teacher_service.js" as FrontTeacherService <<préparé>>
+  class "services/school_classes_overview_service.js" as FrontSchoolClassService
+  class "services/subject_service.js" as FrontSubjectService
+  class "services/teachers_overview_service.js" as FrontTeacherService
 }
 
 package "CONTROLEUR - FastAPI" #FFF3E0 {
@@ -40,18 +42,18 @@ package "CONTROLEUR - FastAPI" #FFF3E0 {
   class "routes/accounts.py" as AccountRoutes
   class "routes/school_years.py" as SchoolYearRoutes
   class "routes/reporting_periods.py" as ReportingPeriodRoutes
-  class "routes/school_classes.py" as SchoolClassRoutes <<non activé>>
-  class "routes/subjects.py" as SubjectRoutes <<non activé>>
-  class "routes/teachers.py" as TeacherRoutes <<non activé>>
+  class "routes/school_classes.py" as SchoolClassRoutes
+  class "routes/subjects.py" as SubjectRoutes
+  class "routes/teachers.py" as TeacherRoutes
 
   class "services/auth_service.py" as AuthService
   class "services/session_service.py" as SessionService
   class "services/account_service.py" as AccountService
   class "services/school_year_service.py" as SchoolYearService
   class "services/reporting_period_service.py" as ReportingPeriodService
-  class "services/school_class_service.py" as SchoolClassService <<à implémenter>>
-  class "services/subject_service.py" as SubjectService <<à implémenter>>
-  class "services/teacher_service.py" as TeacherService <<à implémenter>>
+  class "services/school_class_service.py" as SchoolClassService
+  class "services/subject_service.py" as SubjectService
+  class "services/teacher_service.py" as TeacherService
 }
 
 package "CONTRATS - Pydantic" #FFEBEE {
@@ -72,28 +74,36 @@ package "CONTRATS - Pydantic" #FFEBEE {
   class ReportingPeriodCreate
   class ReportingPeriodUpdate
   class ReportingPeriodResponse
-  class SchoolClassCreate <<préparé>>
-  class SchoolClassUpdate <<préparé>>
-  class SchoolClassResponse <<préparé>>
-  class SubjectCreate <<préparé>>
-  class SubjectUpdate <<préparé>>
-  class SubjectResponse <<préparé>>
-  class ClassSubjectCreate <<préparé>>
-  class ClassSubjectResponse <<préparé>>
-  class TeacherCreate <<préparé>>
-  class TeacherUpdate <<préparé>>
-  class TeacherResponse <<préparé>>
+  class SchoolClassCreate
+  class SchoolClassUpdate
+  class SchoolClassResponse
+  class SubjectCreate
+  class SubjectUpdate
+  class SubjectResponse
+  class SubjectDetail
+  class SubjectClassDetail
+  class ClassSubjectCreate
+  class ClassSubjectResponse
+  class TeacherCreate
+  class TeacherUpdate
+  class TeacherResponse
+  class TeacherOverview
+  class TeacherDetail
+  class TeacherAssignmentCreate
+  class TeacherAssignmentEnd
+  class TeacherAssignmentOption
 }
 
-package "MODELE - SQLAlchemy" #E3F2FD {
+package "MODELE - SQLAlchemy / PostgreSQL" #E3F2FD {
   class Account
   class AuthSession
   class SchoolYear
   class SchoolPeriod
-  class SchoolClass <<préparé>>
-  class Subject <<préparé>>
-  class ClassSubject <<préparé>>
-  class Teacher <<préparé>>
+  class SchoolClass
+  class Subject
+  class ClassSubject
+  class Teacher
+  class "teacher_assignments" as TeacherAssignment
 }
 
 package "UTILITAIRES - Core" #ECEFF1 {
@@ -114,9 +124,11 @@ App --> HomePage
 App --> AccountsPage
 App --> SchoolYearsPage
 App --> SchoolYearDetailsPage
-App ..> SchoolClassesPage : futur
-App ..> SubjectsPage : futur
-App ..> TeachersPage : futur
+App --> SchoolClassesPage
+App --> SubjectsPage
+App --> SubjectDetailsPage
+App --> TeachersPage
+App --> TeacherDetailsPage
 
 LoginPage --> FrontAuthService
 AccountsPage --> FrontAccountService
@@ -124,15 +136,17 @@ SchoolYearsPage ..> FrontSchoolYearService
 SchoolYearDetailsPage --> FrontSchoolYearService
 SchoolClassesPage ..> FrontSchoolClassService
 SubjectsPage ..> FrontSubjectService
+SubjectDetailsPage --> FrontSubjectService
 TeachersPage ..> FrontTeacherService
+TeacherDetailsPage --> FrontTeacherService
 
 FrontAuthService ..> AuthRoutes : HTTP
 FrontAccountService ..> AccountRoutes : HTTP
 FrontSchoolYearService ..> SchoolYearRoutes : HTTP
 FrontSchoolYearService ..> ReportingPeriodRoutes : HTTP
-FrontSchoolClassService ..> SchoolClassRoutes : HTTP futur
-FrontSubjectService ..> SubjectRoutes : HTTP futur
-FrontTeacherService ..> TeacherRoutes : HTTP futur
+FrontSchoolClassService ..> SchoolClassRoutes : HTTP
+FrontSubjectService ..> SubjectRoutes : HTTP
+FrontTeacherService ..> TeacherRoutes : HTTP
 
 AuthRoutes --> AuthService
 AuthRoutes --> SessionService
@@ -153,12 +167,15 @@ SchoolClassService ..> SchoolClass
 SubjectService ..> Subject
 SubjectService ..> ClassSubject
 TeacherService ..> Teacher
+TeacherService ..> TeacherAssignment
 
 SchoolYear "1" -- "0..*" SchoolPeriod
 SchoolYear "1" -- "0..*" SchoolClass
 SchoolClass "1" -- "0..*" ClassSubject
 Subject "1" -- "0..*" ClassSubject
 Account "1" -- "0..1" Teacher
+Teacher "1" -- "0..*" TeacherAssignment
+ClassSubject "1" -- "0..*" TeacherAssignment
 
 Authentication --> SessionService
 Authentication --> Account
@@ -175,6 +192,12 @@ end note
 note bottom of ClassSubject
 Coefficient positif configuré par l'administrateur.
 Décision D-016 validée ; arrondi encore à confirmer.
+end note
+
+note bottom of TeacherAssignment
+Relie un enseignant à une matière déjà associée à une classe.
+La désaffectation renseigne end_date et conserve l'historique.
+Deux affectations d'une même matière de classe ne se chevauchent pas.
 end note
 
 @enduml

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { ChevronRight, Search } from 'lucide-react'
 import { listStudents } from '../services/students_service.js'
 import defaultPhoto from '../assets/image_phtoto_default.png'
+import { formatProfileName } from '../utils/profileDisplay.js'
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import '../styles/students_page.css'
 const AVATAR_PALETTE = [
   { bg: '#E8ECFB', fg: '#3355DD' },
@@ -90,15 +92,19 @@ export default function StudentsPage({ onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [classes, setClasses] = useState([])
   const [schoolYears, setSchoolYears] = useState([])
+  const debouncedQuery = useDebouncedValue(query)
+  const debouncedStatus = useDebouncedValue(status)
+  const debouncedClassId = useDebouncedValue(classId)
+  const debouncedSchoolYearId = useDebouncedValue(schoolYearId)
 
-  async function fetchStudents(pageIndex = page) {
+  async function fetchStudents(pageIndex = page, overrides = {}) {
     setLoading(true)
     try {
       const data = await listStudents({
-        q: query || null,
-        status: status || null,
-        class_id: classId || null,
-        school_year_id: schoolYearId || null,
+        q: 'q' in overrides ? overrides.q || null : query || null,
+        status: 'status' in overrides ? overrides.status || null : status || null,
+        class_id: 'classId' in overrides ? overrides.classId || null : classId || null,
+        school_year_id: 'schoolYearId' in overrides ? overrides.schoolYearId || null : schoolYearId || null,
         limit: PAGE_SIZE,
         offset: pageIndex * PAGE_SIZE,
       })
@@ -135,19 +141,21 @@ export default function StudentsPage({ onNavigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function handleSearch(e) {
-    e.preventDefault()
+  useEffect(() => {
+    fetchStudents(0, {
+      q: debouncedQuery,
+      status: debouncedStatus,
+      classId: debouncedClassId,
+      schoolYearId: debouncedSchoolYearId,
+    })
     setPage(0)
-    fetchStudents(0)
-  }
+  }, [debouncedQuery, debouncedStatus, debouncedClassId, debouncedSchoolYearId])
 
   function handleReset() {
     setQuery('')
     setStatus('')
     setClassId('')
     setSchoolYearId('')
-    setPage(0)
-    setTimeout(() => fetchStudents(0), 0)
   }
 
   function goToPage(next) {
@@ -177,7 +185,7 @@ export default function StudentsPage({ onNavigate }) {
         </div>
       </div>
 
-      <form onSubmit={handleSearch} className="sp-filters">
+      <form className="sp-filters" onSubmit={(event) => event.preventDefault()}>
         <div className="sp-search">
           <Search className="sp-search__icon" aria-hidden="true" size={17} />
           <div>
@@ -211,7 +219,6 @@ export default function StudentsPage({ onNavigate }) {
           <option value="ARCHIVED">Archivé</option>
         </select>
 
-        <button type="submit" className="sp-btn-search">Rechercher</button>
         <button type="button" className="sp-btn-reset" onClick={handleReset}>
           ⟲ Réinitialiser
         </button>
@@ -252,8 +259,8 @@ export default function StudentsPage({ onNavigate }) {
                     <td>
                       <ProfilePhoto photoPath={s.photo_path} />
                     </td>
-                    <td>{s.last_name}</td>
-                    <td>{s.first_name}</td>
+                    <td>{formatProfileName(s.first_name, s.last_name, s.gender, { fallback: '—' })}</td>
+                    <td>{s.first_name ?? '—'}</td>
                     <td>{genderLabel(s.gender)}</td>
                     <td>{s.class_name ?? className(s.class_id)}</td>
                     <td>{s.school_year_name ?? yearName(s.school_year_id)}</td>

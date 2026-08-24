@@ -16,6 +16,7 @@ class GuardianResponse(BaseModel):
     first_name: str
     last_name: str
     gender: str | None
+    nationality: str | None
     email: str | None
     phone: str
     address: str | None

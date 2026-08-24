@@ -1,0 +1,76 @@
+.sdt-main { display: grid; gap: var(--space-5); padding: var(--space-5); color: var(--color-text-primary); background: var(--color-background); }
+.sdt-page-header { display: flex; flex-direction: column; gap: var(--space-4); }
+.sdt-page-header h1 { margin: 0 0 var(--space-2); font-size: var(--font-size-2xl); }
+.sdt-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.sdt-breadcrumb button { padding: 0; border: 0; background: transparent; color: var(--color-primary); font: inherit; font-weight: var(--font-weight-semibold); cursor: pointer; }
+.sdt-back-button,
+.sdt-edit-button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); align-self: flex-start; min-height: var(--button-height-sm); padding: var(--button-padding-md); border: var(--border-default); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-primary); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.sdt-information-card,
+.sdt-classes-card { border: var(--border-default); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-xs); }
+.sdt-information-card { padding: var(--space-5); }
+.sdt-information-card__header { display: flex; flex-direction: column; gap: var(--space-4); margin-bottom: var(--space-5); }
+.sdt-subject-title { display: flex; align-items: center; gap: var(--space-3); }
+.sdt-subject-title h2 { margin: 0 0 var(--space-2); font-size: var(--font-size-xl); }
+.sdt-subject-icon { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: var(--radius-full); background: var(--color-info-light); color: var(--color-primary); }
+.sdt-status { display: inline-flex; padding: var(--space-1) var(--space-3); border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+.sdt-status--active { background: var(--status-active-bg); color: var(--status-active-text); }
+.sdt-status--inactive { background: var(--status-inactive-bg); color: var(--status-inactive-text); }
+.sdt-information-grid { display: grid; gap: var(--space-3); }
+.sdt-information-grid div { display: grid; gap: var(--space-1); padding-bottom: var(--space-3); border-bottom: var(--border-default); }
+.sdt-information-grid span { color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.sdt-information-grid strong { font-size: var(--font-size-sm); }
+.sdt-edit-form { display: grid; gap: var(--space-4); }
+.sdt-edit-form label { display: grid; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.sdt-edit-form input,
+.sdt-edit-form select,
+.sdt-edit-form textarea { width: 100%; box-sizing: border-box; border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--input-text); padding: var(--space-3); font: inherit; }
+.sdt-edit-form input,
+.sdt-edit-form select { height: var(--input-height-md); }
+.sdt-edit-form textarea { resize: vertical; }
+.sdt-edit-form__checkbox { display: flex !important; flex-direction: row; align-items: center; gap: var(--space-2); }
+.sdt-edit-form__checkbox input { width: auto; height: auto; }
+.sdt-edit-form__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
+.sdt-edit-form__actions button { min-height: var(--button-height-sm); padding: var(--button-padding-md); border: var(--border-default); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; }
+.sdt-edit-form__actions .sdt-primary-button { border-color: var(--color-primary); background: var(--color-primary); color: var(--color-text-on-primary); }
+.sdt-summary-grid { display: grid; gap: var(--space-3); }
+.sdt-summary-grid article { display: flex; align-items: center; gap: var(--space-3); min-height: 88px; padding: var(--space-4); border: var(--border-default); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-xs); }
+.sdt-summary-grid article div { display: grid; gap: var(--space-1); }
+.sdt-summary-grid article strong { font-size: var(--font-size-xl); }
+.sdt-summary-grid article span,
+.sdt-summary-grid article small { color: var(--color-text-muted); }
+.sdt-summary-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; border-radius: var(--radius-full); }
+.sdt-summary-icon--blue { background: var(--color-info-light); color: var(--color-primary); }
+.sdt-summary-icon--green { background: var(--status-active-bg); color: var(--status-active-text); }
+.sdt-summary-icon--gold { background: var(--color-warning-light); color: var(--color-warning); }
+.sdt-classes-card { overflow: hidden; }
+.sdt-classes-card > header { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-5); border-bottom: var(--border-default); }
+.sdt-classes-card h2 { margin: 0 0 var(--space-1); font-size: var(--font-size-lg); }
+.sdt-classes-card p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.sdt-classes-card > header > span { align-self: flex-start; padding: var(--space-1) var(--space-3); border-radius: var(--radius-full); background: var(--color-info-light); color: var(--color-primary); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+.sdt-table-wrapper { overflow-x: auto; }
+.sdt-table { width: 100%; min-width: 880px; border-collapse: collapse; }
+.sdt-table th { padding: var(--space-3) var(--space-4); background: var(--table-header-bg); color: var(--table-header-text); text-align: left; text-transform: uppercase; font-size: var(--font-size-xs); }
+.sdt-table td { padding: var(--space-4); border-top: var(--border-width-thin) solid var(--table-border); font-size: var(--font-size-sm); }
+.sdt-table tbody tr { cursor: pointer; transition: background-color var(--transition-fast); }
+.sdt-table tbody tr:hover { background: var(--table-row-hover-bg); }
+.sdt-table td:first-child { display: grid; gap: var(--space-1); }
+.sdt-table td small { color: var(--color-text-muted); }
+.sdt-empty { padding: var(--space-8) !important; text-align: center; color: var(--color-text-muted); cursor: default; }
+
+@media (min-width: 700px) {
+  .sdt-page-header,
+  .sdt-information-card__header,
+  .sdt-classes-card > header { flex-direction: row; align-items: flex-start; justify-content: space-between; }
+  .sdt-back-button,
+  .sdt-edit-button { align-self: auto; }
+  .sdt-information-grid { grid-template-columns: 2fr 1fr 1fr; }
+  .sdt-edit-form { grid-template-columns: 2fr 1fr; }
+  .sdt-edit-form__wide,
+  .sdt-edit-form__actions { grid-column: 1 / -1; }
+  .sdt-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1050px) {
+  .sdt-main { padding: var(--space-8) var(--space-10); }
+  .sdt-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

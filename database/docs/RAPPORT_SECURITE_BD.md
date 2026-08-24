@@ -2,7 +2,7 @@
 
 ## Suppression contrôlée d'une année ouverte
 
-La migration `005_delete_open_school_year.sql` n'accorde aucun droit `DELETE`
+La migration `006_report_cards_and_year_deletion.sql` n'accorde aucun droit `DELETE`
 direct à `blaise_app`. Elle expose uniquement une fonction `SECURITY DEFINER`
 qui vérifie le rôle administrateur, refuse les années clôturées, exige le nom
 exact de l'année, supprime ses dépendances dans la transaction courante et
@@ -103,7 +103,7 @@ Le rôle `blaise_app` ne doit pas être superutilisateur, propriétaire de la ba
 
 ## Comptes fictifs de développement
 
-Le script `database/init/007_create_test_accounts.sql` prépare 30 comptes :
+Le script `database/init/050_creat_teste_data.sql` prépare 30 comptes :
 
 | Rôle | Matricules | Nombre |
 |---|---|---:|
@@ -113,10 +113,11 @@ Le script `database/init/007_create_test_accounts.sql` prépare 30 comptes :
 | `GUARDIAN` | `p000001` à `p000010` | 10 |
 
 Le même script crée leurs profils fictifs, une année scolaire avec trois
-périodes, trois classes, six matières avec coefficients et les inscriptions
+périodes, sept classes, six matières avec coefficients et les inscriptions
 des dix élèves. Il associe aussi chaque élève à un responsable fictif principal,
-légal et joignable en urgence. Les affectations, évaluations et notes ne sont pas simulées
-tant que leurs tables ne sont pas créées par des migrations versionnées.
+légal et joignable en urgence. Il prépare également les affectations,
+évaluations, notes, appels, justificatifs, demandes de correction et bulletins
+provisoires nécessaires au développement des Sprints 4 et 5.
 
 Ils utilisent uniquement en développement le mot de passe commun `test@1234`, stocké dans PostgreSQL sous forme de hash Argon2. Le mot de passe en clair n'est jamais enregistré dans `accounts`.
 
@@ -131,10 +132,19 @@ Le script est monté après les migrations et ne s'exécute automatiquement que 
 
 ## Liens entre élèves et responsables
 
-La migration `006_create_student_guardians.sql` accorde à `blaise_app` les
+La migration `003_relationships_and_documents.sql` accorde à `blaise_app` les
 droits `SELECT`, `INSERT`, `UPDATE` et `DELETE` uniquement sur la table
 d'association `student_guardians`. `INSERT` et `UPDATE` sont limités aux
 colonnes métier : les clés d'un lien existant et ses horodatages d'audit ne sont
 pas modifiables par l'application. Le droit `DELETE` retire un lien entre deux
 dossiers sans supprimer l'élève ni le responsable. Le rôle applicatif ne reçoit
 aucun droit de création ou de modification du schéma.
+
+## Documents et données pédagogiques
+
+- `blaise_app` peut lire le catalogue `document_types`, mais ne peut pas le modifier.
+- L'application peut créer un document et l'archiver, jamais le supprimer physiquement.
+- Les tables d'audit sont accessibles en lecture uniquement.
+- Les évaluations, notes, appels et bulletins ne reçoivent aucun droit `DELETE` direct.
+- Les associations documentaires peuvent être retirées sans supprimer le fichier ni son historique.
+- La suppression large d'une année ouverte passe uniquement par la fonction contrôlée `delete_open_school_year`.

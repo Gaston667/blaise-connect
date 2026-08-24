@@ -1,31 +1,17 @@
-export async function getGuardiansOverview(q) {
+import { apiRequestJson } from '../utils/apiErrorHandler.js'
+
+export function getGuardiansOverview(q) {
   const params = new URLSearchParams()
   if (q) params.append('q', q)
-  const res = await fetch(`/api/guardians?${params.toString()}`, { credentials: 'include' })
-  if (!res.ok) {
-    let message = 'Échec du chargement des responsables'
-    try {
-      const body = await res.json()
-      if (body?.detail) message = body.detail
-    } catch {
-      // Le message générique est conservé si la réponse n'est pas du JSON.
-    }
-    throw new Error(message)
-  }
-  return await res.json()
+  return apiRequestJson(`/api/guardians?${params.toString()}`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des responsables',
+  })
 }
 
-export async function getGuardianDetail(id) {
-  const res = await fetch(`/api/guardians/${id}/detail`, { credentials: 'include' })
-  if (!res.ok) {
-    let message = 'Échec du chargement du responsable'
-    try {
-      const body = await res.json()
-      if (body?.detail) message = body.detail
-    } catch {
-      // Le message générique est conservé si la réponse n'est pas du JSON.
-    }
-    throw new Error(message)
-  }
-  return await res.json()
+export function getGuardianDetail(id) {
+  return apiRequestJson(`/api/guardians/${id}/detail`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement du responsable',
+  })
 }

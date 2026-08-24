@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 import { getSchoolYears } from '../services/school_year_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import {
   createSchoolClass,
   getClassLevels,
   getTeachers,
   getSchoolClassesOverview,
 } from '../services/school_classes_overview_service.js'
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import '../styles/school_classes_page.css'
 const AVATAR_PALETTE = [
   { bg: '#E8ECFB', fg: '#3355DD' },
@@ -23,9 +25,20 @@ function levelBadge(name) {
 }
 
 function levelInitials(name, groupLabel) {
-  const parts = (name ?? '').replace(/[^a-zA-Z0-9]/g, ' ').trim().split(/\s+/)
-  const short = parts.map((p) => p[0]).join('').slice(0, 2).toUpperCase()
-  return `${short}${groupLabel ?? ''}`
+  const levelName = String(name ?? '').trim()
+  const group = String(groupLabel ?? '').trim()
+  const digitMatch = levelName.match(/\d/)
+
+  if (digitMatch) {
+    return digitMatch[0]
+  }
+
+  if (group) {
+    return group[0].toUpperCase()
+  }
+
+  const letterMatch = levelName.match(/[A-Za-z]/)
+  return letterMatch ? letterMatch[0].toUpperCase() : '?'
 }
 
 function teacherInitials(teacher) {
@@ -53,7 +66,12 @@ const EMPTY_CLASS_FORM = {
   capacity: '',
 }
 
-export default function SchoolClassesPage({ onNavigate }) {
+function isHighSchoolLevel(level) {
+  return level?.education_stage === 'HIGH_SCHOOL'
+}
+
+export default function SchoolClassesPage({ account, onNavigate }) {
+  const canEdit = account?.role === 'ADMIN'
   const [query, setQuery] = useState('')
   const [schoolYearId, setSchoolYearId] = useState('')
   const [classLevelId, setClassLevelId] = useState('')
@@ -72,19 +90,33 @@ export default function SchoolClassesPage({ onNavigate }) {
   const [creating, setCreating] = useState(false)
   const [showTeacherPicker, setShowTeacherPicker] = useState(false)
   const [teacherQuery, setTeacherQuery] = useState('')
+  const debouncedQuery = useDebouncedValue(query)
+  const debouncedSchoolYearId = useDebouncedValue(schoolYearId)
+  const debouncedClassLevelId = useDebouncedValue(classLevelId)
+  const debouncedStatus = useDebouncedValue(status)
 
   useEffect(() => {
     fetchInitialData()
   }, [])
 
-  async function fetchClasses(pageIndex = page) {
+  useEffect(() => {
+    fetchClasses(0, {
+      q: debouncedQuery,
+      schoolYearId: debouncedSchoolYearId,
+      classLevelId: debouncedClassLevelId,
+      status: debouncedStatus,
+    })
+    setPage(0)
+  }, [debouncedQuery, debouncedSchoolYearId, debouncedClassLevelId, debouncedStatus])
+
+  async function fetchClasses(pageIndex = page, overrides = {}) {
     setLoading(true)
     try {
       const data = await getSchoolClassesOverview({
-        q: query || null,
-        schoolYearId: schoolYearId || null,
-        classLevelId: classLevelId || null,
-        status: status || null,
+        q: 'q' in overrides ? overrides.q || null : query || null,
+        schoolYearId: 'schoolYearId' in overrides ? overrides.schoolYearId || null : schoolYearId || null,
+        classLevelId: 'classLevelId' in overrides ? overrides.classLevelId || null : classLevelId || null,
+        status: 'status' in overrides ? overrides.status || null : status || null,
         limit: PAGE_SIZE,
         offset: pageIndex * PAGE_SIZE,
       })
@@ -123,19 +155,11 @@ export default function SchoolClassesPage({ onNavigate }) {
     }
   }
 
-  function handleSearch(e) {
-    e.preventDefault()
-    setPage(0)
-    fetchClasses(0)
-  }
-
   function handleReset() {
     setQuery('')
     setSchoolYearId('')
     setClassLevelId('')
     setStatus('')
-    setPage(0)
-    setTimeout(() => fetchClasses(0), 0)
   }
 
   function goToPage(next) {
@@ -179,6 +203,11 @@ export default function SchoolClassesPage({ onNavigate }) {
       setCreateError('Veuillez sélectionner un professeur principal.')
       return
     }
+    const selectedLevel = classLevels.find((level) => level.id === classForm.class_level_id)
+    if (!selectedLevel || !isHighSchoolLevel(selectedLevel)) {
+      setCreateError('Seuls les niveaux lycée sont activés pour le moment.')
+      return
+    }
     setCreating(true)
     setCreateError('')
     try {
@@ -216,9 +245,11 @@ export default function SchoolClassesPage({ onNavigate }) {
             <span>Classes</span>
           </nav>
         </div>
-        <button type="button" className="scp-btn-primary" onClick={openCreateModal}>
-          <span className="scp-btn-primary__plus">+</span> Ajouter une classe
-        </button>
+        {canEdit && (
+          <button type="button" className="scp-btn-primary" onClick={openCreateModal}>
+            <span className="scp-btn-primary__plus">+</span> Ajouter une classe
+          </button>
+        )}
       </div>
 
       {confirmationMessage && (
@@ -228,7 +259,7 @@ export default function SchoolClassesPage({ onNavigate }) {
         </div>
       )}
 
-      <form onSubmit={handleSearch} className="scp-filters">
+      <form className="scp-filters" onSubmit={(event) => event.preventDefault()}>
         <div className="scp-search">
           <span className="scp-search__icon">⌕</span>
           <input
@@ -259,7 +290,6 @@ export default function SchoolClassesPage({ onNavigate }) {
           <option value="ARCHIVEE">Archivée</option>
         </select>
 
-        <button type="submit" className="scp-btn-search">Rechercher</button>
         <button type="button" className="scp-btn-reset" onClick={handleReset}>
           ⟲ Réinitialiser
         </button>
@@ -329,7 +359,7 @@ export default function SchoolClassesPage({ onNavigate }) {
         </div>
       </section>
 
-      {showCreateModal && (
+      {canEdit && showCreateModal && (
         <div className="scp-modal-backdrop" role="presentation" onMouseDown={closeCreateModal}>
           <section
             className="scp-modal"
@@ -359,8 +389,18 @@ export default function SchoolClassesPage({ onNavigate }) {
                 Niveau *
                 <select name="class_level_id" value={classForm.class_level_id} onChange={updateClassForm} required>
                   <option value="">Sélectionner un niveau</option>
-                  {classLevels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}
+                  {classLevels.map((level) => (
+                    <option
+                      key={level.id}
+                      value={level.id}
+                      disabled={!isHighSchoolLevel(level)}
+                    >
+                      {level.name}
+                      {!isHighSchoolLevel(level) ? ' (indisponible pour le moment)' : ''}
+                    </option>
+                  ))}
                 </select>
+                <small className="scp-modal__hint">Les niveaux hors lycée sont visibles mais temporairement inactifs.</small>
               </label>
 
               <label>
@@ -380,7 +420,7 @@ export default function SchoolClassesPage({ onNavigate }) {
                     <>
                       <span className="scp-teacher-avatar">{teacherInitials(selectedTeacher)}</span>
                       <span>
-                        <strong>{selectedTeacher.first_name} {selectedTeacher.last_name}</strong>
+                        <strong>{formatProfileName(selectedTeacher.first_name, selectedTeacher.last_name, selectedTeacher.gender)}</strong>
                         <small>Matricule : {selectedTeacher.registration_number}</small>
                       </span>
                     </>
@@ -442,7 +482,7 @@ export default function SchoolClassesPage({ onNavigate }) {
                 >
                   <span className="scp-teacher-avatar">{teacherInitials(teacher)}</span>
                   <span>
-                    <strong>{teacher.first_name} {teacher.last_name}</strong>
+                    <strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong>
                     <small>Matricule : {teacher.registration_number}</small>
                   </span>
                 </button>

@@ -1,0 +1,897 @@
+-- =========================================================
+-- MIGRATION 005 : Évaluations, affectations et spécialités
+-- =========================================================
+-- Tables : teacher_assignments, assessments, grades,
+--          grade_change_requests, student_specialties,
+--          specialty_incompatibilities
+-- Règles : dates d'affectation dans l'année, notes cohérentes,
+--          corrections de notes soumises à validation et historisées,
+--          spécialités liées à l'inscription annuelle de l'élève,
+--          disponibles seulement en Première/Terminale,
+--          proposées dans la classe de l'élève,
+--          incompatibilités entre spécialités.
+-- D-022 à D-024 intégrées.
+-- =========================================================
+
+BEGIN;
+
+-- =========================================================
+-- 1. AFFECTATIONS DES ENSEIGNANTS AUX MATIÈRES PAR CLASSE
+-- =========================================================
+
+CREATE TABLE teacher_assignments (
+    id uuid
+        CONSTRAINT pk_teacher_assignments PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+    teacher_id uuid NOT NULL,
+    class_subject_id uuid NOT NULL,
+    start_date date NOT NULL,
+    end_date date,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_teacher_assignments_teacher
+        FOREIGN KEY (teacher_id)
+        REFERENCES teachers(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_teacher_assignments_class_subject
+        FOREIGN KEY (class_subject_id)
+        REFERENCES class_subjects(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT ck_teacher_assignments_dates
+        CHECK (end_date IS NULL OR end_date >= start_date),
+
+    CONSTRAINT ex_teacher_assignments_no_overlap
+        EXCLUDE USING gist (
+            class_subject_id WITH =,
+            daterange(start_date, COALESCE(end_date, 'infinity'::date), '[]') WITH &&
+        )
+);
+
+CREATE INDEX idx_teacher_assignments_teacher_id
+    ON teacher_assignments (teacher_id);
+
+CREATE INDEX idx_teacher_assignments_class_subject_id
+    ON teacher_assignments (class_subject_id);
+
+-- Vérifier que les dates de l'affectation sont dans l'année scolaire de la classe.
+CREATE OR REPLACE FUNCTION check_teacher_assignment_within_class_year()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE year_start date; year_end date;
+BEGIN
+    SELECT sy.start_date, sy.end_date INTO year_start, year_end
+      FROM class_subjects AS cs
+      JOIN classes AS c ON c.id = cs.class_id
+      JOIN school_years AS sy ON sy.id = c.school_year_id
+     WHERE cs.id = NEW.class_subject_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE = '23503',
+            MESSAGE = 'La matière de classe est introuvable.';
+    END IF;
+
+    IF NEW.start_date < year_start OR NEW.start_date > year_end
+       OR (NEW.end_date IS NOT NULL AND NEW.end_date > year_end)
+    THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'Les dates de l''affectation doivent rester dans l''année scolaire de la classe.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER trg_teacher_assignments_check_year_bounds
+AFTER INSERT OR UPDATE ON teacher_assignments
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_teacher_assignment_within_class_year();
+
+CREATE TRIGGER trg_teacher_assignments_set_updated_at
+BEFORE UPDATE ON teacher_assignments
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- =========================================================
+-- 2. ÉVALUATIONS
+-- =========================================================
+
+CREATE TABLE assessments (
+    id uuid
+        CONSTRAINT pk_assessments PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+    teacher_assignment_id uuid NOT NULL,
+    title varchar(150) NOT NULL,
+    description text,
+    assessment_date date NOT NULL,
+    maximum_score numeric(6, 2) NOT NULL,
+    coefficient numeric(6, 2) NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_assessments_teacher_assignment
+        FOREIGN KEY (teacher_assignment_id)
+        REFERENCES teacher_assignments(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT uq_assessments_assignment_title_date
+        UNIQUE (teacher_assignment_id, title, assessment_date),
+
+    CONSTRAINT ck_assessments_title_not_blank
+        CHECK (char_length(btrim(title)) > 0),
+
+    CONSTRAINT ck_assessments_maximum_score_positive
+        CHECK (maximum_score > 0),
+
+    CONSTRAINT ck_assessments_coefficient_positive
+        CHECK (coefficient > 0)
+);
+
+CREATE INDEX idx_assessments_teacher_assignment_id
+    ON assessments (teacher_assignment_id);
+
+CREATE TRIGGER trg_assessments_set_updated_at
+BEFORE UPDATE ON assessments
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- =========================================================
+-- 3. NOTES ET ABSENCES
+-- =========================================================
+
+CREATE TYPE grade_result_type_enum AS ENUM (
+    'SCORED',
+    'ABSENT'
+);
+
+CREATE TYPE justification_status_enum AS ENUM (
+    'UNJUSTIFIED',
+    'PENDING',
+    'JUSTIFIED',
+    'REJECTED'
+);
+
+CREATE TABLE grades (
+    id uuid
+        CONSTRAINT pk_grades PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+    assessment_id uuid NOT NULL,
+    student_enrollment_id uuid NOT NULL,
+    result_type grade_result_type_enum NOT NULL,
+    score numeric(6, 2),
+    comment text,
+    justification_status justification_status_enum,
+    reviewed_by_account_id uuid,
+    reviewed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_grades_assessment
+        FOREIGN KEY (assessment_id)
+        REFERENCES assessments(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_grades_student_enrollment
+        FOREIGN KEY (student_enrollment_id)
+        REFERENCES student_enrollments(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_grades_reviewed_by_account
+        FOREIGN KEY (reviewed_by_account_id)
+        REFERENCES accounts(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT uq_grades_assessment_enrollment
+        UNIQUE (assessment_id, student_enrollment_id),
+
+    CONSTRAINT ck_grades_score_coherence
+        CHECK (
+            (result_type = 'SCORED'
+             AND score IS NOT NULL
+             AND score >= 0
+             AND justification_status IS NULL)
+            OR
+            (result_type = 'ABSENT'
+             AND score IS NULL
+             AND justification_status IN ('UNJUSTIFIED', 'PENDING', 'JUSTIFIED', 'REJECTED'))
+        ),
+
+    CONSTRAINT ck_grades_review_pair
+        CHECK (
+            (reviewed_by_account_id IS NULL AND reviewed_at IS NULL)
+            OR
+            (reviewed_by_account_id IS NOT NULL AND reviewed_at IS NOT NULL)
+        )
+);
+
+CREATE INDEX idx_grades_assessment_id
+    ON grades (assessment_id);
+
+CREATE INDEX idx_grades_student_enrollment_id
+    ON grades (student_enrollment_id);
+
+CREATE INDEX idx_grades_reviewed_by_account_id
+    ON grades (reviewed_by_account_id);
+
+-- Vérifier que l'élève est inscrit dans la classe de l'évaluation.
+CREATE OR REPLACE FUNCTION check_grade_student_in_class()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE v_class_id uuid;
+BEGIN
+    SELECT c.id INTO v_class_id
+      FROM assessments AS a
+      JOIN teacher_assignments AS ta ON ta.id = a.teacher_assignment_id
+      JOIN class_subjects AS cs ON cs.id = ta.class_subject_id
+      JOIN classes AS c ON c.id = cs.class_id
+     WHERE a.id = NEW.assessment_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE = '23503',
+            MESSAGE = 'L''évaluation est introuvable.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM student_enrollments AS se
+         WHERE se.id = NEW.student_enrollment_id AND se.class_id = v_class_id
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'L''élève n''est pas inscrit dans la classe de l''évaluation.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER trg_grades_check_student_in_class
+AFTER INSERT OR UPDATE ON grades
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_grade_student_in_class();
+
+-- Vérifier que le score ne dépasse pas le barème de l'évaluation.
+CREATE OR REPLACE FUNCTION check_grade_score_within_max()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE max_score numeric(6, 2);
+BEGIN
+    IF NEW.score IS NULL THEN RETURN NEW; END IF;
+
+    SELECT a.maximum_score INTO max_score
+      FROM assessments AS a
+     WHERE a.id = NEW.assessment_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE = '23503',
+            MESSAGE = 'L''évaluation est introuvable.';
+    END IF;
+
+    IF NEW.score > max_score THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = format(
+                'Le score (%.2f) ne peut pas dépasser le barème (%.2f).',
+                NEW.score, max_score
+            );
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER trg_grades_check_score_within_max
+AFTER INSERT OR UPDATE ON grades
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_grade_score_within_max();
+
+CREATE TRIGGER trg_grades_set_updated_at
+BEFORE UPDATE ON grades
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- =========================================================
+-- 4. DEMANDES DE CORRECTION DE NOTES
+-- =========================================================
+-- Une note existante n'est pas modifiée directement :
+-- le demandeur propose une nouvelle valeur, puis un administrateur
+-- ou un professeur principal autorisé accepte ou refuse la demande.
+-- L'ancienne valeur est conservée dans la demande pour garantir
+-- la traçabilité et éviter les écrasements concurrents.
+
+CREATE TYPE grade_change_request_status_enum AS ENUM (
+    'PENDING',
+    'APPROVED',
+    'REJECTED'
+);
+
+CREATE TABLE grade_change_requests (
+    id uuid
+        CONSTRAINT pk_grade_change_requests PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    grade_id uuid NOT NULL,
+    requested_by_account_id uuid NOT NULL,
+
+    previous_result_type grade_result_type_enum NOT NULL,
+    previous_score numeric(6, 2),
+    previous_justification_status justification_status_enum,
+
+    proposed_result_type grade_result_type_enum NOT NULL,
+    proposed_score numeric(6, 2),
+    proposed_justification_status justification_status_enum,
+
+    request_reason text NOT NULL,
+
+    status grade_change_request_status_enum
+        NOT NULL
+        DEFAULT 'PENDING',
+
+    reviewed_by_account_id uuid,
+    reviewed_at timestamptz,
+    decision_comment text,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_grade_change_requests_grade
+        FOREIGN KEY (grade_id)
+        REFERENCES grades(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_grade_change_requests_requested_by_account
+        FOREIGN KEY (requested_by_account_id)
+        REFERENCES accounts(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_grade_change_requests_reviewed_by_account
+        FOREIGN KEY (reviewed_by_account_id)
+        REFERENCES accounts(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT ck_grade_change_requests_request_reason
+        CHECK (length(btrim(request_reason)) > 0),
+
+    CONSTRAINT ck_grade_change_requests_previous_value
+        CHECK (
+            (
+                previous_result_type = 'SCORED'
+                AND previous_score IS NOT NULL
+                AND previous_score >= 0
+                AND previous_justification_status IS NULL
+            )
+            OR
+            (
+                previous_result_type = 'ABSENT'
+                AND previous_score IS NULL
+                AND previous_justification_status IN (
+                    'UNJUSTIFIED',
+                    'PENDING',
+                    'JUSTIFIED',
+                    'REJECTED'
+                )
+            )
+        ),
+
+    CONSTRAINT ck_grade_change_requests_proposed_value
+        CHECK (
+            (
+                proposed_result_type = 'SCORED'
+                AND proposed_score IS NOT NULL
+                AND proposed_score >= 0
+                AND proposed_justification_status IS NULL
+            )
+            OR
+            (
+                proposed_result_type = 'ABSENT'
+                AND proposed_score IS NULL
+                AND proposed_justification_status IN (
+                    'UNJUSTIFIED',
+                    'PENDING',
+                    'JUSTIFIED',
+                    'REJECTED'
+                )
+            )
+        ),
+
+    CONSTRAINT ck_grade_change_requests_decision_state
+        CHECK (
+            (
+                status = 'PENDING'
+                AND reviewed_by_account_id IS NULL
+                AND reviewed_at IS NULL
+                AND decision_comment IS NULL
+            )
+            OR
+            (
+                status IN ('APPROVED', 'REJECTED')
+                AND reviewed_by_account_id IS NOT NULL
+                AND reviewed_at IS NOT NULL
+            )
+        ),
+
+    CONSTRAINT ck_grade_change_requests_no_self_review
+        CHECK (
+            reviewed_by_account_id IS NULL
+            OR reviewed_by_account_id <> requested_by_account_id
+        )
+);
+
+CREATE INDEX idx_grade_change_requests_grade_id
+    ON grade_change_requests (grade_id);
+
+CREATE INDEX idx_grade_change_requests_requested_by_account_id
+    ON grade_change_requests (requested_by_account_id);
+
+CREATE INDEX idx_grade_change_requests_reviewed_by_account_id
+    ON grade_change_requests (reviewed_by_account_id);
+
+CREATE INDEX idx_grade_change_requests_status
+    ON grade_change_requests (status);
+
+-- Une seule demande en attente peut exister pour une note donnée.
+CREATE UNIQUE INDEX uq_grade_change_requests_one_pending_per_grade
+    ON grade_change_requests (grade_id)
+    WHERE status = 'PENDING';
+
+-- Les anciennes et nouvelles notes proposées doivent respecter
+-- le barème de l'évaluation liée à la note.
+CREATE OR REPLACE FUNCTION check_grade_change_request_score_within_max()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+    max_score numeric(6, 2);
+BEGIN
+    SELECT assessment.maximum_score
+      INTO max_score
+      FROM grades AS grade
+      JOIN assessments AS assessment
+        ON assessment.id = grade.assessment_id
+     WHERE grade.id = NEW.grade_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE = '23503',
+            MESSAGE = 'La note concernée par la demande est introuvable.';
+    END IF;
+
+    IF NEW.previous_score IS NOT NULL
+       AND NEW.previous_score > max_score THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'L''ancienne note dépasse le barème de l''évaluation.';
+    END IF;
+
+    IF NEW.proposed_score IS NOT NULL
+       AND NEW.proposed_score > max_score THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'La note proposée dépasse le barème de l''évaluation.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER trg_grade_change_requests_check_score
+AFTER INSERT OR UPDATE ON grade_change_requests
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_grade_change_request_score_within_max();
+
+CREATE TRIGGER trg_grade_change_requests_set_updated_at
+BEFORE UPDATE ON grade_change_requests
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- =========================================================
+-- 5. SPÉCIALITÉS (Première/Terminale)
+-- =========================================================
+
+-- Ajouter le flag is_specialty à subjects (migration 004).
+-- Ici, on crée la table de liaison et les contraintes.
+
+CREATE TABLE student_specialties (
+    id uuid
+        CONSTRAINT pk_student_specialties PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+    student_enrollment_id uuid NOT NULL,
+    subject_id uuid NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_student_specialties_student_enrollment
+        FOREIGN KEY (student_enrollment_id)
+        REFERENCES student_enrollments(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_student_specialties_subject
+        FOREIGN KEY (subject_id)
+        REFERENCES subjects(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT uq_student_specialties_unique
+        UNIQUE (student_enrollment_id, subject_id)
+);
+
+CREATE INDEX idx_student_specialties_student_enrollment_id
+    ON student_specialties (student_enrollment_id);
+
+CREATE INDEX idx_student_specialties_subject_id
+    ON student_specialties (subject_id);
+
+-- Vérifier que :
+-- 1. la spécialité est bien liée à une inscription annuelle existante ;
+-- 2. l'inscription concerne une classe de Première ou Terminale ;
+-- 3. la matière est marquée comme spécialité ;
+-- 4. la spécialité est réellement proposée dans la classe de l'élève.
+CREATE OR REPLACE FUNCTION check_student_specialty_is_specialty_subject()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+    v_is_specialty boolean;
+    v_level_code varchar(20);
+    v_class_id uuid;
+BEGIN
+    SELECT c.id, cl.code
+      INTO v_class_id, v_level_code
+      FROM student_enrollments AS se
+      JOIN classes AS c
+        ON c.id = se.class_id
+      JOIN class_levels AS cl
+        ON cl.id = c.class_level_id
+     WHERE se.id = NEW.student_enrollment_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE = '23503',
+            MESSAGE = 'L''inscription annuelle de l''élève est introuvable.';
+    END IF;
+
+    IF v_level_code NOT IN ('PREMIERE', 'TERMINALE') THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'Les spécialités ne sont disponibles que pour la Première et la Terminale.';
+    END IF;
+
+    SELECT s.is_specialty
+      INTO v_is_specialty
+      FROM subjects AS s
+     WHERE s.id = NEW.subject_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE = '23503',
+            MESSAGE = 'La matière est introuvable.';
+    END IF;
+
+    IF NOT v_is_specialty THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'La matière sélectionnée n''est pas une spécialité.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+          FROM class_subjects AS cs
+         WHERE cs.class_id = v_class_id
+           AND cs.subject_id = NEW.subject_id
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'La spécialité sélectionnée n''est pas proposée dans la classe de cet élève.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER trg_student_specialties_check_is_specialty
+AFTER INSERT OR UPDATE ON student_specialties
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_student_specialty_is_specialty_subject();
+
+-- Vérifier le nombre maximal de spécialités :
+-- Première = maximum 3, Terminale = maximum 2.
+-- Le nombre exact attendu (3 en Première, 2 en Terminale) sera contrôlé
+-- par FastAPI lors de l'enregistrement/finalisation du choix : la base
+-- doit autoriser les insertions successives nécessaires à la saisie.
+CREATE OR REPLACE FUNCTION check_student_specialties_count()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+    level_code varchar(20);
+    count_specialties integer;
+BEGIN
+    SELECT cl.code INTO level_code
+      FROM student_enrollments AS se
+      JOIN classes AS c ON c.id = se.class_id
+      JOIN class_levels AS cl ON cl.id = c.class_level_id
+     WHERE se.id = NEW.student_enrollment_id;
+
+    IF NOT FOUND THEN RETURN NEW; END IF;
+
+    SELECT count(*) INTO count_specialties
+      FROM student_specialties
+     WHERE student_enrollment_id = NEW.student_enrollment_id;
+
+    IF level_code = 'PREMIERE' AND count_specialties > 3 THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'Un élève de Première ne peut pas choisir plus de 3 spécialités.';
+    END IF;
+
+    IF level_code = 'TERMINALE' AND count_specialties > 2 THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'Un élève de Terminale ne peut pas choisir plus de 2 spécialités.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER trg_student_specialties_check_count
+AFTER INSERT OR UPDATE ON student_specialties
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_student_specialties_count();
+
+-- =========================================================
+-- 6. INCOMPATIBILITÉS ENTRE SPÉCIALITÉS
+-- =========================================================
+
+CREATE TABLE specialty_incompatibilities (
+    id uuid
+        CONSTRAINT pk_specialty_incompatibilities PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+    subject_id_1 uuid NOT NULL,
+    subject_id_2 uuid NOT NULL,
+    reason varchar(255) NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_specialty_incompatibilities_subject_1
+        FOREIGN KEY (subject_id_1)
+        REFERENCES subjects(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_specialty_incompatibilities_subject_2
+        FOREIGN KEY (subject_id_2)
+        REFERENCES subjects(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT ck_specialty_incompatibilities_not_self
+        CHECK (subject_id_1 <> subject_id_2),
+
+    CONSTRAINT ck_specialty_incompatibilities_reason_not_blank
+        CHECK (char_length(btrim(reason)) > 0)
+);
+
+-- Empêche le doublon (A, B) / (B, A). Une expression doit être portée
+-- par un index unique, et non par une contrainte UNIQUE de table.
+CREATE UNIQUE INDEX uq_specialty_incompatibilities_pair
+    ON specialty_incompatibilities (
+        LEAST(subject_id_1, subject_id_2),
+        GREATEST(subject_id_1, subject_id_2)
+    );
+
+-- Vérifier l'incompatibilité lors de l'ajout d'une spécialité.
+CREATE OR REPLACE FUNCTION check_student_specialty_compatibility()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+    incompatible_id uuid;
+BEGIN
+    SELECT si.subject_id_1
+      INTO incompatible_id
+      FROM specialty_incompatibilities AS si
+      JOIN student_specialties AS ss
+        ON (ss.subject_id = si.subject_id_1 OR ss.subject_id = si.subject_id_2)
+     WHERE ss.student_enrollment_id = NEW.student_enrollment_id
+       AND ss.subject_id <> NEW.subject_id
+       AND (si.subject_id_1 = NEW.subject_id OR si.subject_id_2 = NEW.subject_id)
+     LIMIT 1;
+
+    IF incompatible_id IS NOT NULL THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            MESSAGE = 'Cette spécialité est incompatible avec une autre déjà choisie par l''élève.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER trg_student_specialties_check_compatibility
+AFTER INSERT OR UPDATE ON student_specialties
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION check_student_specialty_compatibility();
+
+-- =========================================================
+-- 7. DROITS APPLICATIFS
+-- =========================================================
+
+GRANT SELECT ON TABLE
+    teacher_assignments,
+    assessments,
+    grades,
+    grade_change_requests,
+    student_specialties,
+    specialty_incompatibilities
+TO blaise_app;
+
+GRANT INSERT (teacher_id, class_subject_id, start_date, end_date)
+    ON teacher_assignments TO blaise_app;
+GRANT UPDATE (start_date, end_date) ON teacher_assignments TO blaise_app;
+GRANT DELETE ON TABLE teacher_assignments TO blaise_app;
+
+GRANT INSERT (teacher_assignment_id, title, description, assessment_date, maximum_score, coefficient)
+    ON assessments TO blaise_app;
+GRANT UPDATE (title, description, maximum_score, coefficient) ON assessments TO blaise_app;
+
+GRANT INSERT (
+    assessment_id,
+    student_enrollment_id,
+    result_type,
+    score,
+    comment,
+    justification_status,
+    reviewed_by_account_id,
+    reviewed_at
+) ON grades TO blaise_app;
+
+GRANT UPDATE (
+    result_type,
+    score,
+    comment,
+    justification_status,
+    reviewed_by_account_id,
+    reviewed_at
+) ON grades TO blaise_app;
+
+GRANT INSERT (
+    grade_id,
+    requested_by_account_id,
+    previous_result_type,
+    previous_score,
+    previous_justification_status,
+    proposed_result_type,
+    proposed_score,
+    proposed_justification_status,
+    request_reason
+)
+ON grade_change_requests TO blaise_app;
+
+GRANT UPDATE (
+    status,
+    reviewed_by_account_id,
+    reviewed_at,
+    decision_comment
+)
+ON grade_change_requests TO blaise_app;
+
+GRANT INSERT (student_enrollment_id, subject_id)
+    ON student_specialties TO blaise_app;
+GRANT DELETE ON TABLE student_specialties TO blaise_app;
+
+GRANT INSERT (subject_id_1, subject_id_2, reason)
+    ON specialty_incompatibilities TO blaise_app;
+GRANT UPDATE (reason) ON specialty_incompatibilities TO blaise_app;
+
+-- Pas de DELETE sur évaluations, notes, affectations : données immutables une fois créées.
+REVOKE DELETE ON TABLE
+    teacher_assignments,
+    assessments,
+    grades,
+    grade_change_requests,
+    specialty_incompatibilities
+FROM blaise_app;
+
+-- Appels, absences et retards : une ligne d'incident par élève et par cours.
+CREATE TYPE attendance_incident_type_enum AS ENUM ('ABSENT', 'LATE');
+CREATE TYPE attendance_change_action_enum AS ENUM ('UPDATE', 'DELETE');
+CREATE TYPE attendance_request_status_enum AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+
+CREATE TABLE attendance_events (
+    id uuid CONSTRAINT pk_attendance_events PRIMARY KEY DEFAULT gen_random_uuid(),
+    teacher_assignment_id uuid NOT NULL REFERENCES teacher_assignments(id) ON DELETE CASCADE,
+    attendance_date date NOT NULL,
+    course_start_time time NOT NULL,
+    course_end_time time NOT NULL,
+    created_by_account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+    created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_attendance_events_course UNIQUE (teacher_assignment_id, attendance_date, course_start_time, course_end_time),
+    CONSTRAINT ck_attendance_events_times CHECK (course_end_time > course_start_time)
+);
+
+CREATE TABLE attendance_records (
+    id uuid CONSTRAINT pk_attendance_records PRIMARY KEY DEFAULT gen_random_uuid(),
+    attendance_event_id uuid NOT NULL REFERENCES attendance_events(id) ON DELETE CASCADE,
+    student_enrollment_id uuid NOT NULL REFERENCES student_enrollments(id) ON DELETE CASCADE,
+    incident_type attendance_incident_type_enum NOT NULL,
+    late_minutes smallint, reason text,
+    justification_status justification_status_enum NOT NULL DEFAULT 'UNJUSTIFIED',
+    recorded_by_account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+    reviewed_by_account_id uuid REFERENCES accounts(id) ON DELETE RESTRICT, reviewed_at timestamptz,
+    updated_by_account_id uuid REFERENCES accounts(id) ON DELETE RESTRICT, last_change_reason text,
+    deleted_at timestamptz, deleted_by_account_id uuid REFERENCES accounts(id) ON DELETE RESTRICT,
+    created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_attendance_records_event_enrollment UNIQUE (attendance_event_id, student_enrollment_id),
+    CONSTRAINT ck_attendance_records_late_minutes CHECK ((incident_type = 'ABSENT' AND late_minutes IS NULL) OR (incident_type = 'LATE' AND late_minutes > 0)),
+    CONSTRAINT ck_attendance_records_reason CHECK (reason IS NULL OR char_length(btrim(reason)) > 0),
+    CONSTRAINT ck_attendance_records_review CHECK ((reviewed_by_account_id IS NULL AND reviewed_at IS NULL) OR (reviewed_by_account_id IS NOT NULL AND reviewed_at IS NOT NULL)),
+    CONSTRAINT ck_attendance_records_deletion CHECK ((deleted_at IS NULL AND deleted_by_account_id IS NULL) OR (deleted_at IS NOT NULL AND deleted_by_account_id IS NOT NULL))
+);
+
+CREATE TABLE attendance_change_requests (
+    id uuid CONSTRAINT pk_attendance_change_requests PRIMARY KEY DEFAULT gen_random_uuid(),
+    attendance_record_id uuid NOT NULL REFERENCES attendance_records(id) ON DELETE CASCADE,
+    requested_by_account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+    requested_action attendance_change_action_enum NOT NULL,
+    proposed_incident_type attendance_incident_type_enum, proposed_late_minutes smallint, proposed_reason text,
+    request_reason text NOT NULL, status attendance_request_status_enum NOT NULL DEFAULT 'PENDING',
+    reviewed_by_account_id uuid REFERENCES accounts(id) ON DELETE RESTRICT, reviewed_at timestamptz, review_comment text,
+    created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT ck_attendance_change_requests_reason CHECK (char_length(btrim(request_reason)) >= 3),
+    CONSTRAINT ck_attendance_change_requests_proposal CHECK ((requested_action = 'DELETE' AND proposed_incident_type IS NULL AND proposed_late_minutes IS NULL AND proposed_reason IS NULL) OR (requested_action = 'UPDATE' AND proposed_incident_type IS NOT NULL AND ((proposed_incident_type = 'ABSENT' AND proposed_late_minutes IS NULL) OR (proposed_incident_type = 'LATE' AND proposed_late_minutes > 0)))),
+    CONSTRAINT ck_attendance_change_requests_review CHECK ((status = 'PENDING' AND reviewed_by_account_id IS NULL AND reviewed_at IS NULL) OR (status IN ('APPROVED', 'REJECTED') AND reviewed_by_account_id IS NOT NULL AND reviewed_at IS NOT NULL))
+);
+
+CREATE TABLE attendance_record_history (
+    id uuid CONSTRAINT pk_attendance_record_history PRIMARY KEY DEFAULT gen_random_uuid(),
+    attendance_record_id uuid NOT NULL REFERENCES attendance_records(id) ON DELETE CASCADE,
+    change_action attendance_change_action_enum NOT NULL, old_incident_type attendance_incident_type_enum NOT NULL,
+    new_incident_type attendance_incident_type_enum, old_late_minutes smallint, new_late_minutes smallint,
+    old_reason text, new_reason text, old_justification_status justification_status_enum NOT NULL,
+    new_justification_status justification_status_enum, changed_by_account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+    change_reason text NOT NULL, changed_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT ck_attendance_record_history_reason CHECK (char_length(btrim(change_reason)) >= 3)
+);
+CREATE TABLE attendance_record_documents (
+    attendance_record_id uuid NOT NULL REFERENCES attendance_records(id) ON DELETE CASCADE,
+    document_id uuid NOT NULL REFERENCES documents(id) ON DELETE RESTRICT,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT pk_attendance_record_documents PRIMARY KEY (attendance_record_id, document_id)
+);
+
+CREATE INDEX idx_attendance_events_assignment ON attendance_events (teacher_assignment_id);
+CREATE INDEX idx_attendance_events_date ON attendance_events (attendance_date);
+CREATE INDEX idx_attendance_records_event ON attendance_records (attendance_event_id);
+CREATE INDEX idx_attendance_records_enrollment ON attendance_records (student_enrollment_id);
+CREATE INDEX idx_attendance_records_pending ON attendance_records (justification_status) WHERE justification_status = 'PENDING' AND deleted_at IS NULL;
+CREATE UNIQUE INDEX uq_attendance_change_requests_one_pending ON attendance_change_requests (attendance_record_id) WHERE status = 'PENDING';
+CREATE INDEX idx_attendance_record_history_record ON attendance_record_history (attendance_record_id, changed_at DESC);
+CREATE INDEX idx_attendance_record_documents_document ON attendance_record_documents (document_id);
+
+CREATE TRIGGER trg_attendance_events_set_updated_at BEFORE UPDATE ON attendance_events FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_attendance_records_set_updated_at BEFORE UPDATE ON attendance_records FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_attendance_change_requests_set_updated_at BEFORE UPDATE ON attendance_change_requests FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Garantit que l'appel et l'élève incidenté appartiennent bien au même cours.
+CREATE OR REPLACE FUNCTION check_attendance_event_context() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE v_start date; v_end date; v_year_start date; v_year_end date;
+BEGIN
+    SELECT assignment.start_date, assignment.end_date, year.start_date, year.end_date
+      INTO v_start, v_end, v_year_start, v_year_end
+      FROM teacher_assignments assignment
+      JOIN class_subjects class_subject ON class_subject.id = assignment.class_subject_id
+      JOIN classes class ON class.id = class_subject.class_id
+      JOIN school_years year ON year.id = class.school_year_id
+     WHERE assignment.id = NEW.teacher_assignment_id;
+    IF NOT FOUND OR NEW.attendance_date < v_start OR (v_end IS NOT NULL AND NEW.attendance_date > v_end)
+       OR NEW.attendance_date < v_year_start OR NEW.attendance_date > v_year_end THEN
+        RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'La date de l''appel est hors de la période de l''affectation.';
+    END IF;
+    RETURN NEW;
+END; $$;
+
+CREATE OR REPLACE FUNCTION check_attendance_record_context() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE v_class_id uuid; v_date date; v_duration integer; v_enrollment_class_id uuid; v_start date; v_end date;
+BEGIN
+    SELECT class_subject.class_id, event.attendance_date,
+           EXTRACT(EPOCH FROM (event.course_end_time - event.course_start_time))::integer / 60
+      INTO v_class_id, v_date, v_duration
+      FROM attendance_events event JOIN teacher_assignments assignment ON assignment.id = event.teacher_assignment_id
+      JOIN class_subjects class_subject ON class_subject.id = assignment.class_subject_id
+     WHERE event.id = NEW.attendance_event_id;
+    SELECT class_id, start_date, end_date INTO v_enrollment_class_id, v_start, v_end
+      FROM student_enrollments WHERE id = NEW.student_enrollment_id;
+    IF v_class_id IS NULL OR v_enrollment_class_id IS NULL OR v_class_id IS DISTINCT FROM v_enrollment_class_id
+       OR v_date < v_start OR (v_end IS NOT NULL AND v_date > v_end) THEN
+        RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'L''élève n''était pas inscrit dans cette classe à la date du cours.';
+    END IF;
+    IF NEW.incident_type = 'LATE' AND NEW.late_minutes > v_duration THEN
+        RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'La durée du retard dépasse la durée du cours.';
+    END IF;
+    RETURN NEW;
+END; $$;
+
+CREATE CONSTRAINT TRIGGER trg_attendance_events_check_context AFTER INSERT OR UPDATE ON attendance_events DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check_attendance_event_context();
+CREATE CONSTRAINT TRIGGER trg_attendance_records_check_context AFTER INSERT OR UPDATE ON attendance_records DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check_attendance_record_context();
+
+GRANT SELECT ON attendance_events, attendance_records, attendance_change_requests, attendance_record_history, attendance_record_documents TO blaise_app;
+GRANT INSERT (teacher_assignment_id, attendance_date, course_start_time, course_end_time, created_by_account_id) ON attendance_events TO blaise_app;
+GRANT INSERT (attendance_event_id, student_enrollment_id, incident_type, late_minutes, reason, justification_status, recorded_by_account_id) ON attendance_records TO blaise_app;
+GRANT UPDATE (incident_type, late_minutes, reason, justification_status, reviewed_by_account_id, reviewed_at, updated_by_account_id, last_change_reason, deleted_at, deleted_by_account_id) ON attendance_records TO blaise_app;
+GRANT INSERT (attendance_record_id, requested_by_account_id, requested_action, proposed_incident_type, proposed_late_minutes, proposed_reason, request_reason) ON attendance_change_requests TO blaise_app;
+GRANT UPDATE (status, reviewed_by_account_id, reviewed_at, review_comment) ON attendance_change_requests TO blaise_app;
+GRANT INSERT (attendance_record_id, change_action, old_incident_type, new_incident_type, old_late_minutes, new_late_minutes, old_reason, new_reason, old_justification_status, new_justification_status, changed_by_account_id, change_reason) ON attendance_record_history TO blaise_app;
+GRANT INSERT (attendance_record_id, document_id) ON attendance_record_documents TO blaise_app;
+REVOKE DELETE ON attendance_events, attendance_records, attendance_change_requests, attendance_record_history, attendance_record_documents FROM blaise_app;
+
+COMMIT;

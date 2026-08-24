@@ -101,23 +101,87 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - `assessments.coefficient` pondère une évaluation parmi les évaluations de la même matière.
 - Une note appartient à une évaluation et à l'inscription scolaire de l'élève.
 - Une note absente possède `result_type = 'ABSENT'` et aucune valeur numérique.
+- Une absence à une évaluation conserve toujours `score = NULL` afin de ne pas
+  confondre une absence avec un véritable zéro obtenu par un élève présent.
+- Une absence justifiée est exclue du calcul. Une absence `UNJUSTIFIED` ou
+  `REJECTED` reçoit une valeur effective de zéro uniquement pendant le calcul.
+- Une absence `PENDING` empêche la validation définitive du bulletin concerné.
 - Les calculs officiels sont effectués côté backend et protégés par les contraintes de la base.
 
 ### 3.6 Absences et retards
 
-- Aucun emploi du temps complet ni table générique de séances de cours n'est prévu pour le moment.
+- L'emploi du temps hebdomadaire récurrent est distinct de l'appel : voir `timetable_slots` (§3.9). `attendance_events` reste la source du contexte d'un appel ponctuel.
 - `attendance_events` contient uniquement le contexte d'un appel : affectation, date et horaires du cours.
 - `attendance_records` contient les élèves absents ou en retard pendant cet appel.
 - Le contexte évite de répéter le professeur, la matière et les horaires pour chaque élève concerné.
-- Aucun chemin de document justificatif n'est stocké dans ce modèle.
+- Les justificatifs sont stockés hors de PostgreSQL et référencés par le
+  catalogue `document_types` et la table `documents`.
+- `grade_documents` relie les justificatifs aux absences d'évaluation et
+  `attendance_record_documents` les relie aux absences ou retards de cours.
 
-### 3.7 Bulletins historiques
+## 3.6 bis — Emploi du temps et cours particuliers
+- Les horaires et pauses sont configurés, pour chaque année et jour ouvré,
+  par cycle (`PRESCHOOL`, `PRIMARY`, `MIDDLE_SCHOOL`, `HIGH_SCHOOL`) dans
+  `school_day_schedules` et `break_schedules`.
+- `level_subject_requirements` définit le volume hebdomadaire d'une matière
+  pour un niveau et une année. Il ne dépend pas d'une classe particulière.
+- `timetables` versionne une proposition par classe : `DRAFT`, puis
+  `VALIDATED`; l'ancienne version validée devient `ARCHIVED` lors d'un remplacement.
+- `timetable_slots` contient les cours réguliers liés à une `teacher_assignment`.
+- `special_courses` conserve les cours individuels/rattrapage, liés à une
+  inscription élève et une matière ; l'enseignant et la salle sont facultatifs.
+- Règle stricte : aucun chevauchement horaire n'est toléré, quel que soit
+  le type de cours (régulier ou particulier), pour : un même élève, un même
+  enseignant (si renseigné), une même salle (si renseignée).
+- Aucune plage horaire réservée n'est imposée aux cours particuliers : ils
+  peuvent avoir lieu à toute heure, sous réserve d'absence de chevauchement.
+- Ces tables remplacent la mention "aucun emploi du temps prévu" du §3.6 :
+  la fonctionnalité US-029 du Product Backlog est désormais implémentée.
+
+### 3.7 Documents
+
+- Les fichiers restent dans le stockage applicatif ; PostgreSQL conserve leur
+  chemin logique, nom original, type MIME, taille et empreinte SHA-256.
+- Les types de documents sont des lignes de `document_types`, jamais des
+  colonnes supplémentaires ajoutées à chaque nouveau besoin.
+- Les relations vers les objets métier utilisent des tables de liaison avec de
+  vraies clés étrangères ; ne pas utiliser une relation polymorphe
+  `entity_type` + `entity_id`.
+- Un justificatif peut être relié à une note absente ou à un incident
+  d'assiduité sans dupliquer le fichier.
+
+### 3.8 Bulletins historiques
 
 - Un bulletin appartient à une inscription et à une période.
 - `report_card_subjects` conserve les moyennes et coefficients réellement appliqués.
 - `report_card_grades` conserve la liste exacte des notes utilisées.
 - Une fois validé, le bulletin et ses lignes deviennent immuables, sauf procédure explicite d'invalidation autorisée et auditée.
 - Les moyennes stockées sont des instantanés historiques volontaires, pas une erreur de normalisation.
+- À l'affichage, le rang et les moyennes de classe sont calculés sur la dernière
+  version générée de chaque élève pour la même classe et la même période. Ils ne
+  sont pas encore figés dans le bulletin historique.
+
+### 3.9 Emploi du temps
+
+- `timetable_slots` représente un créneau hebdomadaire récurrent (jour de la
+  semaine + heure de début/fin), rattaché à une `teacher_assignment` — pas de
+  date précise, pas de duplication de `teacher_id`/`class_id` (résolus par
+  jointure pour rester en 3NF).
+- `rooms` est une table dédiée plutôt qu'un texte libre, pour éviter la
+  duplication/les fautes de saisie sur le nom de salle.
+- Trois conflits sont interdits par trigger (`check_timetable_slot_conflicts`) :
+  un même enseignant, une même classe ou une même salle ne peuvent pas avoir
+  deux créneaux qui se chevauchent le même jour.
+- L'algorithme ne publie jamais directement : il crée un brouillon que
+  l'administrateur valide après contrôle. Les brouillons peuvent être supprimés.
+- Un emploi du temps d'une année clôturée est immuable, comme le reste de
+  l'activité pédagogique.
+- `timetable_slots` reste le modèle d'un cours hebdomadaire récurrent. Un cours
+  saisi manuellement pour une date unique est stocké dans `timetable_date_slots`,
+  avec `course_date`, afin de ne pas transformer un cours ponctuel en récurrence.
+- La génération automatique reçoit obligatoirement une date de début et une date
+  de fin incluses dans l'année scolaire. Le brouillon produit ne vaut que sur
+  cette plage ; l'interface affiche ensuite les jours avec leurs dates réelles.
 
 ## 4. Conventions PostgreSQL obligatoires
 
@@ -176,11 +240,18 @@ Dossier propre à un élève. Il ne contient pas son matricule.
 | `phone` | `varchar(30)` | Numéro de téléphone, facultatif. |
 | `address` | `text` | Adresse postale, facultative. |
 | `admission_date` | `date` | Date d'entrée initiale dans l'établissement. |
+| `previous_establishment` | `varchar(150)` | Établissement fréquenté auparavant, facultatif. |
+| `medical_condition` | `text` | Information médicale particulière, facultative et à accès restreint. |
+| `is_enrolled_in_cned` | `boolean` | Indique si l'élève est inscrit au CNED. |
 | `status` | `student_status_enum` | Situation scolaire : `ACTIVE`, `INACTIVE` ou `ARCHIVED`. |
 | `photo_path` | `varchar(500)` | Chemin de la photo facultative de l'élève. |
+| `previous_establishment` | `varchar(150)` | Établissement fréquenté avant l'admission, facultatif. |
+| `medical_condition` | `text` | Information médicale particulière, facultative et réservée au personnel. |
+| `is_enrolled_in_cned` | `boolean` | Indique si l'élève est inscrit au CNED ; faux par défaut. |
 | `archived_at` | `timestamptz` | Date d'archivage logique du dossier élève. |
 
 `account_id` est obligatoire et unique. Le compte référencé doit avoir le rôle `STUDENT`. Le statut scolaire est indépendant de l'état du compte. `ARCHIVED` exige `archived_at`; `ACTIVE` et `INACTIVE` exigent que `archived_at` soit nul.
+Les informations médicales particulières sont facultatives et accessibles uniquement aux administrateurs et enseignants depuis la fiche élève.
 
 ### 5.3 `teachers`
 
@@ -363,7 +434,7 @@ La paire classe/matière est unique et `coefficient > 0`.
 | `start_date` | `date` | Début de l'affectation. |
 | `end_date` | `date` | Fin facultative, notamment en cas de remplacement. |
 
-`end_date >= start_date`. Interdire le chevauchement de deux affectations identiques pour le même enseignant et la même matière de classe. Les dates doivent rester dans l'année de la classe.
+`end_date >= start_date`. Une matière de classe ne possède qu'un seul enseignant sur une même plage de dates : deux affectations du même `class_subject_id` ne peuvent pas se chevaucher, même si leurs enseignants diffèrent. Les dates doivent rester dans l'année de la classe. Une désaffectation renseigne `end_date` et ne supprime jamais l'historique.
 
 ### 5.16 `assessments`
 
@@ -389,8 +460,11 @@ La paire classe/matière est unique et `coefficient > 0`.
 | `result_type` | `varchar(10)` | `SCORED` ou `ABSENT`. |
 | `score` | `numeric(6,2)` | Valeur obtenue, uniquement pour `SCORED`. |
 | `comment` | `text` | Commentaire facultatif. |
+| `justification_status` | `varchar(20)` | Pour `ABSENT` : `UNJUSTIFIED`, `PENDING`, `JUSTIFIED` ou `REJECTED`. |
+| `reviewed_by_account_id` | `uuid` | Compte ayant traité le justificatif. |
+| `reviewed_at` | `timestamptz` | Moment du traitement du justificatif. |
 
-Une seule note par élève et évaluation. Pour `SCORED`, `score` est obligatoire, positif ou nul et inférieur ou égal au barème. Pour `ABSENT`, `score` doit être `NULL`. L'inscription doit appartenir à la classe de l'évaluation et être active à sa date.
+Une seule note par élève et évaluation. Pour `SCORED`, `score` est obligatoire, positif ou nul et inférieur ou égal au barème. Pour `ABSENT`, `score` doit être `NULL` et le statut de justification est obligatoire. `JUSTIFIED` est exclu du calcul, `UNJUSTIFIED` et `REJECTED` valent zéro pendant le calcul, et `PENDING` bloque la validation du bulletin. L'inscription doit appartenir à la classe de l'évaluation et être active à sa date.
 
 ### 5.18 `attendance_events`
 
@@ -418,6 +492,10 @@ Une seule note par élève et évaluation. Pour `SCORED`, `score` est obligatoir
 | `recorded_by_account_id` | `uuid` | Compte ayant enregistré l'incident. |
 | `reviewed_by_account_id` | `uuid` | Compte ayant vérifié le justificatif. |
 | `reviewed_at` | `timestamptz` | Moment de la vérification. |
+| `updated_by_account_id` | `uuid` | Dernier compte ayant corrigé l'incident. |
+| `last_change_reason` | `text` | Motif de la dernière correction. |
+| `deleted_at` | `timestamptz` | Suppression logique de l'incident. |
+| `deleted_by_account_id` | `uuid` | Compte ayant effectué la suppression logique. |
 
 Une seule ligne par élève et contexte. Pour `LATE`, les minutes sont strictement positives et ne dépassent pas la durée du cours. Pour `ABSENT`, elles sont nulles. L'élève doit appartenir à la classe du contexte. Les informations de révision sont renseignées ensemble.
 
@@ -434,7 +512,7 @@ Une seule ligne par élève et contexte. Pour `LATE`, les minutes sont stricteme
 | `generated_at` | `timestamptz` | Moment de génération. |
 | `validated_by_account_id` | `uuid` | Compte ayant validé le bulletin. |
 | `validated_at` | `timestamptz` | Moment de validation. |
-| `pdf_path` | `varchar(500)` | Chemin du PDF produit, facultatif avant génération finale. |
+| `pdf_document_id` | `uuid` | Document PDF final référencé dans `documents`, facultatif avant génération. |
 
 Un seul bulletin par inscription et période. L'inscription et la période doivent appartenir à la même année. Les informations de validation sont renseignées ensemble et `validated_at >= generated_at`.
 
@@ -458,6 +536,38 @@ La matière doit appartenir à la classe de l'inscription du bulletin. `applied_
 | `grade_id` | `uuid` | Note utilisée, partie de la clé primaire. |
 
 La note doit appartenir au même élève, à une matière de sa classe et à une évaluation dont la date est incluse dans la période du bulletin.
+
+### 5.23 Documents et liaisons documentaires
+
+- `document_types` contient `id`, `code` unique, `label`, `description` et
+  `is_active`. Ajouter un type consiste à ajouter une ligne au catalogue.
+- `documents` contient `document_type_id`, `storage_path` unique,
+  `original_filename`, `mime_type`, `size_bytes`, `sha256`,
+  `uploaded_by_account_id` et `archived_at`. Le contenu binaire n'est jamais
+  stocké dans PostgreSQL.
+- `grade_documents` possède la clé composée (`grade_id`, `document_id`).
+- `attendance_record_documents` possède la clé composée
+  (`attendance_record_id`, `document_id`).
+- `report_cards.pdf_document_id` référence un document de type `REPORT_CARD`.
+
+### 5.24 Demandes de correction et historique d'assiduité
+
+- `grade_change_requests` conserve les anciennes et nouvelles valeurs proposées
+  ainsi que le demandeur, le valideur et la décision. Une seule demande
+  `PENDING` est autorisée par note.
+- `attendance_change_requests` permet à un enseignant de signaler une correction
+  ou une suppression logique sans modifier directement l'incident. Une seule
+  demande `PENDING` est autorisée par incident.
+- `attendance_record_history` conserve les anciennes et nouvelles valeurs de
+  chaque correction effectivement appliquée, son auteur, son motif et sa date.
+
+### 5.24 bis Appréciations (US-017 reportée)
+
+- L'US-017 n'est pas implémentée dans cette version : il n'existe ni écran,
+  ni route, ni table de brouillon d'appréciations.
+- Les colonnes historiques `report_card_subjects.teacher_comment` et
+  `report_cards.overall_comment` sont conservées pour une future implémentation
+  validée de l'US-017.
 
 ## 6. Contraintes et protections obligatoires
 
@@ -580,7 +690,8 @@ Après l'écriture :
 - Pour une exception attendue, choisir un code et un message précis; éviter `WHEN OTHERS` sans relance ni traitement justifié.
 - Une procédure de clôture d'année doit être idempotente ou refuser clairement une deuxième clôture.
 - Une fonction de calcul de moyenne doit définir : données retenues, absences, coefficients, barème, arrondi et cas sans note.
-- Ne figer aucune règle d'arrondi ou de traitement d'une absence sans validation métier.
+- Ne figer aucune règle d'arrondi sans validation métier. Le traitement des
+  absences à une évaluation suit la règle validée de la section 3.5.
 
 ## 10. Tests de base de données obligatoires
 
@@ -642,9 +753,7 @@ L'agent ne doit pas :
 Ces sujets ne doivent pas être décidés silencieusement par l'agent :
 
 - valeurs définitives de `gender` ;
-- format exact des matricules ;
 - formule d'arrondi des moyennes ;
-- traitement scolaire d'une évaluation manquée ;
 - personnes autorisées à justifier une absence et à valider un bulletin ;
 - politique d'invalidation ou de nouvelle version d'un bulletin validé ;
 - activation future des comptes élèves et responsables.

@@ -1,0 +1,52 @@
+.addp-main { padding: var(--space-5); color: var(--color-text-primary); }
+.addp-page-header { display: flex; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-5); }
+.addp-page-header h1 { margin: 0 0 var(--space-2); font-size: var(--font-size-2xl); }
+.addp-back { width: 38px; height: 38px; display: grid; place-items: center; color: var(--color-primary); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-full); cursor: pointer; }
+.addp-breadcrumb { display: flex; flex-wrap: wrap; gap: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.addp-breadcrumb button { padding: 0; color: var(--color-primary); background: none; border: 0; cursor: pointer; }
+.addp-identity, .addp-information { padding: var(--space-5); background: var(--color-surface); border: var(--border-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); }
+.addp-identity { display: grid; grid-template-columns: auto 1fr; gap: var(--space-4); align-items: center; margin-bottom: var(--space-5); }
+.addp-avatar { width: 64px; height: 64px; display: grid; place-items: center; color: var(--color-primary); background: var(--color-primary-light); border-radius: var(--radius-full); overflow: hidden; font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); }
+.addp-photo-wrap { position: relative; width: 64px; height: 64px; }
+.addp-photo-input { display: none; }
+.addp-photo-edit { position: absolute; right: -4px; bottom: -4px; width: 28px; height: 28px; display: grid; place-items: center; color: var(--color-primary); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-full); cursor: pointer; }
+.addp-name h2 { margin: 0 0 var(--space-2); }
+.addp-summary { grid-column: 1 / -1; display: grid; gap: var(--space-3); margin: 0; }
+.addp-summary div { padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
+.addp-summary dt, .addp-information article span { color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.addp-summary dd { margin: var(--space-1) 0 0; font-weight: var(--font-weight-semibold); }
+.addp-information h2 { margin: 0 0 var(--space-5); font-size: var(--font-size-lg); }
+.addp-information-grid { display: grid; gap: var(--space-3); }
+.addp-information article { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); background: var(--table-row-hover-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.addp-information article svg { color: var(--color-primary); flex: 0 0 auto; }
+.addp-information article strong { display: block; margin-top: var(--space-1); overflow-wrap: anywhere; }
+.addp-error { padding: var(--space-4); color: var(--color-danger-text); background: var(--color-danger-light); border: 1px solid var(--color-danger-border); border-radius: var(--radius-md); }
+.addp-page-header { position: relative; }
+.addp-edit-button { margin-left: auto; align-self: flex-start; height: var(--button-height-md); padding: var(--button-padding-lg); background: var(--button-primary-bg); color: var(--button-primary-text); border: none; border-radius: var(--radius-md); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.addp-confirmation { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--status-active-text); border-radius: var(--radius-md); background: var(--status-active-bg); color: var(--status-active-text); }
+.addp-confirmation button { border: 0; background: transparent; color: inherit; font-size: var(--font-size-xl); cursor: pointer; }
+.addp-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.addp-form-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
+.addp-form-grid label { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
+.addp-form-grid input, .addp-form-grid select { width: 100%; min-height: var(--input-height-sm); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--font-size-sm); font-family: inherit; background: var(--input-bg); color: var(--input-text); box-sizing: border-box; }
+.addp-form-error { margin: 0; padding: var(--space-3); border: 1px solid var(--color-danger-border); border-radius: var(--radius-md); background: var(--color-danger-light); color: var(--color-danger-text); }
+.addp-form-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
+.addp-btn-outline { background: var(--button-secondary-bg); border: var(--border-width-thin) solid var(--button-secondary-border); color: var(--button-secondary-text); border-radius: var(--radius-md); padding: var(--button-padding-lg); height: var(--button-height-md); cursor: pointer; font-weight: var(--font-weight-medium); }
+.addp-btn-primary { background: var(--button-primary-bg); color: var(--button-primary-text); border: none; border-radius: var(--radius-md); padding: var(--button-padding-lg); height: var(--button-height-md); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.addp-btn-primary:disabled { background: var(--button-disabled-bg); color: var(--button-disabled-text); cursor: not-allowed; }
+.addp-tabs { display: flex; gap: var(--space-5); border-bottom: var(--border-width-thin) solid var(--color-divider); margin-bottom: var(--space-5); flex-wrap: wrap; }
+.addp-tab { background: none; border: none; padding: 0 0 var(--space-3); font-size: var(--font-size-sm); color: var(--color-text-muted); cursor: pointer; border-bottom: var(--border-width-medium) solid transparent; }
+.addp-tab--active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: var(--font-weight-semibold); }
+
+@media (min-width: 700px) {
+  .addp-summary { grid-column: auto; grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+  .addp-information-grid { grid-template-columns: repeat(2, 1fr); }
+  .addp-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .addp-form-wide { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1050px) {
+  .addp-main { padding: var(--space-8) var(--space-10); }
+  .addp-identity { grid-template-columns: auto minmax(220px, 1fr) 2fr; }
+  .addp-summary { grid-column: auto; }
+}

@@ -83,6 +83,8 @@
 .scd-teacher-picker__header p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .scd-teacher-search { display: flex; align-items: center; gap: var(--space-2); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); padding: 0 var(--space-3); color: var(--color-text-muted); }
 .scd-teacher-search input { width: 100%; min-height: var(--input-height-sm); border: 0; outline: 0; background: transparent; color: var(--input-text); font: inherit; }
+.scd-enrollment-date { display: grid; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.scd-enrollment-date input { min-height: var(--input-height-sm); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--input-text); padding: 0 var(--space-3); font: inherit; }
 .scd-teacher-results { display: flex; flex-direction: column; gap: var(--space-2); overflow-y: auto; }
 .scd-teacher-result { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3); text-align: left; border: var(--border-default); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); cursor: pointer; }
 .scd-teacher-result:hover, .scd-teacher-result--selected { border-color: var(--color-primary); background: var(--color-primary-light); }
@@ -134,7 +136,8 @@
 .scd-coef-display { display: inline-flex; align-items: center; gap: var(--space-2); }
 .scd-coef-edit { display: inline-flex; align-items: center; gap: var(--space-1); }
 .scd-coef-input { width: 5rem; min-height: var(--input-height-sm); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); padding: 0 var(--space-2); font: inherit; background: var(--input-bg); color: var(--input-text); }
-.scd-no-teacher { color: var(--color-text-muted); font-style: italic; font-size: var(--font-size-xs); }
+.scd-no-teacher { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-text-muted); font-style: italic; font-size: var(--font-size-xs); }
+.scd-no-teacher .scd-btn-icon { font-style: normal; opacity: 1; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--color-primary); }
 .scd-subject-coef-row { border-top: var(--border-default); padding: var(--space-4); display: flex; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; }
 .scd-subject-coef-row label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
 .scd-subject-coef-row input { min-height: var(--input-height-sm); border: var(--border-width-thin) solid var(--input-border); border-radius: var(--radius-md); padding: 0 var(--space-3); font: inherit; width: 8rem; background: var(--input-bg); color: var(--input-text); }
@@ -152,4 +155,13 @@
   .scd-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .scd-student-filters { grid-template-columns: minmax(16rem, 1fr) minmax(11rem, 0.35fr) auto auto; }
   .scd-subject-filters { grid-template-columns: minmax(16rem, 1fr) minmax(11rem, 0.35fr) auto auto; }
+}
+.scd-assigned-teacher {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.scd-assigned-teacher small {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
 }

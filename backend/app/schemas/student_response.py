@@ -24,10 +24,22 @@ class StudentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     class_id: UUID | None
+    class_main_teacher_id: UUID | None = None
+    viewer_is_main_teacher: bool = False
     school_year_id: UUID | None
     class_name: str | None
     school_year_name: str | None
     birth_place: str | None
     nationality: str | None
     previous_level: str | None
+    previous_establishment: str | None
+    medical_condition: str | None
+    is_enrolled_in_cned: bool
     guardians: list[dict] = Field(default_factory=list)
+
+
+class StudentListResponse(BaseModel):
+    """Page d'élèves accompagnée du total correspondant aux filtres."""
+
+    items: list[StudentResponse]
+    total: int = Field(ge=0)

@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getGuardianDetail, updateGuardian } from '../services/guardians_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
+import { INTERNATIONAL_PHONE_PATTERN, normalizeInternationalPhone } from '../utils/phone.js'
 import '../styles/guardian_details_page.css'
 
 const DEFAULT_PHOTO = defaultPhoto
@@ -144,7 +146,7 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
         first_name: form.first_name,
         last_name: form.last_name,
         gender: form.gender || null,
-        phone: form.phone,
+        phone: normalizeInternationalPhone(form.phone),
         email: form.email || null,
         address: form.address || null,
         occupation: form.occupation || null,
@@ -168,7 +170,6 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
 
   const relatedStudents = details.students ?? []
   const emergencyStudents = relatedStudents.filter((student) => student.is_emergency_contact)
-  const primaryStudents = relatedStudents.filter((student) => student.is_primary_contact)
   const relationshipSummary = [...new Set(relatedStudents.map((student) => student.relationship_label))]
     .filter(Boolean)
     .join(', ')
@@ -180,19 +181,19 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
         <span>›</span>
         <button type="button" onClick={() => onNavigate?.('guardians')}>Responsables</button>
         <span>›</span>
-        <span>{details.first_name} {details.last_name}</span>
+        <span>{formatProfileName(details.first_name, details.last_name, details.gender)}</span>
       </nav>
 
       <div className="gdp-header">
         <span className="gdp-avatar">
           <img
             src={details.photo_path || DEFAULT_PHOTO}
-            alt={`Photo de ${details.first_name} ${details.last_name}`}
+            alt={`Photo de ${formatProfileName(details.first_name, details.last_name, details.gender, { fallback: 'ce responsable' })}`}
             onError={(event) => { event.currentTarget.src = DEFAULT_PHOTO }}
           />
         </span>
         <div>
-          <h1>{details.first_name} {details.last_name}</h1>
+          <h1>{formatProfileName(details.first_name, details.last_name, details.gender)}</h1>
           <div className="gdp-header-meta">
             <StatusBadge status={details.archived_at ? 'ARCHIVED' : 'ACTIVE'} />
           </div>
@@ -225,7 +226,7 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
                     <option value="FEMALE">Féminin</option>
                   </select>
                 </label>
-                <label><span>Téléphone</span><input value={form.phone} onChange={(event) => update('phone', event.target.value)} required /></label>
+                <label><span>Téléphone</span><input value={form.phone} onChange={(event) => update('phone', event.target.value)} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" required /></label>
                 <label><span>Email</span><input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
                 <label><span>Adresse</span><input value={form.address} onChange={(event) => update('address', event.target.value)} /></label>
                 <label><span>Profession</span><input value={form.occupation} onChange={(event) => update('occupation', event.target.value)} /></label>
@@ -242,7 +243,7 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
                 </button>
               </div>
               <dl className="gdp-info-list">
-                <div><dt><UserRound aria-hidden="true" size={18} />Nom complet</dt><dd>{details.first_name} {details.last_name}</dd></div>
+                <div><dt><UserRound aria-hidden="true" size={18} />Nom complet</dt><dd>{formatProfileName(details.first_name, details.last_name, details.gender)}</dd></div>
                 <div><dt><ShieldCheck aria-hidden="true" size={18} />Genre</dt><dd>{genderLabel(details.gender)}</dd></div>
                 <div><dt><MapPin aria-hidden="true" size={18} />Adresse complète</dt><dd>{details.address ?? '—'}</dd></div>
                 <div><dt><Phone aria-hidden="true" size={18} />Téléphone</dt><dd>{details.phone ?? '—'}</dd></div>
@@ -266,10 +267,6 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
               <article className="gdp-stat-card gdp-stat-card--emergency">
                 <span className="gdp-stat-card__value">{emergencyStudents.length}</span>
                 <span className="gdp-stat-card__label">Contact(s) d’urgence</span>
-              </article>
-              <article className="gdp-stat-card gdp-stat-card--primary">
-                <span className="gdp-stat-card__value">{primaryStudents.length}</span>
-                <span className="gdp-stat-card__label">Contact(s) principal(aux)</span>
               </article>
             </div>
           </section>
@@ -303,7 +300,6 @@ export default function GuardianDetailsPage({ guardian, onNavigate }) {
                       <span className="gdp-student-meta">
                         {student.relationship_label}
                         {student.is_legal_guardian ? ' · Responsable légal' : ''}
-                        {student.is_primary_contact ? ' · Contact principal' : ''}
                       </span>
                     </span>
                   </button>

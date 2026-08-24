@@ -3,7 +3,7 @@
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class StudentEnrollmentCreate(BaseModel):
@@ -11,3 +11,4 @@ class StudentEnrollmentCreate(BaseModel):
 
     class_id: UUID
     start_date: date
+    specialty_subject_ids: list[UUID] = Field(default_factory=list)

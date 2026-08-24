@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getGuardiansOverview } from '../services/guardians_overview_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import '../styles/guardians_page.css'
 
 const STATUS_LABEL = { ACTIVE: 'Actif', ARCHIVED: 'Archivé' }
@@ -16,7 +18,7 @@ function ProfilePhoto({ photoPath, firstName, lastName }) {
     <span className="glp-avatar">
       <img
         src={photoPath || defaultPhoto}
-        alt={`Photo de ${firstName} ${lastName}`}
+        alt={`Photo de ${formatProfileName(firstName, lastName, undefined, { fallback: 'ce responsable' })}`}
         onError={(event) => { event.currentTarget.src = defaultPhoto }}
       />
     </span>
@@ -28,15 +30,20 @@ export default function GuardiansPage({ onNavigate }) {
   const [guardians, setGuardians] = useState([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(0)
+  const debouncedQuery = useDebouncedValue(query)
 
   useEffect(() => {
     loadGuardians()
   }, [])
 
-  async function loadGuardians() {
+  useEffect(() => {
+    loadGuardians({ q: debouncedQuery })
+  }, [debouncedQuery])
+
+  async function loadGuardians(filters = {}) {
     setLoading(true)
     try {
-      setGuardians(await getGuardiansOverview(query))
+      setGuardians(await getGuardiansOverview('q' in filters ? filters.q : query))
       setPage(0)
     } catch (error) {
       console.error(error)
@@ -45,14 +52,8 @@ export default function GuardiansPage({ onNavigate }) {
     }
   }
 
-  function handleSearch(event) {
-    event.preventDefault()
-    loadGuardians()
-  }
-
   function handleReset() {
     setQuery('')
-    setTimeout(() => loadGuardians(), 0)
   }
 
   function openGuardianDetails(guardian) {
@@ -75,7 +76,7 @@ export default function GuardiansPage({ onNavigate }) {
         </div>
       </div>
 
-      <form className="glp-filters" onSubmit={handleSearch}>
+      <form className="glp-filters" onSubmit={(event) => event.preventDefault()}>
         <label className="glp-search">
           <Search aria-hidden="true" size={18} />
           <input
@@ -85,7 +86,6 @@ export default function GuardiansPage({ onNavigate }) {
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
-        <button type="submit" className="glp-btn-primary">Rechercher</button>
         <button type="button" className="glp-btn-outline" onClick={handleReset}>Réinitialiser</button>
       </form>
 
@@ -130,7 +130,7 @@ export default function GuardiansPage({ onNavigate }) {
                           lastName={guardian.last_name}
                         />
                         <span>
-                          <strong>{guardian.first_name} {guardian.last_name}</strong>
+                          <strong>{formatProfileName(guardian.first_name, guardian.last_name, guardian.gender)}</strong>
                           <small>{guardian.gender === 'MALE' ? 'Masculin' : guardian.gender === 'FEMALE' ? 'Féminin' : '—'}</small>
                         </span>
                       </span>

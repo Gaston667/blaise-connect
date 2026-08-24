@@ -1,0 +1,46 @@
+.attendance-detail-page { display: grid; gap: 1rem; padding: 1rem; }
+.attendance-detail-header h1 { margin: 0 0 .4rem; color: var(--color-primary-active); }
+.attendance-detail-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.attendance-detail-breadcrumb button { padding: 0; color: var(--color-primary); border: 0; background: transparent; font: inherit; font-weight: var(--font-weight-semibold); cursor: pointer; }
+.attendance-detail-breadcrumb button:hover { text-decoration: underline; }
+.attendance-detail-muted { margin: 0; color: var(--color-text-muted); }
+.attendance-detail-summary, .attendance-detail-card { padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.attendance-detail-summary { display: grid; gap: 1rem; }
+.attendance-detail-summary > svg { width: 2.5rem; height: 2.5rem; padding: .6rem; color: var(--color-primary); border-radius: 50%; background: var(--color-primary-light); }
+.attendance-detail-summary div { display: grid; gap: .2rem; }
+.attendance-detail-summary small, .attendance-detail-card dt { color: var(--color-text-muted); }
+.attendance-detail-summary span { color: var(--color-text-secondary); }
+.attendance-detail-grid { display: grid; gap: 1rem; }
+.attendance-detail-card h2 { display: flex; align-items: center; gap: .5rem; margin: 0 0 1rem; font-size: 1.05rem; }
+.attendance-detail-card h2 svg { width: 1.15rem; color: var(--color-primary); }
+.attendance-detail-card dl { margin: 0; }
+.attendance-detail-card dl div { display: flex; justify-content: space-between; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--color-divider); }
+.attendance-detail-card dd { margin: 0; text-align: right; font-weight: 600; }
+.attendance-detail-reason { padding: .8rem; border-radius: var(--radius-md); background: var(--color-background-alt); white-space: pre-wrap; }
+.attendance-detail-document { display: flex; align-items: center; gap: .5rem; width: 100%; margin-top: .5rem; padding: .7rem; color: var(--color-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #fff; cursor: pointer; }
+.attendance-detail-document svg { width: 1rem; }
+.attendance-detail-history { display: grid; gap: .6rem; }
+.attendance-detail-history article { display: grid; gap: .2rem; padding: .75rem; border-left: 3px solid var(--color-primary); background: var(--color-background-alt); }
+.attendance-detail-history small { color: var(--color-text-muted); }
+.attendance-detail-actions > div { display: flex; flex-wrap: wrap; gap: .75rem; }
+.attendance-detail-button { display: inline-flex; align-items: center; gap: .45rem; padding: .65rem .85rem; color: var(--color-primary); border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-surface); font: inherit; font-weight: 700; cursor: pointer; }
+.attendance-detail-button svg { width: 1rem; }
+.attendance-detail-button--success { color: var(--color-success); border-color: var(--color-success); }
+.attendance-detail-button--danger { color: var(--color-danger); border-color: var(--color-danger); }
+.attendance-detail-dialog-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 1rem; background: rgb(8 25 55 / 48%); }
+.attendance-detail-dialog { width: min(100%, 38rem); padding: 1.25rem; border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-lg); }
+.attendance-detail-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.attendance-detail-dialog h2 { margin: 0; color: var(--color-primary-active); }
+.attendance-detail-dialog header button { border: 0; background: transparent; cursor: pointer; }
+.attendance-detail-dialog form { display: grid; gap: 1rem; margin-top: 1rem; }
+.attendance-detail-dialog label { display: grid; gap: .4rem; color: var(--color-text-secondary); font-weight: 600; }
+.attendance-detail-dialog input, .attendance-detail-dialog select, .attendance-detail-dialog textarea { width: 100%; min-height: 2.75rem; padding: .65rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); font: inherit; }
+.attendance-detail-dialog textarea { min-height: 5.5rem; resize: vertical; }
+.attendance-detail-dialog footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .6rem; }
+.attendance-detail-dialog footer button { padding: .65rem .85rem; border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-primary); font: inherit; font-weight: 700; cursor: pointer; }
+.attendance-detail-dialog footer button[type="submit"] { background: var(--color-primary); color: #fff; }
+@media (min-width: 760px) {
+  .attendance-detail-page { padding: 1.5rem; }
+  .attendance-detail-summary { grid-template-columns: auto 2fr 1fr 1fr; align-items: center; }
+  .attendance-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

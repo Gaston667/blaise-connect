@@ -41,6 +41,7 @@ export default function SchoolYearsPage({ onNavigate }) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [formData, setFormData] = useState({
     name: '',
     start_date: '',
@@ -70,6 +71,9 @@ export default function SchoolYearsPage({ onNavigate }) {
   /** Met à jour un champ du formulaire. */
   function handleFormFieldChange(event) {
     const { name, value } = event.target
+    setFieldErrors(function clearFieldError(previousErrors) {
+      return { ...previousErrors, [name]: '' }
+    })
     setFormData(function updateFormData(previousData) {
       return { ...previousData, [name]: value }
     })
@@ -79,11 +83,20 @@ export default function SchoolYearsPage({ onNavigate }) {
   async function handleCreateSubmit(event) {
     event.preventDefault()
     setFormError('')
+
+    if (new Date(formData.end_date) <= new Date(formData.start_date)) {
+      setFieldErrors({
+        end_date: 'La date de fin doit être postérieure à la date de début.',
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
       await createSchoolYear(formData)
       setFormData({ name: '', start_date: '', end_date: '' })
+      setFieldErrors({})
       setIsFormOpen(false)
       await loadSchoolYears()
     } catch (error) {
@@ -201,6 +214,11 @@ export default function SchoolYearsPage({ onNavigate }) {
                 onChange={handleFormFieldChange}
                 required
               />
+              {fieldErrors.end_date && (
+                <p className="comptes-error" role="alert">
+                  {fieldErrors.end_date}
+                </p>
+              )}
             </div>
 
             <div className="details-field">

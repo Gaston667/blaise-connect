@@ -14,6 +14,9 @@ def extract_postgres_error_message(error: IntegrityError) -> str:
     original_error = getattr(error, "orig", None)
 
     if original_error is not None and original_error.args:
-        return str(original_error.args[0]).strip()
+        message = str(original_error.args[0]).strip()
+        # psycopg concatène parfois le CONTEXTE PL/pgSQL après le message
+        # métier ; on ne garde que la première ligne, destinée à l'admin.
+        return message.splitlines()[0].strip()
 
     return "Cette opération viole une règle métier de l'année scolaire ou de la période."

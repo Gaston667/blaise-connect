@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import AppHeader from '../components/app_header.jsx'
+import MobileBottomNav from '../components/mobile_bottom_nav.jsx'
 import Sidebar from '../components/sidebar.jsx'
 
 /**
@@ -12,8 +13,14 @@ export default function MainLayout({
   currentPage,
   onNavigate,
   onLogoutSuccess,
+  onStartTour,
+  isTourActive,
 }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isSidebarOpenState, setIsSidebarOpen] = useState(false)
+  // Sur téléphone, la sidebar est repliée par défaut : pendant la visite
+  // guidée, on la force ouverte pour que le halo pointe vers un élément
+  // réellement visible à l'écran, au lieu de rester caché derrière le menu.
+  const isSidebarOpen = isTourActive || isSidebarOpenState
 
   /**
    * Ouvre le menu sur téléphone.
@@ -29,8 +36,10 @@ export default function MainLayout({
     setIsSidebarOpen(false)
   }
 
+  const hasMobileBottomNav = account?.role === 'STUDENT'
+
   return (
-    <div className="layout-page">
+    <div className={hasMobileBottomNav ? 'layout-page layout-page--has-bottom-nav' : 'layout-page'}>
       <Sidebar
         account={account}
         currentPage={currentPage}
@@ -38,9 +47,10 @@ export default function MainLayout({
         onClose={handleSidebarClose}
         onNavigate={onNavigate}
         onLogoutSuccess={onLogoutSuccess}
+        onStartTour={onStartTour}
       />
 
-      {isSidebarOpen ? (
+      {isSidebarOpen && !isTourActive ? (
         <button
           className="layout-overlay"
           type="button"
@@ -50,14 +60,12 @@ export default function MainLayout({
       ) : null}
 
       <div className="layout-content">
-        <AppHeader
-          account={account}
-          onMenuOpen={handleSidebarOpen}
-          onLogoutSuccess={onLogoutSuccess}
-        />
+        <AppHeader onMenuOpen={handleSidebarOpen} />
 
         {children}
       </div>
+
+      <MobileBottomNav account={account} currentPage={currentPage} onNavigate={onNavigate} />
     </div>
   )
 }

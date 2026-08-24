@@ -27,15 +27,22 @@ class TestAccountCreate(TestCase):
         self.assertEqual(admin.role, "ADMIN")
         self.assertEqual(teacher.role, "TEACHER")
 
-    def test_student_role_is_refused(self) -> None:
-        """Un rôle absent de la V1 est refusé."""
+    def test_student_and_guardian_roles_are_allowed(self) -> None:
+        """Les comptes élève et responsable peuvent être créés."""
 
-        with self.assertRaises(ValidationError):
-            AccountCreate(
-                registration_number="u000002",
-                password="test@1234",
-                role="STUDENT",
-            )
+        student = AccountCreate(
+            registration_number="u000002",
+            password="test@1234",
+            role="STUDENT",
+        )
+        guardian = AccountCreate(
+            registration_number="p000002",
+            password="test@1234",
+            role="GUARDIAN",
+        )
+
+        self.assertEqual(student.role, "STUDENT")
+        self.assertEqual(guardian.role, "GUARDIAN")
 
     def test_short_password_is_refused(self) -> None:
         """Un mot de passe de moins de huit caractères est refusé."""

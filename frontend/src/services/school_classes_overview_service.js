@@ -1,16 +1,20 @@
-export async function getClassLevels() {
-  const res = await fetch('/api/class-levels', { credentials: 'include' })
-  if (!res.ok) throw new Error('Échec du chargement des niveaux')
-  return await res.json()
+import { apiRequest, apiRequestJson } from '../utils/apiErrorHandler.js'
+
+export function getClassLevels() {
+  return apiRequestJson('/api/class-levels', {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des niveaux',
+  })
 }
 
-export async function getTeachers() {
-  const res = await fetch('/api/teachers/overview', { credentials: 'include' })
-  if (!res.ok) throw new Error('Échec du chargement des enseignants')
-  return await res.json()
+export function getTeachers() {
+  return apiRequestJson('/api/teachers/overview', {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des enseignants',
+  })
 }
 
-export async function getSchoolClassesOverview({ q, schoolYearId, classLevelId, status, limit = 100, offset = 0 } = {}) {
+export function getSchoolClassesOverview({ q, schoolYearId, classLevelId, status, limit = 100, offset = 0 } = {}) {
   const params = new URLSearchParams()
   if (q) params.append('q', q)
   if (schoolYearId) params.append('school_year_id', schoolYearId)
@@ -19,130 +23,85 @@ export async function getSchoolClassesOverview({ q, schoolYearId, classLevelId, 
   params.append('limit', String(limit))
   params.append('offset', String(offset))
 
-  const res = await fetch(`/api/school-classes/overview?${params.toString()}`, { credentials: 'include' })
-  if (!res.ok) throw new Error('Échec du chargement des classes')
-  return await res.json()
+  return apiRequestJson(`/api/school-classes/overview?${params.toString()}`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des classes',
+  })
 }
 
-export async function getSchoolClassDetail(id) {
-  const res = await fetch(`/api/school-classes/${id}/detail`, { credentials: 'include' })
-  if (!res.ok) throw new Error('Échec du chargement de la classe')
-  return await res.json()
+export function getSchoolClassDetail(id) {
+  return apiRequestJson(`/api/school-classes/${id}/detail`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement de la classe',
+  })
 }
 
-export async function createSchoolClass(payload) {
-  const res = await fetch('/api/school-classes', {
+export function createSchoolClass(payload) {
+  return apiRequestJson('/api/school-classes', {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    fallbackMessage: 'Échec de la création de la classe',
   })
-  if (!res.ok) {
-    let message = 'Échec de la création de la classe'
-    try {
-      const body = await res.json()
-      if (body?.detail) message = body.detail
-    } catch {
-      // Le message générique reste utilisé lorsque la réponse n'est pas du JSON.
-    }
-    throw new Error(message)
-  }
-  return await res.json()
 }
 
-export async function updateSchoolClass(id, payload) {
-  const res = await fetch(`/api/school-classes/${id}`, {
+export function updateSchoolClass(id, payload) {
+  return apiRequestJson(`/api/school-classes/${id}`, {
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    fallbackMessage: 'Échec de la mise à jour',
   })
-  if (!res.ok) {
-    let err = 'Échec de la mise à jour'
-    try { const body = await res.json(); if (body?.detail) err = body.detail } catch {}
-    throw new Error(err)
-  }
-  return await res.json()
 }
 
-export async function deleteSchoolClass(id) {
-  const res = await fetch(`/api/school-classes/${id}`, {
+export function deleteSchoolClass(id) {
+  return apiRequest(`/api/school-classes/${id}`, {
     method: 'DELETE',
-    credentials: 'include',
+    expectJson: false,
+    fallbackMessage: 'Échec de la suppression',
   })
-  if (!res.ok) {
-    let err = 'Échec de la suppression'
-    try { const body = await res.json(); if (body?.detail) err = body.detail } catch {}
-    throw new Error(err)
-  }
 }
 
-export async function getSchoolClassSubjects(id, { q = '', isActive = '' } = {}) {
+export function getSchoolClassSubjects(id, { q = '', isActive = '' } = {}) {
   const params = new URLSearchParams()
   if (q) params.append('q', q)
   if (isActive !== '') params.append('is_active', isActive)
 
-  const res = await fetch(
-    `/api/school-classes/${id}/subjects?${params.toString()}`,
-    { credentials: 'include' },
-  )
-  if (!res.ok) {
-    let message = 'Échec du chargement des matières'
-    try {
-      const body = await res.json()
-      if (body?.detail) message = body.detail
-    } catch {
-      // Le message générique est conservé si la réponse n'est pas du JSON.
-    }
-    throw new Error(message)
-  }
-  return await res.json()
+  return apiRequestJson(`/api/school-classes/${id}/subjects?${params.toString()}`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des matières',
+  })
 }
 
-export async function getAvailableSubjectsForClass(classId) {
-  const res = await fetch(`/api/school-classes/${classId}/available-subjects`, { credentials: 'include' })
-  if (!res.ok) throw new Error('Échec du chargement des matières disponibles')
-  return res.json()
+export function getAvailableSubjectsForClass(classId) {
+  return apiRequestJson(`/api/school-classes/${classId}/available-subjects`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement des matières disponibles',
+  })
 }
 
-export async function addClassSubject(classId, subjectId, coefficient) {
-  const res = await fetch(`/api/school-classes/${classId}/subjects`, {
+export function addClassSubject(classId, subjectId, coefficient) {
+  return apiRequestJson(`/api/school-classes/${classId}/subjects`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ subject_id: subjectId, coefficient: Number(coefficient) }),
+    fallbackMessage: 'Échec de l\'ajout de la matière',
   })
-  if (!res.ok) {
-    let err = 'Échec de l\'ajout de la matière'
-    try { const b = await res.json(); if (b?.detail) err = b.detail } catch {}
-    throw new Error(err)
-  }
-  return res.json()
 }
 
-export async function updateClassSubjectCoefficient(classId, classSubjectId, coefficient) {
-  const res = await fetch(`/api/school-classes/${classId}/subjects/${classSubjectId}`, {
+export function updateClassSubjectCoefficient(classId, classSubjectId, coefficient) {
+  return apiRequestJson(`/api/school-classes/${classId}/subjects/${classSubjectId}`, {
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ coefficient: Number(coefficient) }),
+    fallbackMessage: 'Échec de la modification du coefficient',
   })
-  if (!res.ok) {
-    let err = 'Échec de la modification du coefficient'
-    try { const b = await res.json(); if (b?.detail) err = b.detail } catch {}
-    throw new Error(err)
-  }
-  return res.json()
 }
 
-export async function removeClassSubject(classId, classSubjectId) {
-  const res = await fetch(`/api/school-classes/${classId}/subjects/${classSubjectId}`, {
+export function removeClassSubject(classId, classSubjectId) {
+  return apiRequest(`/api/school-classes/${classId}/subjects/${classSubjectId}`, {
     method: 'DELETE',
-    credentials: 'include',
+    expectJson: false,
+    fallbackMessage: 'Échec du retrait de la matière',
   })
-  if (!res.ok) {
-    let err = 'Échec du retrait de la matière'
-    try { const b = await res.json(); if (b?.detail) err = b.detail } catch {}
-    throw new Error(err)
-  }
 }

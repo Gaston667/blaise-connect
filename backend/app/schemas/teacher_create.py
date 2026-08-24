@@ -3,7 +3,9 @@
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.schemas.phone_number import normalize_international_phone
 
 
 class TeacherCreate(BaseModel):
@@ -22,3 +24,10 @@ class TeacherCreate(BaseModel):
     hire_date: date
     qualification: str | None = None
     photo_path: str | None = Field(default=None, max_length=500)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, phone: str | None) -> str | None:
+        """Valide le téléphone lorsqu'il est renseigné."""
+
+        return normalize_international_phone(phone)

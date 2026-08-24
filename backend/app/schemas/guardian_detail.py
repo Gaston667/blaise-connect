@@ -15,7 +15,6 @@ class GuardianStudentSummary(BaseModel):
     status: str
     relationship: str
     relationship_label: str
-    is_primary_contact: bool
     is_legal_guardian: bool
     is_emergency_contact: bool
     school_year_name: str | None
@@ -28,6 +27,7 @@ class GuardianDetail(BaseModel):
     first_name: str
     last_name: str
     gender: str | None
+    nationality: str | None
     email: str | None
     phone: str
     address: str | None

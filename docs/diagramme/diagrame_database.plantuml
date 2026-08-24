@@ -1,396 +1,335 @@
 @startuml
-title BlaiseConnect - Schéma cible simplifié par groupe
-
-note "Nouvelle séquence consolidée 001 à 004 préparée mais non exécutée.\nLe diagramme présente le schéma obtenu après cette séquence." as DatabaseState
-
+title BlaiseConnect - Schéma relationnel global cible (migrations 001 à 006)
 top to bottom direction
 hide circle
-
-skinparam shadowing false
 skinparam linetype ortho
+skinparam shadowing false
 skinparam ArrowColor #546E7A
 
-skinparam entity {
-    BorderColor #616161
-    FontColor #263238
+package "Accès et profils" #FFEBEE {
+  entity accounts #FFCDD2 {
+    * id : uuid <<PK>>
+    * registration_number : varchar(50) <<UQ>>
+    * role : varchar(20)
+    * is_active : boolean
+    archived_at : timestamptz
+  }
+  entity auth_sessions #FFCDD2 {
+    * id : uuid <<PK>>
+    * account_id : uuid <<FK>>
+    * session_token_hash : text <<UQ>>
+  }
+  entity students #BBDEFB {
+    * id : uuid <<PK>>
+    * account_id : uuid <<FK, UQ>>
+    * first_name : varchar(100)
+    * last_name : varchar(100)
+    * status : student_status_enum
+  }
+  entity teachers #C8E6C9 {
+    * id : uuid <<PK>>
+    * account_id : uuid <<FK, UQ>>
+    * first_name : varchar(100)
+    * last_name : varchar(100)
+  }
+  entity administrators #FFE0B2 {
+    * id : uuid <<PK>>
+    * account_id : uuid <<FK, UQ>>
+    * first_name : varchar(100)
+    * last_name : varchar(100)
+  }
+  entity guardians #E1BEE7 {
+    * id : uuid <<PK>>
+    account_id : uuid <<FK, UQ>>
+    * first_name : varchar(100)
+    * last_name : varchar(100)
+  }
+  entity student_status_history #FFE0B2 {
+    * id : uuid <<PK>>
+    * student_id : uuid <<FK>>
+    * old_status : student_status_enum
+    * new_status : student_status_enum
+  }
+  entity student_guardians #FFF9C4 {
+    * student_id : uuid <<PK, FK>>
+    * guardian_id : uuid <<PK, FK>>
+    * relationship_type : varchar(10)
+    * is_primary_contact : boolean
+  }
 }
 
-skinparam package {
-    BorderColor #757575
-    FontColor #263238
+package "Documents" #EDE7F6 {
+  entity document_types #D1C4E9 {
+    * id : uuid <<PK>>
+    * code : varchar(50) <<UQ>>
+    * label : varchar(100)
+    * is_active : boolean
+  }
+  entity documents #D1C4E9 {
+    * id : uuid <<PK>>
+    * document_type_id : uuid <<FK>>
+    * storage_path : varchar(500) <<UQ>>
+    * original_filename : varchar(255)
+    * sha256 : char(64)
+    * uploaded_by_account_id : uuid <<FK>>
+  }
 }
 
-package "ACCÈS À L'APPLICATION" #FFEBEE {
-
-    entity "COMPTES" as comptes #FFCDD2 {
-        * id : UUID <<PK>>
-        --
-        * matricule : texte <<UNIQUE>>
-        * mot_de_passe_hash : texte
-        * rôle : texte
-        * actif : booléen
-        * tentatives_connexion_échouées : entier
-        verrouillé_jusqu_au : date et heure
-        dernière_connexion_le : date et heure
-        archivé_le : date et heure
-    }
-
-    entity "SESSIONS D'AUTHENTIFICATION" as sessions #FFCDD2 {
-        * id : UUID <<PK>>
-        --
-        * compte_id : UUID <<FK>>
-        * hash_jeton_session : texte <<UNIQUE>>
-        * dernière_activité_le : date et heure
-        révoquée_le : date et heure
-        * créée_le : date et heure
-    }
+package "Structure scolaire" #ECEFF1 {
+  entity school_years #E0E0E0 {
+    * id : uuid <<PK>>
+    * name : varchar(20) <<UQ>>
+    * start_date : date
+    * end_date : date
+    * is_current : boolean
+    closed_at : timestamptz
+  }
+  entity reporting_periods #E0E0E0 {
+    * id : uuid <<PK>>
+    * school_year_id : uuid <<FK>>
+    * name : varchar(100)
+    * start_date : date
+    * end_date : date
+  }
+  entity class_levels #E0E0E0 {
+    * id : uuid <<PK>>
+    * code : class_level_code_enum <<UQ>>
+    * education_stage : education_stage_enum
+  }
+  entity classes #BBDEFB {
+    * id : uuid <<PK>>
+    * school_year_id : uuid <<FK>>
+    * class_level_id : uuid <<FK>>
+    * main_teacher_id : uuid <<FK>>
+    * group_label : varchar(30)
+  }
+  entity student_enrollments #FFF9C4 {
+    * id : uuid <<PK>>
+    * student_id : uuid <<FK>>
+    * class_id : uuid <<FK>>
+    * start_date : date
+    end_date : date
+  }
+  entity subjects #C8E6C9 {
+    * id : uuid <<PK>>
+    * name : varchar(100) <<UQ>>
+    * is_active : boolean
+  }
+  entity class_subjects #C8E6C9 {
+    * id : uuid <<PK>>
+    * class_id : uuid <<FK>>
+    * subject_id : uuid <<FK>>
+    * coefficient : numeric(6,2)
+  }
+  entity teacher_assignments #C8E6C9 {
+    * id : uuid <<PK>>
+    * teacher_id : uuid <<FK>>
+    * class_subject_id : uuid <<FK>>
+    * start_date : date
+    end_date : date
+  }
 }
 
-package "ÉLÈVES" #FFF3E0 {
-
-    entity "DOSSIERS ÉLÈVES" as eleves #FFE0B2 {
-        * id : UUID <<PK>>
-        --
-        * compte_id : UUID <<FK, UNIQUE>>
-        * prénom : texte
-        * nom : texte
-        date_de_naissance : date
-        genre : texte
-        email : texte
-        téléphone : texte
-        adresse : texte
-        * date_admission : date
-        * statut : student_status_enum
-        photo_path : texte
-        archivé_le : date et heure
-    }
+package "Évaluations et notes" #E3F2FD {
+  entity assessments #BBDEFB {
+    * id : uuid <<PK>>
+    * teacher_assignment_id : uuid <<FK>>
+    * title : varchar(150)
+    * assessment_date : date
+    * maximum_score : numeric(6,2)
+    * coefficient : numeric(6,2)
+  }
+  entity grades #BBDEFB {
+    * id : uuid <<PK>>
+    * assessment_id : uuid <<FK>>
+    * student_enrollment_id : uuid <<FK>>
+    * result_type : varchar(10)
+    score : numeric(6,2)
+    justification_status : varchar(20)
+  }
+  entity grade_change_requests #FFE0B2 {
+    * id : uuid <<PK>>
+    * grade_id : uuid <<FK>>
+    * requested_by_account_id : uuid <<FK>>
+    * proposed_result_type : varchar(10)
+    proposed_score : numeric(6,2)
+    * status : varchar(20)
+  }
+  entity grade_documents #D1C4E9 {
+    * grade_id : uuid <<PK, FK>>
+    * document_id : uuid <<PK, FK>>
+  }
 }
 
-package "ENSEIGNANTS" #E8F5E9 {
-
-    entity "DOSSIERS ENSEIGNANTS" as enseignants #C8E6C9 {
-        * id : UUID <<PK>>
-        --
-        * compte_id : UUID <<FK, UNIQUE>>
-        * prénom : texte
-        * nom : texte
-        date_de_naissance : date
-        genre : texte
-        email : texte
-        téléphone : texte
-        adresse : texte
-        * date_embauche : date
-        qualification : texte
-        photo_path : texte
-        archivé_le : date et heure
-    }
+package "Appels et assiduité" #FFFDE7 {
+  entity attendance_events #FFF9C4 {
+    * id : uuid <<PK>>
+    * teacher_assignment_id : uuid <<FK>>
+    * attendance_date : date
+    * course_start_time : time
+    * course_end_time : time
+  }
+  entity attendance_records #FFF9C4 {
+    * id : uuid <<PK>>
+    * attendance_event_id : uuid <<FK>>
+    * student_enrollment_id : uuid <<FK>>
+    * incident_type : varchar(10)
+    late_minutes : smallint
+    * justification_status : varchar(20)
+    deleted_at : timestamptz
+  }
+  entity attendance_record_history #FFE0B2 {
+    * id : uuid <<PK>>
+    * attendance_record_id : uuid <<FK>>
+    * changed_by_account_id : uuid <<FK>>
+    * changed_at : timestamptz
+  }
+  entity attendance_change_requests #FFE0B2 {
+    * id : uuid <<PK>>
+    * attendance_record_id : uuid <<FK>>
+    * requested_by_account_id : uuid <<FK>>
+    * requested_action : varchar(10)
+    * status : varchar(20)
+  }
+  entity attendance_record_documents #D1C4E9 {
+    * attendance_record_id : uuid <<PK, FK>>
+    * document_id : uuid <<PK, FK>>
+  }
 }
 
-package "ADMINISTRATEURS" #E3F2FD {
-
-    entity "DOSSIERS ADMINISTRATEURS" as administrateurs #BBDEFB {
-        * id : UUID <<PK>>
-        --
-        * compte_id : UUID <<FK, UNIQUE>>
-        * prénom : texte
-        * nom : texte
-        genre : texte
-        email : texte
-        téléphone : texte
-        adresse : texte
-        * date_embauche : date
-        * fonction : texte
-        photo_path : texte
-        archivé_le : date et heure
-    }
+package "Bulletins" #F3E5F5 {
+  entity report_cards #E1BEE7 {
+    * id : uuid <<PK>>
+    * student_enrollment_id : uuid <<FK>>
+    * reporting_period_id : uuid <<FK>>
+    * general_average : numeric(6,2)
+    * generated_by_account_id : uuid <<FK>>
+    validated_by_account_id : uuid <<FK>>
+    validated_at : timestamptz
+    pdf_document_id : uuid <<FK>>
+  }
+  entity report_card_subjects #E1BEE7 {
+    * report_card_id : uuid <<PK, FK>>
+    * class_subject_id : uuid <<PK, FK>>
+    * subject_average : numeric(6,2)
+    * applied_coefficient : numeric(6,2)
+  }
+  entity report_card_grades #E1BEE7 {
+    * report_card_id : uuid <<PK, FK>>
+    * grade_id : uuid <<PK, FK>>
+  }
+  entity school_year_deletion_audits #CFD8DC {
+    * id : uuid <<PK>>
+    * school_year_id : uuid
+    * school_year_name : varchar(20)
+    * deleted_by_account_id : uuid
+    * deleted_counts : jsonb
+  }
 }
 
-package "RESPONSABLES" #F3E5F5 {
-
-    entity "DOSSIERS RESPONSABLES" as responsables #E1BEE7 {
-        * id : UUID <<PK>>
-        --
-        compte_id : UUID <<FK, UNIQUE>>
-        * prénom : texte
-        * nom : texte
-        genre : texte
-        email : texte
-        * téléphone : texte
-        adresse : texte
-        profession : texte
-        employeur : texte
-        photo_path : texte
-        archivé_le : date et heure
-    }
+package "Emploi du temps" #E0F2F1 {
+  entity school_day_schedules #B2DFDB {
+    * id : uuid <<PK>>
+    * school_year_id : uuid <<FK>>
+    * education_stage : education_stage_enum
+    * day_of_week : smallint
+  }
+  entity break_schedules #B2DFDB {
+    * id : uuid <<PK>>
+    * school_day_schedule_id : uuid <<FK>>
+    * start_time : time
+    * end_time : time
+  }
+  entity level_subject_requirements #B2DFDB {
+    * school_year_id : uuid <<FK>>
+    * class_level_id : uuid <<FK>>
+    * subject_id : uuid <<FK>>
+    * weekly_minutes : smallint
+  }
+  entity timetables #B2DFDB {
+    * id : uuid <<PK>>
+    * class_id : uuid <<FK>>
+    * version : smallint
+    * status : timetable_status_enum
+  }
+  entity timetable_slots #B2DFDB {
+    * id : uuid <<PK>>
+    * timetable_id : uuid <<FK>>
+    * teacher_assignment_id : uuid <<FK>>
+    room_id : uuid <<FK>>
+  }
+  entity special_courses #B2DFDB {
+    * id : uuid <<PK>>
+    * student_enrollment_id : uuid <<FK>>
+    * subject_id : uuid <<FK>>
+  }
 }
 
-package "ORGANISATION SCOLAIRE" #F5F5F5 {
+accounts ||--o{ auth_sessions
+accounts ||--o| students
+accounts ||--o| teachers
+accounts ||--o| administrators
+accounts |o--o| guardians
+students ||--o{ student_status_history
+students ||--o{ student_guardians
+guardians ||--o{ student_guardians
 
-    entity "ANNÉES SCOLAIRES" as annees #E0E0E0 {
-        * id : UUID <<PK>>
-        --
-        * nom : texte <<UNIQUE>>
-        * date_début : date
-        * date_fin : date
-        * année_actuelle : booléen
-        clôturée_le : date et heure
-        clôturée_par_compte_id : UUID <<FK>>
-    }
+document_types ||--o{ documents
+accounts ||--o{ documents : uploads
 
-    entity "PÉRIODES DE BULLETIN" as periodes #E0E0E0 {
-        * id : UUID <<PK>>
-        --
-        * année_scolaire_id : UUID <<FK>>
-        * nom : texte
-        * date_début : date
-        * date_fin : date
-    }
+school_years ||--o{ reporting_periods
+school_years ||--o{ classes
+class_levels ||--o{ classes
+teachers ||--o{ classes : main teacher
+students ||--o{ student_enrollments
+classes ||--o{ student_enrollments
+classes ||--o{ class_subjects
+subjects ||--o{ class_subjects
+teachers ||--o{ teacher_assignments
+class_subjects ||--o{ teacher_assignments
 
-    entity "NIVEAUX" as niveaux #E0E0E0 {
-        * id : UUID <<PK>>
-        --
-        * code : class_level_code_enum <<UNIQUE>>
-        * nom : texte
-        * catégorie : education_stage_enum
-        * ordre_affichage : entier
-        * actif : booléen
-    }
+teacher_assignments ||--o{ assessments
+assessments ||--o{ grades
+student_enrollments ||--o{ grades
+grades ||--o{ grade_change_requests
+grades ||--o{ grade_documents
+documents ||--o{ grade_documents
 
-    entity "CLASSES" as classes #E0E0E0 {
-        * id : UUID <<PK>>
-        --
-        * année_scolaire_id : UUID <<FK>>
-        * niveau_id : UUID <<FK>>
-        * professeur_principal_id : UUID <<FK>>
-        * groupe : texte
-        capacité : entier
-    }
-}
+teacher_assignments ||--o{ attendance_events
+attendance_events ||--o{ attendance_records
+student_enrollments ||--o{ attendance_records
+attendance_records ||--o{ attendance_record_history
+attendance_records ||--o{ attendance_change_requests
+attendance_records ||--o{ attendance_record_documents
+documents ||--o{ attendance_record_documents
 
-package "INSCRIPTIONS ET FAMILLES" #FFFDE7 {
+student_enrollments ||--o{ report_cards
+reporting_periods ||--o{ report_cards
+report_cards ||--o{ report_card_subjects
+class_subjects ||--o{ report_card_subjects
+report_cards ||--o{ report_card_grades
+grades ||--o{ report_card_grades
+documents |o--o| report_cards : PDF
 
-    entity "INSCRIPTIONS DES ÉLÈVES" as inscriptions #FFF9C4 {
-        * id : UUID <<PK>>
-        --
-        * élève_id : UUID <<FK>>
-        * classe_id : UUID <<FK>>
-        * date_début : date
-        date_fin : date
-        raison_fin : enrollment_end_reason_enum
-    }
+school_years ||--o{ school_day_schedules
+school_day_schedules ||--o{ break_schedules
+school_years ||--o{ level_subject_requirements
+class_levels ||--o{ level_subject_requirements
+subjects ||--o{ level_subject_requirements
+classes ||--o{ timetables
+timetables ||--o{ timetable_slots
+teacher_assignments ||--o{ timetable_slots
+student_enrollments ||--o{ special_courses
+subjects ||--o{ special_courses
 
-    entity "ÉLÈVES - RESPONSABLES" as liens_famille #FFF9C4 {
-        * élève_id : UUID <<PK, FK>>
-        * responsable_id : UUID <<PK, FK>>
-        --
-        * lien : texte
-        précision_lien : texte
-        * responsable_légal : booléen
-        * contact_principal : booléen
-        * contact_urgence : booléen
-    }
-}
-
-comptes "1" -- "0..1" eleves
-comptes "1" -- "0..1" enseignants
-comptes "1" -- "0..1" administrateurs
-comptes "0..1" -- "0..1" responsables
-comptes "1" -- "0..*" sessions
-
-annees "1" -- "0..*" periodes
-annees "1" -- "0..*" classes
-
-niveaux "1" -- "0..*" classes
-enseignants "1" -- "0..*" classes : professeur principal
-comptes "1" -- "0..*" annees : clôture
-
-eleves "1" -- "0..*" inscriptions
-classes "1" -- "0..*" inscriptions
-
-eleves "1" -- "0..*" liens_famille
-responsables "1" -- "0..*" liens_famille
-
-note right of comptes
-Rôles :
-- ÉLÈVE
-- ENSEIGNANT
-- ADMINISTRATEUR
-- PARENT
+note bottom of grades
+Absence justifiée : exclue du calcul.
+Absence non justifiée ou rejetée : valeur effective zéro.
+La valeur numérique reste NULL pour distinguer l'absence d'un vrai 0.
 end note
 
-note right of liens_famille
-Lien :
-- PÈRE
-- MÈRE
-- AUTRE
-
-Si AUTRE :
-précision_lien obligatoire
+note bottom of attendance_events
+Une ligne prouve que l'appel a été effectué.
+Sans attendance_record, l'élève est considéré présent.
 end note
-
-note right of inscriptions
-Raison de fin :
-- ANNÉE TERMINÉE
-- CHANGEMENT DE CLASSE
-- DÉPART DE L'ÉCOLE
-end note
-
-
-package "MATIÈRES ET ENSEIGNEMENT" #E8F5E9 {
-
-    entity "MATIÈRES" as matieres #C8E6C9 {
-        * id : UUID <<PK>>
-        --
-        * nom : VARCHAR(100) <<UNIQUE>>
-        description : TEXT
-        * actif : BOOLEAN
-    }
-
-    entity "MATIÈRES PAR CLASSE" as matieres_par_classe #C8E6C9 {
-        * id : UUID <<PK>>
-        --
-        * classe_id : UUID <<FK>>
-        * matiere_id : UUID <<FK>>
-        * coefficient : DECIMAL
-    }
-
-    entity "AFFECTATIONS ENSEIGNANTS" as affectations_enseignants #C8E6C9 {
-        * id : UUID <<PK>>
-        --
-        * enseignant_id : UUID <<FK>>
-        * matiere_par_classe_id : UUID <<FK>>
-        * date_debut : DATE
-        date_fin : DATE
-    }
-}
-
-package "ÉVALUATIONS ET NOTES" #E3F2FD {
-
-    entity "ÉVALUATIONS" as evaluations #BBDEFB {
-        * id : UUID <<PK>>
-        --
-        * affectation_enseignant_id : UUID <<FK>>
-        * titre : VARCHAR(150)
-        description : TEXT
-        * date_evaluation : DATE
-        * note_maximale : DECIMAL
-        * coefficient : DECIMAL
-    }
-
-    entity "NOTES" as notes #BBDEFB {
-        * id : UUID <<PK>>
-        --
-        * evaluation_id : UUID <<FK>>
-        * inscription_eleve_id : UUID <<FK>>
-        * type_resultat : NOTÉ ou ABSENT
-        note : DECIMAL
-        commentaire : TEXT
-    }
-}
-
-package "ABSENCES ET RETARDS" #FFFDE7 {
-
-    entity "CONTEXTE DE L'APPEL" as evenements_presence #FFF9C4 {
-        * id : UUID <<PK>>
-        --
-        * affectation_enseignant_id : UUID <<FK>>
-        * date_presence : DATE
-        * heure_debut_cours : TIME
-        * heure_fin_cours : TIME
-    }
-
-    entity "ABSENCES ET RETARDS" as absences_retards #FFF9C4 {
-        * id : UUID <<PK>>
-        --
-        * evenement_presence_id : UUID <<FK>>
-        * inscription_eleve_id : UUID <<FK>>
-        * type_presence : ABSENT ou EN RETARD
-        minutes_retard : SMALLINT
-        raison : TEXT
-        * statut_justificatif : VARCHAR(20)
-        * enregistre_par_compte_id : UUID <<FK>>
-        revise_par_compte_id : UUID <<FK>>
-        revise_le : TIMESTAMPTZ
-    }
-}
-
-package "BULLETINS" #F3E5F5 {
-
-    entity "BULLETINS" as bulletins #E1BEE7 {
-        * id : UUID <<PK>>
-        --
-        * inscription_eleve_id : UUID <<FK>>
-        * periode_bulletin_id : UUID <<FK>>
-        * moyenne_generale : DECIMAL
-        commentaire_general : TEXT
-        * genere_par_compte_id : UUID <<FK>>
-        * genere_le : TIMESTAMPTZ
-        valide_par_compte_id : UUID <<FK>>
-        valide_le : TIMESTAMPTZ
-        chemin_pdf : VARCHAR(500)
-    }
-
-    entity "MOYENNES PAR MATIÈRE" as bulletins_matieres #E1BEE7 {
-        * bulletin_id : UUID <<PK, FK>>
-        * matiere_par_classe_id : UUID <<PK, FK>>
-        --
-        * moyenne_matiere : DECIMAL
-        * coefficient_sauvegarde : DECIMAL
-        commentaire_enseignant : TEXT
-    }
-
-    entity "NOTES UTILISÉES" as notes_bulletin #E1BEE7 {
-        * bulletin_id : UUID <<PK, FK>>
-        * note_id : UUID <<PK, FK>>
-    }
-}
-
-classes "1" -- "0..*" matieres_par_classe
-matieres "1" -- "0..*" matieres_par_classe
-
-enseignants "1" -- "0..*" affectations_enseignants
-matieres_par_classe "1" -- "0..*" affectations_enseignants
-
-affectations_enseignants "1" -- "0..*" evaluations
-evaluations "1" -- "0..*" notes
-inscriptions "1" -- "0..*" notes
-
-affectations_enseignants "1" -- "0..*" evenements_presence
-evenements_presence "1" -- "0..*" absences_retards
-inscriptions "1" -- "0..*" absences_retards
-comptes "1" .. "0..*" absences_retards : saisie / vérification
-
-inscriptions "1" -- "0..*" bulletins
-periodes "1" -- "0..*" bulletins
-comptes "1" .. "0..*" bulletins : génération / validation
-
-bulletins "1" -- "1..*" bulletins_matieres
-matieres_par_classe "1" -- "0..*" bulletins_matieres
-
-bulletins "1" -- "0..*" notes_bulletin
-notes "1" -- "0..*" notes_bulletin
-
-note right of notes
-NOTÉ :
-note obligatoire
-
-ABSENT :
-note vide
-end note
-
-note right of absences_retards
-type_presence :
-- ABSENT
-- EN RETARD
-
-EN RETARD :
-minutes_retard obligatoire
-end note
-
-note right of notes_bulletin
-Cette table conserve
-la liste exacte des notes
-utilisées dans le bulletin.
-end note
-
 @enduml

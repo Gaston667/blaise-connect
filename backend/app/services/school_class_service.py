@@ -95,6 +95,7 @@ def list_school_classes_overview(
     school_year_id: str | None = None,
     class_level_id: str | None = None,
     status: str | None = None,
+    teacher_id: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict]:
@@ -111,10 +112,13 @@ def list_school_classes_overview(
             c.created_at,
             c.updated_at,
             cl.name AS level_name,
+            cl.code AS level_code,
             cl.display_order AS level_display_order,
+            cl.education_stage,
             sy.name AS school_year_name,
             t.first_name AS teacher_first_name,
             t.last_name AS teacher_last_name,
+            t.gender AS teacher_gender,
             CASE WHEN sy.closed_at IS NOT NULL THEN 'ARCHIVEE' ELSE 'ACTIVE' END AS status,
             COALESCE(enr.student_count, 0) AS student_count
         FROM classes c
@@ -143,6 +147,20 @@ def list_school_classes_overview(
     if status:
         sql += " AND (CASE WHEN sy.closed_at IS NOT NULL THEN 'ARCHIVEE' ELSE 'ACTIVE' END) = :status"
         params["status"] = status
+    if teacher_id:
+        sql += """ AND (
+            c.main_teacher_id = :teacher_id
+            OR EXISTS (
+                SELECT 1
+                FROM class_subjects AS class_subject
+                JOIN teacher_assignments AS assignment
+                  ON assignment.class_subject_id = class_subject.id
+                 AND assignment.end_date IS NULL
+                WHERE class_subject.class_id = c.id
+                  AND assignment.teacher_id = :teacher_id
+            )
+        )"""
+        params["teacher_id"] = teacher_id
 
     sql += " ORDER BY level_display_order, c.group_label LIMIT :limit OFFSET :offset"
 
@@ -158,8 +176,9 @@ def list_school_classes_overview(
             "created_at": row.created_at,
             "updated_at": row.updated_at,
             "level_name": row.level_name,
+            "level_code": row.level_code,
             "school_year_name": row.school_year_name,
-            "teacher_name": f"{row.teacher_first_name} {row.teacher_last_name}",
+            "teacher_name": f"{('M. ' if row.teacher_gender in ('MALE', 'M') else 'Mme ' if row.teacher_gender in ('FEMALE', 'F') else '')}{row.teacher_first_name} {row.teacher_last_name}",
             "status": row.status,
             "student_count": row.student_count,
         }
@@ -176,6 +195,7 @@ def get_school_class_detail(db: Session, school_class_id: str) -> dict | None:
                 cl.name AS level_name,
                 sy.name AS school_year_name, sy.start_date, sy.end_date,
                 t.first_name AS teacher_first_name, t.last_name AS teacher_last_name,
+                t.gender AS teacher_gender,
                 t.email AS teacher_email, t.phone AS teacher_phone,
                 CASE WHEN t.archived_at IS NULL THEN 'ACTIVE' ELSE 'ARCHIVED' END
                     AS teacher_status,
@@ -223,6 +243,7 @@ def get_school_class_detail(db: Session, school_class_id: str) -> dict | None:
         "school_year_end": row.end_date,
         "teacher_first_name": row.teacher_first_name,
         "teacher_last_name": row.teacher_last_name,
+        "teacher_gender": row.teacher_gender,
         "teacher_email": row.teacher_email,
         "teacher_phone": row.teacher_phone,
         "teacher_status": row.teacher_status,
@@ -259,6 +280,7 @@ def list_school_class_subjects(
         where_clauses.append("s.is_active = :is_active")
         parameters["is_active"] = is_active
 
+    # Les noms sont dérivés des affectations actives de la matière de classe.
     statement = sql_text(
         f"""
         SELECT
@@ -267,18 +289,40 @@ def list_school_class_subjects(
             s.name,
             cs.coefficient,
             s.is_active,
-            (t.first_name || ' ' || t.last_name) AS teacher_name
+            s.is_specialty,
+            (
+                SELECT assignment.teacher_id
+                FROM teacher_assignments AS assignment
+                WHERE assignment.class_subject_id = cs.id
+                  AND assignment.end_date IS NULL
+                LIMIT 1
+            ) AS teacher_id,
+            (
+                SELECT string_agg(
+                    (CASE
+                        WHEN teacher.gender IN ('MALE', 'M') THEN 'M. '
+                        WHEN teacher.gender IN ('FEMALE', 'F') THEN 'Mme '
+                        ELSE ''
+                    END) || teacher.first_name || ' ' || teacher.last_name,
+                    ', '
+                    ORDER BY teacher.last_name, teacher.first_name
+                )
+                FROM teacher_assignments AS assignment
+                JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+                WHERE assignment.class_subject_id = cs.id
+                  AND assignment.end_date IS NULL
+            ) AS teacher_name,
+            (
+                SELECT teacher.qualification
+                FROM teacher_assignments AS assignment
+                JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+                WHERE assignment.class_subject_id = cs.id
+                  AND assignment.end_date IS NULL
+                ORDER BY assignment.start_date DESC, assignment.created_at DESC
+                LIMIT 1
+            ) AS teacher_qualification
         FROM class_subjects cs
         JOIN subjects s ON s.id = cs.subject_id
-        LEFT JOIN LATERAL (
-            SELECT ta.teacher_id
-            FROM teacher_assignments ta
-            WHERE ta.class_subject_id = cs.id
-              AND ta.end_date IS NULL
-            ORDER BY ta.start_date DESC
-            LIMIT 1
-        ) latest_ta ON true
-        LEFT JOIN teachers t ON t.id = latest_ta.teacher_id
         WHERE {" AND ".join(where_clauses)}
         ORDER BY s.name
         """
@@ -351,10 +395,45 @@ def remove_class_subject(
     db: Session,
     class_subject_id: UUID,
 ) -> None:
-    """Retire une matière d'une classe."""
+    """Retire une matière d'une classe.
+
+    Met fin à l'affectation de l'enseignant pour cette classe précise (ses
+    affectations sur d'autres classes ne sont pas concernées) et retire les
+    créneaux de brouillon associés. Si des notes ou un planning déjà publié
+    existent sur cette matière, l'opération reste bloquée pour protéger ces
+    données.
+    """
 
     cs = db.get(ClassSubject, class_subject_id)
     if cs is None:
         raise ValueError("Association classe-matière introuvable.")
+
+    assignment_ids = db.execute(
+        sql_text(
+            "SELECT id FROM teacher_assignments WHERE class_subject_id = :class_subject_id"
+        ),
+        {"class_subject_id": class_subject_id},
+    ).scalars().all()
+
+    if assignment_ids:
+        db.execute(
+            sql_text(
+                """
+                DELETE FROM timetable_slots AS slot
+                USING timetables AS timetable
+                WHERE slot.teacher_assignment_id = ANY(:assignment_ids)
+                  AND timetable.id = slot.timetable_id
+                  AND timetable.status = 'DRAFT'
+                """
+            ),
+            {"assignment_ids": assignment_ids},
+        )
+        db.execute(
+            sql_text(
+                "DELETE FROM teacher_assignments WHERE id = ANY(:assignment_ids)"
+            ),
+            {"assignment_ids": assignment_ids},
+        )
+
     db.delete(cs)
     db.commit()

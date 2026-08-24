@@ -3,6 +3,7 @@ import { Search, UserCheck, Users, UserX } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
 
 import { getTeachersOverview } from '../services/teachers_overview_service.js'
+import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/teachers_page.css'
 
 const PAGE_SIZE = 6
@@ -49,6 +50,10 @@ export default function TeachersPage({ onNavigate }) {
     fetchTeachers()
   }, [])
 
+  useEffect(() => {
+    setPage(0)
+  }, [query, statusFilter, hireYearFilter])
+
   async function fetchTeachers() {
     setLoading(true)
     try {
@@ -59,11 +64,6 @@ export default function TeachersPage({ onNavigate }) {
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleSearch(event) {
-    event.preventDefault()
-    setPage(0)
   }
 
   function handleReset() {
@@ -142,7 +142,7 @@ export default function TeachersPage({ onNavigate }) {
         </article>
       </section>
 
-      <form onSubmit={handleSearch} className="tp-filters">
+      <form className="tp-filters" onSubmit={(event) => event.preventDefault()}>
         <label className="tp-search">
           <Search className="tp-search__icon" aria-hidden="true" size={18} />
           <input
@@ -162,7 +162,6 @@ export default function TeachersPage({ onNavigate }) {
           <option value="">Toutes les années d’embauche</option>
           {hireYears.map((year) => <option key={year} value={year}>{year}</option>)}
         </select>
-        <button type="submit" className="tp-btn-search">Rechercher</button>
         <button type="button" className="tp-btn-reset" onClick={handleReset}>Réinitialiser</button>
       </form>
 
@@ -192,11 +191,11 @@ export default function TeachersPage({ onNavigate }) {
                     tabIndex="0"
                     onClick={() => openTeacherDetails(teacher)}
                     onKeyDown={(event) => handleRowKeyDown(event, teacher)}
-                    aria-label={`Voir le dossier de ${teacher.first_name} ${teacher.last_name}`}
+                    aria-label={`Voir le dossier de ${formatProfileName(teacher.first_name, teacher.last_name, teacher.gender, { fallback: 'cet enseignant' })}`}
                   >
                     <td><ProfilePhoto photoPath={teacher.photo_path} /></td>
                     <td>{teacher.registration_number}</td>
-                    <td><strong>{teacher.first_name} {teacher.last_name}</strong></td>
+                    <td><strong>{formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}</strong></td>
                     <td><StatusBadge status={teacher.status} /></td>
                     <td>{teacher.email ?? '—'}</td>
                     <td>{teacher.phone ?? '—'}</td>

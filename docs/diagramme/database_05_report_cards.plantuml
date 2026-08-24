@@ -1,0 +1,78 @@
+@startuml
+title BlaiseConnect - Bulletins historiques
+left to right direction
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+
+entity student_enrollments #FFF9C4 {
+  * id : uuid <<PK>>
+  * student_id : uuid <<FK>>
+  * class_id : uuid <<FK>>
+}
+
+entity reporting_periods #E0E0E0 {
+  * id : uuid <<PK>>
+  * school_year_id : uuid <<FK>>
+  * start_date : date
+  * end_date : date
+}
+
+entity report_cards #E1BEE7 {
+  * id : uuid <<PK>>
+  * student_enrollment_id : uuid <<FK>>
+  * reporting_period_id : uuid <<FK>>
+  * general_average : numeric(6,2)
+  * generated_by_account_id : uuid <<FK>>
+  * generated_at : timestamptz
+  validated_by_account_id : uuid <<FK>>
+  validated_at : timestamptz
+  pdf_document_id : uuid <<FK>>
+}
+
+entity report_card_subjects #E1BEE7 {
+  * report_card_id : uuid <<PK, FK>>
+  * class_subject_id : uuid <<PK, FK>>
+  * subject_average : numeric(6,2)
+  * applied_coefficient : numeric(6,2)
+  teacher_comment : text
+}
+
+entity report_card_grades #E1BEE7 {
+  * report_card_id : uuid <<PK, FK>>
+  * grade_id : uuid <<PK, FK>>
+}
+
+entity class_subjects #C8E6C9 {
+  * id : uuid <<PK>>
+  * class_id : uuid <<FK>>
+  * subject_id : uuid <<FK>>
+  * coefficient : numeric(6,2)
+}
+
+entity grades #BBDEFB {
+  * id : uuid <<PK>>
+  * assessment_id : uuid <<FK>>
+  * student_enrollment_id : uuid <<FK>>
+}
+
+entity documents #D1C4E9 {
+  * id : uuid <<PK>>
+  * document_type_id : uuid <<FK>>
+  * storage_path : varchar(500)
+}
+
+student_enrollments ||--o{ report_cards
+reporting_periods ||--o{ report_cards
+report_cards ||--o{ report_card_subjects
+class_subjects ||--o{ report_card_subjects
+report_cards ||--o{ report_card_grades
+grades ||--o{ report_card_grades
+documents |o--o| report_cards : final PDF
+
+note bottom of report_cards
+Les moyennes et coefficients sont figés.
+Après validation, le bulletin, ses lignes
+et ses notes deviennent immuables.
+end note
+@enduml

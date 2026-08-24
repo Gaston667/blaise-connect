@@ -315,6 +315,7 @@ def create_account_with_profile(
         "first_name": profile_data.first_name.strip(),
         "last_name": profile_data.last_name.strip(),
         "gender": profile_data.gender,
+        "nationality": profile_data.nationality,
         "email": profile_data.email,
         "phone": profile_data.phone,
         "address": profile_data.address,
@@ -324,7 +325,11 @@ def create_account_with_profile(
         profile = Student(
             **common_fields,
             birth_date=profile_data.birth_date,
+            birth_place=profile_data.birth_place,
             admission_date=profile_data.admission_date,
+            previous_establishment=profile_data.previous_establishment,
+            medical_condition=profile_data.medical_condition,
+            is_enrolled_in_cned=profile_data.is_enrolled_in_cned,
         )
     elif creation_data.role == "TEACHER":
         profile = Teacher(

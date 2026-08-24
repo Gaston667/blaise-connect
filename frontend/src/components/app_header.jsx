@@ -1,14 +1,11 @@
 import { Menu } from 'lucide-react'
 
-import UserMenu from './user_menu.jsx'
-
 /**
- * Affiche l'en-tête de l'espace connecté.
+ * Affiche l'en-tête de l'espace connecté. L'identité du compte connecté vit
+ * désormais dans la sidebar (voir SidebarProfile), plus dans l'en-tête.
  */
 export default function AppHeader({
-  account,
   onMenuOpen,
-  onLogoutSuccess,
 }) {
   return (
     <header className="layout-header">
@@ -20,11 +17,6 @@ export default function AppHeader({
       >
         <Menu aria-hidden="true" size={23} />
       </button>
-
-      <UserMenu
-        account={account}
-        onLogoutSuccess={onLogoutSuccess}
-      />
     </header>
   )
 }

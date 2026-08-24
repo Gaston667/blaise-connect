@@ -5,6 +5,9 @@ import { createAccount, uploadAccountPhoto } from '../services/account_service.j
 import { generateSecurePassword } from '../services/password_generator.js'
 import ConfirmationPopup from '../components/confirmation_popup.jsx'
 import NotificationPopup from '../components/notification_popup.jsx'
+import { formatProfileName } from '../utils/profileDisplay.js'
+import { NATIONALITIES } from '../constants/nationalities.js'
+import { INTERNATIONAL_PHONE_PATTERN, normalizeInternationalPhone } from '../utils/phone.js'
 
 const INITIAL_FORM = {
   role: '',
@@ -15,10 +18,15 @@ const INITIAL_FORM = {
   last_name: '',
   birth_date: '',
   gender: '',
+  nationality: '',
   email: '',
   phone: '',
   address: '',
+  birth_place: '',
   admission_date: '',
+  previous_establishment: '',
+  medical_condition: '',
+  is_enrolled_in_cned: false,
   hire_date: '',
   qualification: '',
   job_title: '',
@@ -31,6 +39,12 @@ const REGISTRATION_PREFIXES = {
   TEACHER: 'e',
   STUDENT: 'u',
   GUARDIAN: 'p',
+}
+
+const DEFAULT_PHOTO_ADJUSTMENTS = {
+  zoom: 1.15,
+  offsetX: 0,
+  offsetY: 0,
 }
 
 /** Calcule un aperçu du matricule selon la même formule UTC que le backend. */
@@ -66,12 +80,13 @@ export default function AccountCreatePage({ onNavigate }) {
   const [creationSummary, setCreationSummary] = useState(null)
   const [photo, setPhoto] = useState(null)
   const [photoPreview, setPhotoPreview] = useState('')
+  const [photoAdjustments, setPhotoAdjustments] = useState(DEFAULT_PHOTO_ADJUSTMENTS)
   const [confirmationOpen, setConfirmationOpen] = useState(false)
 
   function updateField(event) {
-    const { name, value } = event.target
+    const { name, value, type, checked } = event.target
     setForm(function updateCurrentForm(currentForm) {
-      return { ...currentForm, [name]: value }
+      return { ...currentForm, [name]: type === 'checkbox' ? checked : value }
     })
   }
 
@@ -107,6 +122,7 @@ export default function AccountCreatePage({ onNavigate }) {
     setForm(INITIAL_FORM)
     setPhoto(null)
     setPhotoPreview('')
+    setPhotoAdjustments(DEFAULT_PHOTO_ADJUSTMENTS)
     setCreationSummary(null)
     setShowPassword(false)
     setErrorMessage('')
@@ -129,7 +145,57 @@ export default function AccountCreatePage({ onNavigate }) {
     if (photoPreview) URL.revokeObjectURL(photoPreview)
     setPhoto(selectedPhoto)
     setPhotoPreview(URL.createObjectURL(selectedPhoto))
+    setPhotoAdjustments(DEFAULT_PHOTO_ADJUSTMENTS)
     setErrorMessage('')
+  }
+
+  function updatePhotoAdjustment(field, value) {
+    setPhotoAdjustments((current) => ({ ...current, [field]: value }))
+  }
+
+  async function buildAdjustedPhotoFile(sourcePhoto, adjustments) {
+    const imageUrl = URL.createObjectURL(sourcePhoto)
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const loadedImage = new Image()
+        loadedImage.onload = () => resolve(loadedImage)
+        loadedImage.onerror = () => reject(new Error('Impossible de charger la photo sélectionnée.'))
+        loadedImage.src = imageUrl
+      })
+
+      const cropSize = Math.min(image.width, image.height) / adjustments.zoom
+      const maxOffsetX = (image.width - cropSize) / 2
+      const maxOffsetY = (image.height - cropSize) / 2
+      const sourceX = Math.max(0, Math.min(image.width - cropSize, (image.width - cropSize) / 2 + (adjustments.offsetX / 100) * maxOffsetX))
+      const sourceY = Math.max(0, Math.min(image.height - cropSize, (image.height - cropSize) / 2 + (adjustments.offsetY / 100) * maxOffsetY))
+
+      const canvas = document.createElement('canvas')
+      canvas.width = 512
+      canvas.height = 512
+      const context = canvas.getContext('2d')
+      if (!context) throw new Error('Impossible de préparer la photo sélectionnée.')
+
+      context.drawImage(image, sourceX, sourceY, cropSize, cropSize, 0, 0, canvas.width, canvas.height)
+
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((result) => {
+          if (!result) {
+            reject(new Error('Impossible de préparer la photo sélectionnée.'))
+            return
+          }
+          resolve(result)
+        }, sourcePhoto.type || 'image/jpeg', 0.92)
+      })
+
+      const extension = sourcePhoto.type === 'image/png'
+        ? 'png'
+        : sourcePhoto.type === 'image/webp'
+          ? 'webp'
+          : 'jpg'
+      return new File([blob], `profile-photo.${extension}`, { type: blob.type || sourcePhoto.type })
+    } finally {
+      URL.revokeObjectURL(imageUrl)
+    }
   }
 
   function cleanOptionalValue(value) {
@@ -143,10 +209,6 @@ export default function AccountCreatePage({ onNavigate }) {
 
     if (form.password !== form.password_confirmation) {
       setErrorMessage('Les deux mots de passe ne correspondent pas.')
-      return
-    }
-    if (!photo) {
-      setErrorMessage('La photo du profil est obligatoire.')
       return
     }
     setConfirmationOpen(true)
@@ -165,10 +227,15 @@ export default function AccountCreatePage({ onNavigate }) {
           birth_date: form.birth_date || null,
           gender: form.gender || null,
           email: cleanOptionalValue(form.email),
-          phone: cleanOptionalValue(form.phone),
-          address: cleanOptionalValue(form.address),
-          admission_date: form.admission_date || null,
-          hire_date: form.hire_date || null,
+          phone: cleanOptionalValue(normalizeInternationalPhone(form.phone)),
+            nationality: cleanOptionalValue(form.nationality),
+            address: cleanOptionalValue(form.address),
+            birth_place: cleanOptionalValue(form.birth_place),
+            admission_date: form.admission_date || null,
+            previous_establishment: cleanOptionalValue(form.previous_establishment),
+            medical_condition: cleanOptionalValue(form.medical_condition),
+            is_enrolled_in_cned: form.is_enrolled_in_cned,
+            hire_date: form.hire_date || null,
           qualification: cleanOptionalValue(form.qualification),
           job_title: cleanOptionalValue(form.job_title),
           occupation: cleanOptionalValue(form.occupation),
@@ -178,7 +245,8 @@ export default function AccountCreatePage({ onNavigate }) {
       let photoUploadFailed = false
       if (photo) {
         try {
-          createdAccount = await uploadAccountPhoto(createdAccount.id, photo)
+          const adjustedPhoto = await buildAdjustedPhotoFile(photo, photoAdjustments)
+          createdAccount = await uploadAccountPhoto(createdAccount.id, adjustedPhoto)
         } catch {
           photoUploadFailed = true
         }
@@ -211,6 +279,8 @@ export default function AccountCreatePage({ onNavigate }) {
   const isTeacher = form.role === 'TEACHER'
   const isAdministrator = form.role === 'ADMIN'
   const isGuardian = form.role === 'GUARDIAN'
+  const isEmailRequired = !isStudent && !isGuardian
+  const isPhoneRequired = !isStudent
   const registrationPreview = generateRegistrationPreview(form.role)
 
   if (creationSummary) {
@@ -235,13 +305,13 @@ export default function AccountCreatePage({ onNavigate }) {
           <header>
             <div>
               <span className="creation-compte-summary-status">Compte actif</span>
-              <h2>{summaryProfile.first_name} {summaryProfile.last_name}</h2>
+              <h2>{formatProfileName(summaryProfile.first_name, summaryProfile.last_name, summaryProfile.gender)}</h2>
             </div>
             {summaryProfile.photo_path ? (
               <img
                 className="creation-compte-summary-photo"
                 src={summaryProfile.photo_path}
-                alt={`Photo de ${summaryProfile.first_name} ${summaryProfile.last_name}`}
+                alt={`Photo de ${formatProfileName(summaryProfile.first_name, summaryProfile.last_name, summaryProfile.gender, { fallback: 'ce profil' })}`}
               />
             ) : (
               <UserRoundPlus size={34} aria-hidden="true" />
@@ -267,10 +337,14 @@ export default function AccountCreatePage({ onNavigate }) {
               <div><dt>Nom</dt><dd>{summaryProfile.last_name}</dd></div>
               <div><dt>Sexe</dt><dd>{summaryProfile.gender || 'Non renseigné'}</dd></div>
               <div><dt>Date de naissance</dt><dd>{summaryProfile.birth_date || 'Non renseignée'}</dd></div>
+              <div><dt>Lieu de naissance</dt><dd>{summaryProfile.birth_place || 'Non renseigné'}</dd></div>
               <div><dt>Email</dt><dd>{summaryProfile.email || 'Non renseigné'}</dd></div>
               <div><dt>Téléphone</dt><dd>{summaryProfile.phone || 'Non renseigné'}</dd></div>
               <div><dt>Adresse</dt><dd>{summaryProfile.address || 'Non renseignée'}</dd></div>
               <div><dt>Date d’admission</dt><dd>{summaryProfile.admission_date || 'Non concerné'}</dd></div>
+              <div><dt>Établissement précédent</dt><dd>{summaryProfile.previous_establishment || 'Non renseigné'}</dd></div>
+              <div><dt>Maladie particulière</dt><dd>{summaryProfile.medical_condition || 'Aucune renseignée'}</dd></div>
+              <div><dt>Inscrit au CNED</dt><dd>{summaryProfile.is_enrolled_in_cned ? 'Oui' : 'Non'}</dd></div>
               <div><dt>Date d’embauche</dt><dd>{summaryProfile.hire_date || 'Non concerné'}</dd></div>
               <div><dt>Qualification</dt><dd>{summaryProfile.qualification || 'Non concerné'}</dd></div>
               <div><dt>Fonction</dt><dd>{summaryProfile.job_title || 'Non concerné'}</dd></div>
@@ -358,10 +432,17 @@ export default function AccountCreatePage({ onNavigate }) {
           <h2><IdCard size={19} aria-hidden="true" /> Informations d’identité</h2>
           <div className="creation-compte-grid">
             <label className="creation-compte-photo-field">
-              Photo *
+              Photo (facultative)
               <span className="creation-compte-photo-picker">
                 {photoPreview ? (
-                  <img src={photoPreview} alt="Aperçu de la photo sélectionnée" />
+                  <img
+                    src={photoPreview}
+                    alt="Aperçu de la photo sélectionnée"
+                    style={{
+                      objectPosition: `${50 + photoAdjustments.offsetX * 0.35}% ${50 + photoAdjustments.offsetY * 0.35}%`,
+                      transform: `scale(${photoAdjustments.zoom})`,
+                    }}
+                  />
                 ) : (
                   <ImagePlus aria-hidden="true" size={28} />
                 )}
@@ -373,9 +454,45 @@ export default function AccountCreatePage({ onNavigate }) {
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={selectPhoto}
-                  required
                 />
               </span>
+              {photoPreview && (
+                <div className="creation-compte-photo-adjustments">
+                  <label>
+                    Zoom
+                    <input
+                      type="range"
+                      min="1"
+                      max="2"
+                      step="0.01"
+                      value={photoAdjustments.zoom}
+                      onChange={(event) => updatePhotoAdjustment('zoom', Number(event.target.value))}
+                    />
+                  </label>
+                  <label>
+                    Position horizontale
+                    <input
+                      type="range"
+                      min="-100"
+                      max="100"
+                      step="1"
+                      value={photoAdjustments.offsetX}
+                      onChange={(event) => updatePhotoAdjustment('offsetX', Number(event.target.value))}
+                    />
+                  </label>
+                  <label>
+                    Position verticale
+                    <input
+                      type="range"
+                      min="-100"
+                      max="100"
+                      step="1"
+                      value={photoAdjustments.offsetY}
+                      onChange={(event) => updatePhotoAdjustment('offsetY', Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+              )}
             </label>
             <label>Prénom *<input name="first_name" value={form.first_name} onChange={updateField} maxLength="100" autoComplete="off" required /></label>
             <label>Nom *<input name="last_name" value={form.last_name} onChange={updateField} maxLength="100" autoComplete="off" required /></label>
@@ -383,6 +500,7 @@ export default function AccountCreatePage({ onNavigate }) {
             {(isStudent || isTeacher) && (
               <label>Date de naissance *<input name="birth_date" type="date" value={form.birth_date} onChange={updateField} required /></label>
             )}
+            {isStudent && <label>Lieu de naissance<input name="birth_place" value={form.birth_place} onChange={updateField} maxLength="150" autoComplete="off" /></label>}
 
             <label>
               Sexe *
@@ -393,8 +511,18 @@ export default function AccountCreatePage({ onNavigate }) {
               </select>
             </label>
 
-            <label>Email *<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" autoComplete="off" required /></label>
-            <label>Téléphone *<input name="phone" value={form.phone} onChange={updateField} maxLength="30" autoComplete="off" required /></label>
+            <label>
+              Nationalité *
+              <select name="nationality" value={form.nationality} onChange={updateField} required>
+                <option value="">Sélectionner une nationalité</option>
+                {NATIONALITIES.map(function nationalityOption(nationality) {
+                  return <option key={nationality} value={nationality}>{nationality}</option>
+                })}
+              </select>
+            </label>
+
+            <label>Email {isEmailRequired ? '*' : '(facultatif)'}<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" autoComplete="off" required={isEmailRequired} /></label>
+            <label>Téléphone {isPhoneRequired ? '*' : '(facultatif)'}<input name="phone" value={form.phone} onChange={updateField} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" maxLength="30" autoComplete="off" required={isPhoneRequired} /></label>
             <label className="creation-compte-wide">Adresse *<input name="address" value={form.address} onChange={updateField} autoComplete="off" required /></label>
           </div>
         </section>
@@ -409,6 +537,19 @@ export default function AccountCreatePage({ onNavigate }) {
               {isAdministrator && <label>Fonction / Poste *<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" required /></label>}
               {isGuardian && <label>Profession *<input name="occupation" value={form.occupation} onChange={updateField} maxLength="150" required /></label>}
               {isGuardian && <label>Employeur *<input name="employer" value={form.employer} onChange={updateField} maxLength="150" required /></label>}
+              {isStudent && <label>Établissement précédent<input name="previous_establishment" value={form.previous_establishment} onChange={updateField} maxLength="150" autoComplete="off" /></label>}
+              {isStudent && <label className="creation-compte-wide">Maladie particulière<textarea name="medical_condition" value={form.medical_condition} onChange={updateField} autoComplete="off" /></label>}
+              {isStudent && (
+                <label className="creation-compte-checkbox">
+                  <input
+                    name="is_enrolled_in_cned"
+                    type="checkbox"
+                    checked={form.is_enrolled_in_cned}
+                    onChange={updateField}
+                  />
+                  <span>Inscrit au CNED</span>
+                </label>
+              )}
             </div>
           </section>
         )}
