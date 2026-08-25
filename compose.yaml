@@ -66,10 +66,12 @@ services:
       - caddy_config:/config
     networks:
       - application_network
+      - public_network
 
 networks:
   application_network:
     internal: true
+  public_network:
 
 volumes:
   postgres_data:
