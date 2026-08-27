@@ -106,13 +106,52 @@ Enfin, si le système a signalé un nouveau noyau, redémarrer le VPS :
 sudo reboot
 ```
 
-## 6. Suite prévue avant le déploiement
+## 6. Déploiement de BlaiseConnect
 
-1. Ajouter une clé SSH au compte `ubuntu`, puis vérifier la connexion par clé avant de désactiver l'authentification par mot de passe.
-2. Configurer dans OVH un enregistrement DNS `A` pour `alef.blaiseconnect.fr` vers l'adresse publique du VPS, une fois le domaine actif.
-3. Copier le dépôt sur le VPS et créer un fichier `.env` de production non versionné.
-4. Lancer le Compose de production ; seul Caddy exposera les ports 80 et 443.
-5. Vérifier HTTPS, les sauvegardes PostgreSQL et la création sécurisée du premier administrateur.
+Le domaine de production retenu est `portail.blaiseconnect.fr`. Dans la zone DNS
+principale de `blaiseconnect.fr`, son enregistrement `A` doit cibler l'adresse
+publique du VPS.
+
+Sur le VPS, récupérer la branche `main`, créer le fichier `.env` à partir de
+`.env.production.example` et y renseigner les secrets réels, sans jamais le
+committer.
+
+```bash
+cd /opt/blaiseconnect
+git switch main
+git pull origin main
+cp .env.production.example .env
+vim .env
+```
+
+Lancer ensuite les services de production :
+
+```bash
+docker compose up -d --build --remove-orphans
+docker compose ps
+```
+
+`--remove-orphans` supprime les anciens conteneurs du même projet qui ne sont
+plus déclarés dans le fichier Compose. Cette option est utile après un changement
+de branche ou une modification des services ; elle ne supprime pas les volumes
+PostgreSQL ni les documents.
+
+Seul Caddy expose les ports `80` et `443`. Il redirige HTTP vers HTTPS et obtient
+automatiquement le certificat Let's Encrypt lorsque le DNS est correctement
+propagé. Vérifier le résultat :
+
+```bash
+docker compose logs frontend --tail=40
+```
+
+Le journal doit contenir `certificate obtained successfully`.
+
+## 7. Vérifications après déploiement
+
+1. Ouvrir `https://portail.blaiseconnect.fr` et vérifier le cadenas HTTPS.
+2. Vérifier que PostgreSQL et le backend sont `healthy` avec `docker compose ps`.
+3. Créer le premier administrateur réel ; aucune donnée fictive ne doit être présente en production.
+4. Mettre en place et tester les sauvegardes de PostgreSQL et du volume `account_storage`.
 
 ## Note de sécurité
 
