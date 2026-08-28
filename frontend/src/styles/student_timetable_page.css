@@ -15,8 +15,11 @@
 .stp-grid {
   display: grid;
   grid-template-columns: 64px repeat(7, minmax(120px, 1fr));
-  gap: 6px;
+  gap: 0;
   min-width: 940px;
+  overflow: hidden;
+  border: 1px solid var(--table-border);
+  border-radius: var(--radius-md);
 }
 
 .stp-grid--5-days {
@@ -24,7 +27,7 @@
   min-width: 680px;
 }
 
-.stp-grid__corner { }
+.stp-grid__corner { background: var(--table-header-bg); }
 
 .stp-grid__day-head {
   padding: var(--space-2);
@@ -32,6 +35,14 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
+  background: var(--table-header-bg);
+  border-left: 1px solid var(--table-border);
+  border-bottom: 1px solid var(--table-border);
+}
+
+.stp-grid__day-head--outside {
+  color: var(--color-text-muted);
+  background: repeating-linear-gradient(45deg, var(--table-header-bg), var(--table-header-bg) 7px, var(--color-surface-subtle) 7px, var(--color-surface-subtle) 14px);
 }
 
 .stp-grid__time {
@@ -41,6 +52,9 @@
   justify-content: center;
   padding: var(--space-2) var(--space-1);
   text-align: right;
+  min-height: 58px;
+  background: var(--table-header-bg);
+  border-bottom: 1px solid var(--table-border);
 }
 .stp-grid__time strong { font-size: var(--font-size-sm); }
 .stp-grid__time span { font-size: 0.65rem; color: var(--color-text-muted); }
@@ -50,17 +64,17 @@
   flex-direction: column;
   gap: 2px;
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  min-height: 56px;
+  min-height: 58px;
   justify-content: center;
+  border-left: 1px solid var(--table-border);
+  border-bottom: 1px solid var(--table-border);
 }
 
 .stp-cell--free {
   align-items: center;
   justify-content: center;
   color: var(--color-text-muted);
-  background: var(--table-header-bg);
-  border: 1px dashed var(--table-border);
+  background: color-mix(in srgb, var(--table-header-bg) 58%, white);
   font-size: var(--font-size-xs);
 }
 
@@ -78,7 +92,11 @@
   letter-spacing: 0.03em;
   color: var(--color-text-muted);
   background: repeating-linear-gradient(45deg, var(--table-header-bg), var(--table-header-bg) 8px, var(--color-surface) 8px, var(--color-surface) 16px);
-  border-radius: var(--radius-md);
+  border-bottom: 1px solid var(--table-border);
+}
+
+.stp-cell--outside {
+  background: repeating-linear-gradient(45deg, var(--table-header-bg), var(--table-header-bg) 7px, var(--color-surface-subtle) 7px, var(--color-surface-subtle) 14px);
 }
 
 .stp-cell--violet { background: var(--sgp-violet-bg); }

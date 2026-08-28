@@ -28,7 +28,7 @@ WITH ordered_students AS (
     FROM students AS student
     JOIN accounts AS account
         ON account.id = student.account_id
-    WHERE account.registration_number ~ '^u0000(0[1-9]|10)$'
+    WHERE account.registration_number ~ '^u[0-9]{6}$'
 ),
 ordered_guardians AS (
     SELECT
@@ -39,7 +39,7 @@ ordered_guardians AS (
     FROM guardians AS guardian
     JOIN accounts AS account
         ON account.id = guardian.account_id
-    WHERE account.registration_number ~ '^p0000(0[1-9]|10)$'
+    WHERE account.registration_number ~ '^p[0-9]{6}$'
 )
 INSERT INTO student_guardians (
     student_id,

@@ -52,12 +52,12 @@ FROM (
     UNION ALL
 
     SELECT 'u', account_number, 'STUDENT'
-    FROM generate_series(1, 60) AS account_number
+    FROM generate_series(1, 65) AS account_number
 
     UNION ALL
 
     SELECT 'p', account_number, 'GUARDIAN'
-    FROM generate_series(1, 60) AS account_number
+    FROM generate_series(1, 65) AS account_number
 ) AS generated_accounts(
     account_prefix,
     account_number,
@@ -249,7 +249,7 @@ CROSS JOIN LATERAL (
     SELECT substring(account.registration_number FROM 2)::integer
 ) AS profile(profile_number)
 WHERE account.role = 'STUDENT'
-  AND substring(account.registration_number FROM 2)::integer BETWEEN 1 AND 60
+  AND substring(account.registration_number FROM 2)::integer BETWEEN 1 AND 65
 ON CONFLICT (account_id) DO NOTHING;
 
 
@@ -333,7 +333,7 @@ CROSS JOIN LATERAL (
     SELECT substring(account.registration_number FROM 2)::integer
 ) AS profile(profile_number)
 WHERE account.role = 'GUARDIAN'
-  AND substring(account.registration_number FROM 2)::integer BETWEEN 1 AND 60
+  AND substring(account.registration_number FROM 2)::integer BETWEEN 1 AND 65
 ON CONFLICT (account_id) DO NOTHING;
 
 
