@@ -23,6 +23,25 @@ show_usage() {
     echo "  $0 all      /chemin/vers/postgres_xxx.dump /chemin/vers/account_storage_xxx.tar.gz"
 }
 
+verify_backup_checksum() {
+    # Vérifie l'intégrité d'une sauvegarde avant sa restauration.
+
+    local backup_file="$1"
+    local checksum_file="${backup_file}.sha256"
+
+    if [[ ! -f "${checksum_file}" ]]; then
+        echo "[ERREUR] Fichier d'empreinte introuvable : ${checksum_file}"
+        exit 1
+    fi
+
+    echo "[INFO] Vérification de l'intégrité : $(basename "${backup_file}")"
+
+    if ! sha256sum -c "${checksum_file}"; then
+        echo "[ERREUR] Sauvegarde invalide ou corrompue. Restauration annulée."
+        exit 1
+    fi
+}
+
 restore_database() {
     # PostgreSQL reste la source de vérité : le script ne compare aucun rôle
     # avant la restauration. Toute erreur de rôle est lue dans pg_restore.
@@ -87,6 +106,15 @@ if [[ "${restore_mode}" == "storage" || "${restore_mode}" == "all" ]]; then
         echo "[ERREUR] Volume Docker introuvable : ${storage_volume}"
         exit 1
     fi
+fi
+
+# Contrôle obligatoire avant toute opération destructive.
+if [[ "${restore_mode}" == "database" || "${restore_mode}" == "all" ]]; then
+    verify_backup_checksum "${database_backup_file}"
+fi
+
+if [[ "${restore_mode}" == "storage" || "${restore_mode}" == "all" ]]; then
+    verify_backup_checksum "${storage_backup_file}"
 fi
 
 echo
