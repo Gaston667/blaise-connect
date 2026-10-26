@@ -19,6 +19,7 @@ import {
   getAccount,
   resetAccountPassword,
 } from '../services/account_service.js'
+import { reactivateStudent } from '../services/students_service.js'
 import { generateSecurePassword } from '../services/password_generator.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
 
@@ -144,6 +145,25 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
     }
   }
 
+  /**
+   * Un élève archivé possède un dossier et un compte archivés ensemble.
+   * La route Élève restaure les deux dans une unique transaction.
+   */
+  async function reactivateArchivedStudentAndAccount() {
+    setActionLoading('reactivate-student')
+    setActionError('')
+    try {
+      await reactivateStudent(account.profile.id)
+      const updatedAccount = await getAccount(account.id)
+      setAccount(updatedAccount)
+      setActionMessage('L’élève et son compte ont été réactivés.')
+    } catch (requestError) {
+      setActionError(requestError.message)
+    } finally {
+      setActionLoading('')
+    }
+  }
+
   function deactivateAccount() {
     setPendingAction({
       action: 'deactivate',
@@ -163,10 +183,13 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
   }
 
   function activateAccount() {
+    const archivedStudent = account.role === 'STUDENT' && account.profile?.archived_at
     setPendingAction({
-      action: 'activate',
-      message: 'Confirmer la réactivation de ce compte ?',
-      confirmLabel: 'Activer',
+      action: archivedStudent ? 'reactivate-student' : 'activate',
+      message: archivedStudent
+        ? 'Confirmer la réactivation de l’élève et de son compte ? L’élève ne sera pas automatiquement réinscrit dans une classe.'
+        : 'Confirmer la réactivation de ce compte ?',
+      confirmLabel: archivedStudent ? 'Réactiver l’élève' : 'Activer',
       successMessage: 'Le compte a été activé.',
     })
   }
@@ -179,6 +202,10 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
     const selectedAction = pendingAction
     setPendingAction(null)
     if (!selectedAction) return
+    if (selectedAction.action === 'reactivate-student') {
+      reactivateArchivedStudentAndAccount()
+      return
+    }
     runAccountAction(selectedAction.action, selectedAction.successMessage)
   }
 
@@ -400,7 +427,9 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
                     ) : (
                       <Activity aria-hidden="true" size={16} />
                     )}
-                    {account.archived_at ? 'Désarchiver' : 'Activer'}
+                    {account.archived_at && account.role === 'STUDENT' && account.profile?.archived_at
+                      ? 'Réactiver l’élève et son compte'
+                      : account.archived_at ? 'Désarchiver' : 'Activer'}
                   </button>
                 )}
               </div>
