@@ -5,6 +5,8 @@
 }
 
 html {
+  /* Réduit uniformément les tailles exprimées en rem, comme une interface affichée à 85 %. */
+  font-size: 85%;
   min-width: 320px;
   min-height: 100%;
 }
