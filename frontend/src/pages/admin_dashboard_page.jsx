@@ -6,7 +6,6 @@ import {
   ClipboardList,
   FileCheck2,
   Minus,
-  PenLine,
   Plus,
   UserRoundX,
 } from 'lucide-react'
@@ -209,7 +208,7 @@ function getActivityText(item) {
 }
 
 const STAT_CARD_DEFS = [
-  { key: 'absences_pending', icon: UserRoundX, tone: 'orange', label: 'Absences en attente\nde justification', linkLabel: 'Voir les absences', page: 'attendance' },
+  { key: 'absences_pending', icon: UserRoundX, tone: 'orange', label: 'Justificatifs transmis\npar les élèves à vérifier', linkLabel: 'Voir les absences', page: 'attendance' },
   { key: 'evaluations_incomplete', icon: ClipboardList, tone: 'blue', label: 'Évaluations / notes\nincomplètes', linkLabel: 'Voir les évaluations', page: 'notes' },
   { key: 'correction_requests_pending', icon: CircleHelp, tone: 'violet', label: 'Demandes de correction\nen attente', linkLabel: 'Voir les demandes', page: null },
   { key: 'report_cards_pending', icon: FileCheck2, tone: 'green', label: 'Bulletins en attente\nde validation', linkLabel: 'Voir les bulletins', page: 'report-cards' },
@@ -230,7 +229,7 @@ export default function AdminDashboardPage({ onNavigate }) {
   if (loading) return <main className="adp-main"><p>Chargement du tableau de bord…</p></main>
   if (errorMessage) return <main className="adp-main"><p className="adp-error">{errorMessage}</p></main>
 
-  const { stats, cycle_performance: cyclePerformance, attendance_watchlist: attendanceWatchlist, grade_entry_progress: gradeEntryProgress, recent_activity: recentActivity } = dashboard
+  const { stats, cycle_performance: cyclePerformance, attendance_watchlist: attendanceWatchlist, recent_activity: recentActivity } = dashboard
 
   return (
     <main className="adp-main">
@@ -283,32 +282,6 @@ export default function AdminDashboardPage({ onNavigate }) {
           </button>
         </article>
 
-        <article className="adp-panel adp-panel--progress">
-          <h2><PenLine aria-hidden="true" size={18} /> Progression des notes</h2>
-          <p className="adp-panel-hint">Avancement de la saisie des notes pour l'année en cours</p>
-
-          <div className="adp-progress-body">
-            <div
-              className="adp-progress-ring"
-              style={{ '--progress': `${gradeEntryProgress.percent}%` }}
-            >
-              <span>{gradeEntryProgress.percent}%</span>
-            </div>
-            <div className="adp-progress-details">
-              <span>Saisie des notes : <strong>{gradeEntryProgress.percent}%</strong></span>
-              <div className="adp-progress-bar">
-                <span style={{ width: `${gradeEntryProgress.percent}%` }} />
-              </div>
-              <span className="adp-progress-count">
-                {gradeEntryProgress.entered} / {gradeEntryProgress.total} notes saisies
-              </span>
-            </div>
-          </div>
-
-          <button type="button" className="adp-panel-link" onClick={() => onNavigate?.('notes')}>
-            Voir le détail par matière ou classe <span aria-hidden="true">›</span>
-          </button>
-        </article>
       </div>
 
       <div className="adp-column">
