@@ -26,27 +26,43 @@ const DEVELOPERS = [
     name: 'Barry Mamadou Hassimiou',
     role: 'Développeur',
     bio: 'Co-développeur de BlaiseConnect, en charge de la conception et de la réalisation de la plateforme de gestion scolaire.',
+    personalBio: 'Passionné d’informatique depuis le collège, je développe des projets web et logiciels par curiosité et par plaisir. Aujourd’hui en 2ᵉ année d’études en informatique, je continue d’apprendre en construisant des applications concrètes comme BlaiseConnect.',
+    businessCard: {
+      initials: 'BH',
+      name: 'Mamadou Hassimiou BARRY',
+      status: '2ᵉ année Informatique · Développeur',
+      githubUrl: 'https://github.com/hassimiou07',
+      secondaryUrl: 'https://hassimiou07.github.io/Portfolio-Hassimiou/index.html',
+      secondaryLabel: 'Portfolio',
+    },
   },
   {
     name: 'Algassimou Pellel Diallo',
     role: 'Développeur',
     bio: 'Co-développeur de BlaiseConnect, en charge de la conception et de la réalisation de la plateforme de gestion scolaire.',
+    personalBio: 'Développeur et co-créateur de BlaiseConnect, je participe à la conception technique et à l’évolution de la plateforme afin de rendre la gestion scolaire plus simple, fiable et accessible.',
+    businessCard: {
+      initials: 'AD',
+      name: 'Algassimou Pellel DIALLO',
+      status: 'Développeur · Co-créateur de BlaiseConnect',
+      githubUrl: 'https://github.com/Gaston667',
+      secondaryUrl: 'https://github.com/Gaston667/blaise-connect',
+      secondaryLabel: 'Projet',
+    },
   },
 ]
 
 /**
- * Petite carte de visite façon "hero" de portfolio, en miniature, pour Barry.
+ * Petite carte de visite façon "hero" de portfolio, en miniature.
  */
-function BusinessCard() {
+function BusinessCard({ initials, name, status, githubUrl, secondaryUrl, secondaryLabel }) {
   return (
     <div className="business-card-mini">
-      <div className="business-card-mini-avatar">BH</div>
+      <div className="business-card-mini-avatar">{initials}</div>
 
       <div className="business-card-mini-body">
-        <h3 className="business-card-mini-name">Mamadou Hassimiou BARRY</h3>
-        <p className="business-card-mini-status">
-          2ᵉ année Informatique · 19 ans · Développeur
-        </p>
+        <h3 className="business-card-mini-name">{name}</h3>
+        <p className="business-card-mini-status">{status}</p>
 
         <div className="business-card-mini-stack">
           <span className="business-card-mini-icon" title="Développement">
@@ -66,7 +82,7 @@ function BusinessCard() {
         <div className="business-card-mini-links">
           <a
             className="business-card-mini-link"
-            href="https://github.com/hassimiou07"
+            href={githubUrl}
             target="_blank"
             rel="noreferrer noopener"
           >
@@ -75,12 +91,12 @@ function BusinessCard() {
           </a>
           <a
             className="business-card-mini-link"
-            href="https://hassimiou07.github.io/Portfolio-Hassimiou/index.html"
+            href={secondaryUrl}
             target="_blank"
             rel="noreferrer noopener"
           >
             <Globe2 aria-hidden="true" size={16} />
-            Portfolio
+            {secondaryLabel}
           </a>
         </div>
       </div>
@@ -130,15 +146,10 @@ export default function AboutPage() {
               <p className="about-developer-role">{developer.role}</p>
               <p className="about-developer-bio">{developer.bio}</p>
 
-              {developer.name === 'Barry Mamadou Hassimiou' ? (
+              {developer.personalBio ? (
                 <>
-                  <p className="about-developer-bio">
-                    Passionné d’informatique depuis le collège, je développe des projets
-                    web et logiciels par curiosité et par plaisir. Aujourd’hui en 2ᵉ année
-                    d’études en informatique, je continue d’apprendre en construisant des
-                    applications concrètes comme BlaiseConnect.
-                  </p>
-                  <BusinessCard />
+                  <p className="about-developer-bio">{developer.personalBio}</p>
+                  <BusinessCard {...developer.businessCard} />
                 </>
               ) : null}
             </article>
