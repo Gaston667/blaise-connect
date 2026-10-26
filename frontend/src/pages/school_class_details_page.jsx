@@ -364,8 +364,9 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
     try {
       const result = await listStudents({ status: 'ACTIVE', limit: 200 })
       const candidates = Array.isArray(result) ? result : result.items ?? []
-      const enrolledIds = new Set(students.map((student) => student.id))
-      setEnrollableStudents(candidates.filter((student) => !enrolledIds.has(student.id)))
+      // Le changement de classe se fait depuis la fiche de l'élève.
+      // Ici, on propose uniquement les élèves sans inscription en cours.
+      setEnrollableStudents(candidates.filter((student) => !student.class_id))
     } catch (e) {
       setEnrollError(e.message)
     } finally {

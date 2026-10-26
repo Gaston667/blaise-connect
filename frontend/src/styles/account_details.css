@@ -97,6 +97,20 @@
   font-size: var(--font-size-xl);
 }
 
+.details-summary-profile-link {
+  display: flex;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  color: var(--color-primary);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .details-summary-line {
   display: flex;
   align-items: center;

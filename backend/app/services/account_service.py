@@ -352,7 +352,10 @@ def create_account_with_profile(
         )
 
     db.add(profile)
-    create_account_storage_directories(account.registration_number)
+    create_account_storage_directories(
+        account.registration_number,
+        is_student=account.role == "STUDENT",
+    )
     db.commit()
     db.refresh(account)
     db.refresh(profile)

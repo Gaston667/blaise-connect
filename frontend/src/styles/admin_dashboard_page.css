@@ -39,19 +39,23 @@
 .adp-panel-link:hover:not(:disabled) { text-decoration: underline; }
 .adp-panel-link:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
 
-/* Performance par cycle : mini bar-charts */
-.adp-performance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-5); }
-.adp-performance-cell { display: flex; flex-direction: column; gap: var(--space-1); }
-.adp-performance-cell__label { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
-.adp-performance-cell__value { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-primary); }
-.adp-performance-cell__value small { font-size: var(--font-size-xs); font-weight: var(--font-weight-regular); color: var(--color-text-muted); }
-
-.adp-mini-chart { position: relative; display: flex; align-items: flex-end; gap: 4px; height: 70px; margin-top: var(--space-2); padding-left: 18px; }
-.adp-mini-chart__bar { flex: 1; min-width: 6px; background: var(--color-primary-light); border-radius: 3px 3px 0 0; }
-.adp-mini-chart__bar--current { background: var(--color-primary); }
-.adp-mini-chart__axis { position: absolute; left: 0; font-size: 0.6rem; color: var(--color-text-disabled); }
-.adp-mini-chart__axis:not(.adp-mini-chart__axis--bottom) { top: 0; }
-.adp-mini-chart__axis--bottom { bottom: 0; }
+/* Performance par cycle : courbes de moyenne sur 20. */
+.adp-performance-chart-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.adp-performance-legend { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0 0 var(--space-3); padding: 0; list-style: none; }
+.adp-performance-legend li { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.adp-performance-legend li > span { width: 9px; height: 9px; border-radius: var(--radius-full); }
+.adp-performance-legend strong { color: var(--color-text-primary); }
+.adp-performance-legend em { font-style: normal; color: var(--color-primary); }
+.adp-performance-zoom { display: inline-flex; flex: 0 0 auto; overflow: hidden; border: var(--border-default); border-radius: var(--radius-sm); }
+.adp-performance-zoom button { display: grid; place-items: center; width: 30px; height: 28px; padding: 0; color: var(--color-primary); background: var(--color-surface); border: 0; cursor: pointer; }
+.adp-performance-zoom button + button { border-left: var(--border-default); }
+.adp-performance-zoom button:hover:not(:disabled) { background: var(--color-primary-light); }
+.adp-performance-zoom button:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+.adp-performance-chart-wrap { width: 100%; overflow-x: auto; }
+.adp-performance-chart { display: block; width: 100%; min-width: 440px; height: auto; }
+.adp-performance-chart__grid { stroke: var(--color-border); stroke-width: 1; stroke-dasharray: 3 4; }
+.adp-performance-chart__axis, .adp-performance-chart__period { fill: var(--color-text-muted); font-size: 10px; }
+.adp-performance-chart__point { stroke: var(--color-surface); stroke-width: 2px; }
 
 /* Suivi des absences */
 .adp-attendance-table { width: 100%; border-collapse: collapse; }

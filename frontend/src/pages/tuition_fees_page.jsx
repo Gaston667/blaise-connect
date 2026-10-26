@@ -68,9 +68,19 @@ function formatEUR(amount) {
  */
 export default function TuitionFeesPage() {
   const navigate = useNavigate()
-
+  const enrollmentFormUrl = import.meta.env.VITE_ENROLLMENT_FORM_URL
   function handlePrintEnrollmentForm() {
     window.print()
+  }
+
+  /** Télécharge la fiche officielle configurée pour l'établissement. */
+  function downloadEnrollmentForm() {
+    const link = document.createElement('a')
+    link.href = enrollmentFormUrl
+    link.download = ''
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
   }
 
   return (
@@ -293,7 +303,7 @@ export default function TuitionFeesPage() {
           <button
             className="tuition-enrollment-download"
             type="button"
-            onClick={handlePrintEnrollmentForm}
+            onClick={downloadEnrollmentForm}
           >
             <Download aria-hidden="true" size={19} />
             Télécharger la fiche d’inscription

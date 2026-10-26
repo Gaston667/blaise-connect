@@ -355,6 +355,100 @@ function TimetableGrid({ slots, breaks, configurationDays, schoolYearStartDate, 
   )
 }
 
+function getTimelineMinutes(timeValue) {
+  const [hours, minutes] = formatTime(timeValue).split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+function formatTimelineHour(minutes) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:00`
+}
+
+/** Planning horaire : les blocs sont positionnés à leur minute réelle. */
+function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearStartDate, schoolYearEndDate, weekStart, editable = false, onDeleteSlot, deletingSlotId }) {
+  const [displayMode, setDisplayMode] = useState('week')
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0)
+  const currentWeekStart = weekStart || getWeekStart('')
+  const currentWeekEnd = addDays(currentWeekStart, 6)
+  const gridDayDates = [0, 1, 2, 3, 4].map(function getDayDate(index) { return addDays(currentWeekStart, index) })
+  const visibleSlots = slots.filter(function filterVisibleSlots(slot) {
+    if (slot.course_date) return slot.course_date >= currentWeekStart && slot.course_date <= currentWeekEnd
+    return (!slot.effective_start_date || currentWeekEnd >= slot.effective_start_date)
+      && (!slot.effective_end_date || currentWeekStart <= slot.effective_end_date)
+  })
+  const configuredGridSlots = getConfiguredGridSlots(configurationDays)
+  const gridSlots = [...visibleSlots, ...(configuredGridSlots.length > 0 ? configuredGridSlots : getDefaultGridSlots())]
+  const timelineItems = [...gridSlots, ...breaks]
+  const startMinutes = Math.floor(Math.min(...timelineItems.map(function getStart(item) { return getTimelineMinutes(item.start_time) })) / 60) * 60
+  const endMinutes = Math.ceil(Math.max(...timelineItems.map(function getEnd(item) { return getTimelineMinutes(item.end_time) })) / 60) * 60
+  const pixelsPerMinute = 1.15
+  const timelineHeight = (endMinutes - startMinutes) * pixelsPerMinute
+  const hourMarkers = Array.from({ length: (endMinutes - startMinutes) / 60 + 1 }, function buildHourMarker(_, index) { return startMinutes + index * 60 })
+  const displayDays = displayMode === 'day' ? [selectedDayIndex] : [0, 1, 2, 3, 4]
+  const subjectColorByName = new Map()
+
+  visibleSlots.forEach(function assignSubjectColor(slot) {
+    if (!subjectColorByName.has(slot.subject_name)) {
+      subjectColorByName.set(slot.subject_name, SUBJECT_PALETTE[subjectColorByName.size % SUBJECT_PALETTE.length])
+    }
+  })
+
+  function isSlotOnDay(slot, dayIndex) {
+    return slot.course_date
+      ? slot.course_date === gridDayDates[dayIndex]
+      : slot.day_of_week === dayIndex + 1
+        && (!slot.effective_start_date || gridDayDates[dayIndex] >= slot.effective_start_date)
+        && (!slot.effective_end_date || gridDayDates[dayIndex] <= slot.effective_end_date)
+  }
+
+  function getVerticalStyle(startTime, endTime) {
+    return {
+      top: `${(getTimelineMinutes(startTime) - startMinutes) * pixelsPerMinute}px`,
+      height: `${Math.max((getTimelineMinutes(endTime) - getTimelineMinutes(startTime)) * pixelsPerMinute, 26)}px`,
+    }
+  }
+
+  function renderDeleteButton(slot) {
+    if (!editable || slot.status !== 'DRAFT') return null
+    return <button type="button" className="tmp-icon-button stp-timeline__delete" disabled={deletingSlotId === slot.id} title="Retirer ce créneau" onClick={function deleteSelectedSlot(event) { event.stopPropagation(); onDeleteSlot(slot) }}><Trash2 aria-hidden="true" size={13} /></button>
+  }
+
+  return (
+    <div className="stp-timeline-wrapper">
+      <div className="stp-timeline-toolbar">
+        <div className="stp-timeline-view-switch" aria-label="Mode d’affichage">
+          <button type="button" className={displayMode === 'week' ? 'stp-timeline-view-switch__button stp-timeline-view-switch__button--active' : 'stp-timeline-view-switch__button'} onClick={function showWeek() { setDisplayMode('week') }}>Semaine</button>
+          <button type="button" className={displayMode === 'day' ? 'stp-timeline-view-switch__button stp-timeline-view-switch__button--active' : 'stp-timeline-view-switch__button'} onClick={function showDay() { setDisplayMode('day') }}>Jour</button>
+        </div>
+        {displayMode === 'day' && <select className="stp-timeline-day-select" value={selectedDayIndex} onChange={function selectDay(event) { setSelectedDayIndex(Number(event.target.value)) }} aria-label="Jour affiché">{gridDayDates.map(function renderDayOption(dayDate, index) { return <option key={dayDate} value={index}>{formatDayWithDate(dayDate)}</option> })}</select>}
+      </div>
+      <div className={`stp-timeline stp-timeline--${displayDays.length}-days`} style={{ '--timeline-height': `${timelineHeight}px` }}>
+        <div className="stp-timeline__corner" />
+        {displayDays.map(function renderDayHeader(dayIndex) {
+          const dayDate = gridDayDates[dayIndex]
+          return <div key={dayDate} className={`stp-timeline__day-head ${isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate) ? '' : 'stp-timeline__day-head--outside'}`}>{formatDayWithDate(dayDate)}</div>
+        })}
+        <div className="stp-timeline__hours">
+          {hourMarkers.map(function renderHourMarker(minutes) { return <span key={minutes} style={{ top: `${(minutes - startMinutes) * pixelsPerMinute}px` }}>{formatTimelineHour(minutes)}</span> })}
+        </div>
+        {displayDays.map(function renderDayColumn(dayIndex) {
+          const dayDate = gridDayDates[dayIndex]
+          const outsideSchoolYear = !isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate)
+          const daySlots = visibleSlots.filter(function filterDaySlots(slot) { return isSlotOnDay(slot, dayIndex) })
+          return <div key={dayDate} className={`stp-timeline__day ${outsideSchoolYear ? 'stp-timeline__day--outside' : ''}`}>
+            {hourMarkers.map(function renderHourLine(minutes) { return <span key={minutes} className="stp-timeline__hour-line" style={{ top: `${(minutes - startMinutes) * pixelsPerMinute}px` }} /> })}
+            {!outsideSchoolYear && breaks.map(function renderBreak(schoolBreak) { return <div key={`${schoolBreak.start_time}-${schoolBreak.end_time}-${schoolBreak.label}`} className="stp-timeline__break" style={getVerticalStyle(schoolBreak.start_time, schoolBreak.end_time)}><span>{schoolBreak.label}</span></div> })}
+            {!outsideSchoolYear && daySlots.map(function renderSlot(slot) {
+              const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
+              return <article key={slot.id} className={`stp-timeline__course stp-cell--${color}`} style={getVerticalStyle(slot.start_time, slot.end_time)} title={`${slot.subject_name} : ${formatTime(slot.start_time)}–${formatTime(slot.end_time)}`}><span className="stp-cell__title"><BookOpen aria-hidden="true" size={13} /> {slot.subject_name}</span><span className="stp-cell__meta">{formatTime(slot.start_time)}–{formatTime(slot.end_time)} · {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}</span>{renderDeleteButton(slot)}</article>
+            })}
+          </div>
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function TimetableManagementPage() {
   const toast = useToast()
   const [classes, setClasses] = useState([])
@@ -1237,7 +1331,7 @@ export default function TimetableManagementPage() {
                   {classDataLoading ? (
                     <p className="tmp-empty">Chargement…</p>
                   ) : (
-                    <TimetableGrid
+                    <TimelineTimetableGrid
                       slots={savedSlots}
                       breaks={scheduleBreaks}
                       configurationDays={timetableConfiguration?.days}
@@ -1394,7 +1488,7 @@ export default function TimetableManagementPage() {
               {classDataLoading ? (
                 <p className="tmp-empty">Chargement de l’emploi du temps…</p>
               ) : (
-                <TimetableGrid
+                <TimelineTimetableGrid
                   slots={publishedSlots}
                   breaks={scheduleBreaks}
                   configurationDays={timetableConfiguration?.days}

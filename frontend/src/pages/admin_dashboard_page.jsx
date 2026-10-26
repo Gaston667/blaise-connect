@@ -5,7 +5,9 @@ import {
   CircleHelp,
   ClipboardList,
   FileCheck2,
+  Minus,
   PenLine,
+  Plus,
   UserRoundX,
 } from 'lucide-react'
 
@@ -18,6 +20,152 @@ const ACTIVITY_META = {
   justification: { icon: UserRoundX, tone: 'orange' },
   correction_request: { icon: CircleHelp, tone: 'violet' },
   report_card_validated: { icon: FileCheck2, tone: 'green' },
+}
+
+const PERFORMANCE_COLORS = ['#0756c9', '#7c3aed', '#ea580c']
+const PERFORMANCE_CHART = {
+  width: 640,
+  height: 190,
+  left: 38,
+  right: 18,
+  top: 16,
+  bottom: 36,
+}
+
+function getPerformancePeriods(cycles) {
+  const periodNames = []
+  cycles.forEach(function collectCyclePeriods(cycle) {
+    cycle.periods.forEach(function collectPeriod(period) {
+      if (!periodNames.includes(period.period_name)) periodNames.push(period.period_name)
+    })
+  })
+  return periodNames
+}
+
+function roundDownToHalf(value) {
+  return Math.floor(value * 2) / 2
+}
+
+function roundUpToHalf(value) {
+  return Math.ceil(value * 2) / 2
+}
+
+function formatScore(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1).replace('.', ',')
+}
+
+function getPerformanceScale(cycles, zoomLevel) {
+  if (zoomLevel <= -2) return { min: 0, max: 20 }
+
+  const values = cycles.flatMap(function getCycleAverages(cycle) {
+    return cycle.periods.map(function getPeriodAverage(period) { return period.average })
+  })
+  const minimum = Math.min(...values)
+  const maximum = Math.max(...values)
+  const lowerPadding = Math.max(0.25, 1 - zoomLevel * 0.5)
+  const upperPadding = Math.max(0.5, 1.5 - zoomLevel * 0.5)
+  const min = Math.max(0, roundDownToHalf(minimum - lowerPadding))
+  const max = Math.min(20, roundUpToHalf(maximum + upperPadding))
+
+  return { min, max: max > min ? max : Math.min(20, min + 1) }
+}
+
+function getChartPoint(periodIndex, periodCount, average, scale) {
+  const chartWidth = PERFORMANCE_CHART.width - PERFORMANCE_CHART.left - PERFORMANCE_CHART.right
+  const chartHeight = PERFORMANCE_CHART.height - PERFORMANCE_CHART.top - PERFORMANCE_CHART.bottom
+  const divisor = Math.max(periodCount - 1, 1)
+  return {
+    x: PERFORMANCE_CHART.left + (periodIndex / divisor) * chartWidth,
+    y: PERFORMANCE_CHART.top + ((scale.max - average) / (scale.max - scale.min)) * chartHeight,
+  }
+}
+
+function PerformanceLineChart({ cycles }) {
+  const [zoomLevel, setZoomLevel] = useState(0)
+  const periods = getPerformancePeriods(cycles)
+  const scale = getPerformanceScale(cycles, zoomLevel)
+  const chartBottom = PERFORMANCE_CHART.height - PERFORMANCE_CHART.bottom
+  const chartRight = PERFORMANCE_CHART.width - PERFORMANCE_CHART.right
+  const gridValues = Array.from({ length: 5 }, function getGridValue(_, index) {
+    return scale.min + ((scale.max - scale.min) / 4) * index
+  })
+
+  return (
+    <>
+      <div className="adp-performance-chart-header">
+        <ul className="adp-performance-legend" aria-label="Moyennes actuelles par cycle">
+          {cycles.map(function renderLegend(cycle, index) {
+            return (
+              <li key={cycle.label}>
+                <span style={{ backgroundColor: PERFORMANCE_COLORS[index % PERFORMANCE_COLORS.length] }} />
+                <strong>{cycle.label}</strong>
+                <em>{cycle.average.toFixed(1).replace('.', ',')} /20</em>
+              </li>
+            )
+          })}
+        </ul>
+        <div className="adp-performance-zoom" aria-label="Zoom de la courbe">
+          <button type="button" onClick={function zoomOut() { setZoomLevel(function decreaseZoom(current) { return Math.max(-2, current - 1) }) }} disabled={zoomLevel <= -2} aria-label="Dézoomer jusqu’à l’échelle 0 à 20">
+            <Minus aria-hidden="true" size={15} />
+          </button>
+          <button type="button" onClick={function zoomIn() { setZoomLevel(function increaseZoom(current) { return Math.min(3, current + 1) }) }} disabled={zoomLevel >= 3} aria-label="Zoomer">
+            <Plus aria-hidden="true" size={15} />
+          </button>
+        </div>
+      </div>
+
+      <div className="adp-performance-chart-wrap">
+        <svg
+          className="adp-performance-chart"
+          viewBox={`0 0 ${PERFORMANCE_CHART.width} ${PERFORMANCE_CHART.height}`}
+          role="img"
+          aria-label="Évolution des moyennes par cycle et par période, sur 20"
+        >
+          {gridValues.map(function renderGridLine(value) {
+            const point = getChartPoint(0, periods.length, value, scale)
+            return (
+              <g key={value}>
+                <line x1={PERFORMANCE_CHART.left} x2={chartRight} y1={point.y} y2={point.y} className="adp-performance-chart__grid" />
+                <text x={PERFORMANCE_CHART.left - 9} y={point.y + 4} className="adp-performance-chart__axis">{formatScore(value)}</text>
+              </g>
+            )
+          })}
+
+          {cycles.map(function renderCycleLine(cycle, cycleIndex) {
+            const color = PERFORMANCE_COLORS[cycleIndex % PERFORMANCE_COLORS.length]
+            const points = cycle.periods.map(function buildPoint(period) {
+              const periodIndex = periods.indexOf(period.period_name)
+              return { ...getChartPoint(periodIndex, periods.length, period.average, scale), period }
+            })
+            return (
+              <g key={cycle.label}>
+                <polyline
+                  points={points.map(function formatPoint(point) { return `${point.x},${point.y}` }).join(' ')}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {points.map(function renderPoint(point) {
+                  return (
+                    <circle key={point.period.period_name} cx={point.x} cy={point.y} r="4.5" fill={color} className="adp-performance-chart__point">
+                      <title>{`${cycle.label} — ${point.period.period_name} : ${point.period.average.toFixed(1).replace('.', ',')}/20`}</title>
+                    </circle>
+                  )
+                })}
+              </g>
+            )
+          })}
+
+          {periods.map(function renderPeriodLabel(periodName, index) {
+            const point = getChartPoint(index, periods.length, scale.min, scale)
+            return <text key={periodName} x={point.x} y={chartBottom + 24} textAnchor="middle" className="adp-performance-chart__period">{periodName}</text>
+          })}
+        </svg>
+      </div>
+    </>
+  )
 }
 
 function getInitials(name) {
@@ -127,31 +275,7 @@ export default function AdminDashboardPage({ onNavigate }) {
           {cyclePerformance.length === 0 ? (
             <p className="adp-empty">Aucune note saisie pour le moment.</p>
           ) : (
-            <div className="adp-performance-grid">
-              {cyclePerformance.map(function renderCycle(cycle) {
-                const maxScore = 20
-                return (
-                  <div key={cycle.label} className="adp-performance-cell">
-                    <span className="adp-performance-cell__label">Moyenne {cycle.label}</span>
-                    <strong className="adp-performance-cell__value">
-                      {cycle.average.toFixed(1).replace('.', ',')} <small>/20</small>
-                    </strong>
-                    <div className="adp-mini-chart">
-                      <span className="adp-mini-chart__axis">20</span>
-                      {cycle.periods.map((period, index) => (
-                        <span
-                          key={period.period_name}
-                          title={`${period.period_name} : ${period.average.toFixed(1)}/20`}
-                          className={`adp-mini-chart__bar${index === cycle.periods.length - 1 ? ' adp-mini-chart__bar--current' : ''}`}
-                          style={{ height: `${(period.average / maxScore) * 100}%` }}
-                        />
-                      ))}
-                      <span className="adp-mini-chart__axis adp-mini-chart__axis--bottom">0</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            <PerformanceLineChart cycles={cyclePerformance} />
           )}
 
           <button type="button" className="adp-panel-link" disabled>

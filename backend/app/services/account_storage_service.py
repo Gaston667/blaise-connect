@@ -8,15 +8,21 @@ ACCOUNT_STORAGE_CATEGORIES = (
     "photos",
     "documents",
     "justificatifs",
-    "bulletins",
 )
+STUDENT_STORAGE_CATEGORIES = ("bulletins",)
 
 
-def create_account_storage_directories(registration_number: str) -> Path:
+def create_account_storage_directories(
+    registration_number: str,
+    is_student: bool = False,
+) -> Path:
     """Crée l'arborescence documentaire stable d'un compte."""
 
     account_directory = ACCOUNT_STORAGE_ROOT / registration_number
-    for category in ACCOUNT_STORAGE_CATEGORIES:
+    categories = ACCOUNT_STORAGE_CATEGORIES
+    if is_student:
+        categories += STUDENT_STORAGE_CATEGORIES
+    for category in categories:
         (account_directory / category).mkdir(parents=True, exist_ok=True)
     return account_directory
 
