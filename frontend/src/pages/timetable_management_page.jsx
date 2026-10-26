@@ -28,7 +28,9 @@ import {
 } from '../services/school_classes_overview_service.js'
 import {
   createSpecialCourse,
+  createBreakSchedule,
   createTimetableDateSlot,
+  deleteBreakSchedule,
   deleteSpecialCourse,
   deleteTimetableDateSlot,
   deleteTimetableSlot,
@@ -38,6 +40,7 @@ import {
   getDraftConflicts,
   getRooms,
   getTimetableConfiguration,
+  saveSchoolDaySchedule,
   validateTimetable,
 } from '../services/timetable_service.js'
 import { listStudents } from '../services/students_service.js'
@@ -60,7 +63,7 @@ const TABS = [
   { key: 'build', label: 'Créer le brouillon', icon: PencilRuler },
   { key: 'schedule', label: 'Emploi du temps', icon: CalendarDays },
   { key: 'special', label: 'Cours particuliers', icon: Users },
-  { key: 'configuration', label: 'Configuration', icon: Settings, disabled: true },
+  { key: 'configuration', label: 'Configuration', icon: Settings },
   { key: 'history', label: 'Historique', icon: History, disabled: true },
 ]
 
@@ -82,6 +85,12 @@ const EMPTY_SPECIAL_COURSE_FORM = {
   startTime: '17:30',
   endTime: '19:00',
   note: '',
+}
+
+const EMPTY_BREAK_FORM = {
+  label: 'Pause',
+  startTime: '',
+  endTime: '',
 }
 
 function formatTime(value) {
@@ -130,6 +139,81 @@ function formatDayWithDate(value) {
   return `${dayName} ${dateValue.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}`
 }
 
+/** Retourne le lundi de la première semaine qui contient un cours daté. */
+function getFirstPopulatedWeekStart(slots, fallbackDate) {
+  const firstDatedSlot = [...slots]
+    .filter(function keepDatedSlot(slot) { return Boolean(slot.course_date) })
+    .sort(sortTimetableSlots)[0]
+
+  return getWeekStart(firstDatedSlot?.course_date ?? fallbackDate)
+}
+
+/**
+ * Construit des créneaux visuels depuis la configuration : ils servent
+ * uniquement à dessiner la grille, jamais à afficher un faux cours.
+ */
+function getConfiguredGridSlots(days) {
+  const gridSlots = []
+
+  for (const day of days ?? []) {
+    const duration = Number(day.lesson_duration_minutes)
+    if (!duration || !day.course_start_time || !day.course_end_time) continue
+
+    const [startHour, startMinute] = formatTime(day.course_start_time).split(':').map(Number)
+    const [endHour, endMinute] = formatTime(day.course_end_time).split(':').map(Number)
+    let cursor = startHour * 60 + startMinute
+    const dayEnd = endHour * 60 + endMinute
+
+    while (cursor < dayEnd) {
+      const nextEnd = Math.min(cursor + duration, dayEnd)
+      const overlapsBreak = (day.breaks ?? []).some(function isOverlapping(schoolBreak) {
+        const [breakStartHour, breakStartMinute] = formatTime(schoolBreak.start_time).split(':').map(Number)
+        const [breakEndHour, breakEndMinute] = formatTime(schoolBreak.end_time).split(':').map(Number)
+        const breakStart = breakStartHour * 60 + breakStartMinute
+        const breakEnd = breakEndHour * 60 + breakEndMinute
+        return cursor < breakEnd && nextEnd > breakStart
+      })
+
+      if (!overlapsBreak) {
+        const toTime = function toTime(minutes) {
+          return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+        }
+        gridSlots.push({ start_time: toTime(cursor), end_time: toTime(nextEnd) })
+        cursor = nextEnd
+      } else {
+        const nextBreak = (day.breaks ?? []).find(function findCurrentBreak(schoolBreak) {
+          const [breakStartHour, breakStartMinute] = formatTime(schoolBreak.start_time).split(':').map(Number)
+          const [breakEndHour, breakEndMinute] = formatTime(schoolBreak.end_time).split(':').map(Number)
+          const breakStart = breakStartHour * 60 + breakStartMinute
+          const breakEnd = breakEndHour * 60 + breakEndMinute
+          return cursor < breakEnd && nextEnd > breakStart
+        })
+        const [breakEndHour, breakEndMinute] = formatTime(nextBreak.end_time).split(':').map(Number)
+        cursor = breakEndHour * 60 + breakEndMinute
+      }
+    }
+  }
+
+  return gridSlots
+}
+
+/** Crée une grille minimale tant que les horaires du cycle ne sont pas configurés. */
+function getDefaultGridSlots() {
+  return Array.from({ length: 9 }, function createDefaultSlot(index) {
+    const startHour = String(index + 8).padStart(2, '0')
+    const endHour = String(index + 9).padStart(2, '0')
+    return {
+      start_time: `${startHour}:00`,
+      end_time: `${endHour}:00`,
+    }
+  })
+}
+
+function isDateInSchoolYear(dateValue, schoolYearStartDate, schoolYearEndDate) {
+  return (!schoolYearStartDate || dateValue >= schoolYearStartDate)
+    && (!schoolYearEndDate || dateValue <= schoolYearEndDate)
+}
+
 /** Fusionne les pauses de chaque jour configuré en une seule liste, sans doublons. */
 function flattenBreaks(days) {
   const breaksByKey = new Map()
@@ -144,15 +228,22 @@ function flattenBreaks(days) {
 /**
  * Grille hebdomadaire réutilisable (aperçu du brouillon comme planning publié).
  */
-function TimetableGrid({ slots, breaks, weekStart, editable = false, onDeleteSlot, deletingSlotId }) {
+function TimetableGrid({ slots, breaks, configurationDays, schoolYearStartDate, schoolYearEndDate, weekStart, editable = false, onDeleteSlot, deletingSlotId }) {
   const currentWeekStart = weekStart || getWeekStart('')
-  const gridDayDates = [0, 1, 2, 3, 4, 5, 6].map(function getDayDate(index) { return addDays(currentWeekStart, index) })
+  const currentWeekEnd = addDays(currentWeekStart, 6)
+  const gridDayDates = [0, 1, 2, 3, 4].map(function getDayDate(index) { return addDays(currentWeekStart, index) })
   const visibleSlots = slots.filter(function filterVisibleSlots(slot) {
-    if (slot.course_date) return slot.course_date >= currentWeekStart && slot.course_date <= addDays(currentWeekStart, 6)
-    return (!slot.effective_start_date || currentWeekStart >= slot.effective_start_date)
+    if (slot.course_date) return slot.course_date >= currentWeekStart && slot.course_date <= currentWeekEnd
+
+    // Une semaine est visible dès qu'elle chevauche la période du brouillon.
+    return (!slot.effective_start_date || currentWeekEnd >= slot.effective_start_date)
       && (!slot.effective_end_date || currentWeekStart <= slot.effective_end_date)
   })
-  const daySchedule = getScheduleRows(visibleSlots, breaks)
+  const configuredGridSlots = getConfiguredGridSlots(configurationDays)
+  const daySchedule = getScheduleRows(
+    [...visibleSlots, ...(configuredGridSlots.length > 0 ? configuredGridSlots : getDefaultGridSlots())],
+    breaks,
+  )
   const subjectColorByName = new Map()
   visibleSlots.forEach(function assignSubjectColor(slot) {
     if (!subjectColorByName.has(slot.subject_name)) {
@@ -163,7 +254,11 @@ function TimetableGrid({ slots, breaks, weekStart, editable = false, onDeleteSlo
   function findSlotsForCell(dayIndex, period) {
       return visibleSlots.filter(
         (slot) =>
-          (slot.course_date ? slot.course_date === gridDayDates[dayIndex] : slot.day_of_week === dayIndex + 1) &&
+          (slot.course_date
+            ? slot.course_date === gridDayDates[dayIndex]
+            : slot.day_of_week === dayIndex + 1
+              && (!slot.effective_start_date || gridDayDates[dayIndex] >= slot.effective_start_date)
+              && (!slot.effective_end_date || gridDayDates[dayIndex] <= slot.effective_end_date)) &&
         formatTime(slot.start_time) < period.end &&
         formatTime(slot.end_time) > period.start
     )
@@ -186,10 +281,15 @@ function TimetableGrid({ slots, breaks, weekStart, editable = false, onDeleteSlo
 
   return (
     <div className="stp-grid-wrapper">
-      <div className="stp-grid">
+      <div className="stp-grid stp-grid--5-days">
         <div className="stp-grid__corner" />
         {gridDayDates.map((dayDate) => (
-          <div key={dayDate} className="stp-grid__day-head">{formatDayWithDate(dayDate)}</div>
+          <div
+            key={dayDate}
+            className={`stp-grid__day-head ${isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate) ? '' : 'stp-grid__day-head--outside'}`}
+          >
+            {formatDayWithDate(dayDate)}
+          </div>
         ))}
 
         {daySchedule.map((entry) => (
@@ -205,9 +305,17 @@ function TimetableGrid({ slots, breaks, weekStart, editable = false, onDeleteSlo
               </div>
               {gridDayDates.map((dayDate, dayIndex) => {
                 const day = dayDate
+                const isOutsideSchoolYear = !isDateInSchoolYear(
+                  dayDate,
+                  schoolYearStartDate,
+                  schoolYearEndDate,
+                )
                 const cellSlots = findSlotsForCell(dayIndex, entry)
+                if (isOutsideSchoolYear) {
+                  return <div key={`${dayDate}-${entry.start}`} className="stp-cell stp-cell--outside" aria-label="Hors période scolaire" />
+                }
                 if (cellSlots.length === 0) {
-                  return <div key={`${dayDate}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
+                  return <div key={`${dayDate}-${entry.start}`} className="stp-cell stp-cell--free">—</div>
                 }
                 if (cellSlots.length === 1) {
                   const slot = cellSlots[0]
@@ -247,6 +355,100 @@ function TimetableGrid({ slots, breaks, weekStart, editable = false, onDeleteSlo
   )
 }
 
+function getTimelineMinutes(timeValue) {
+  const [hours, minutes] = formatTime(timeValue).split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+function formatTimelineHour(minutes) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:00`
+}
+
+/** Planning horaire : les blocs sont positionnés à leur minute réelle. */
+function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearStartDate, schoolYearEndDate, weekStart, editable = false, onDeleteSlot, deletingSlotId }) {
+  const [displayMode, setDisplayMode] = useState('week')
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0)
+  const currentWeekStart = weekStart || getWeekStart('')
+  const currentWeekEnd = addDays(currentWeekStart, 6)
+  const gridDayDates = [0, 1, 2, 3, 4].map(function getDayDate(index) { return addDays(currentWeekStart, index) })
+  const visibleSlots = slots.filter(function filterVisibleSlots(slot) {
+    if (slot.course_date) return slot.course_date >= currentWeekStart && slot.course_date <= currentWeekEnd
+    return (!slot.effective_start_date || currentWeekEnd >= slot.effective_start_date)
+      && (!slot.effective_end_date || currentWeekStart <= slot.effective_end_date)
+  })
+  const configuredGridSlots = getConfiguredGridSlots(configurationDays)
+  const gridSlots = [...visibleSlots, ...(configuredGridSlots.length > 0 ? configuredGridSlots : getDefaultGridSlots())]
+  const timelineItems = [...gridSlots, ...breaks]
+  const startMinutes = Math.floor(Math.min(...timelineItems.map(function getStart(item) { return getTimelineMinutes(item.start_time) })) / 60) * 60
+  const endMinutes = Math.ceil(Math.max(...timelineItems.map(function getEnd(item) { return getTimelineMinutes(item.end_time) })) / 60) * 60
+  const pixelsPerMinute = 1.15
+  const timelineHeight = (endMinutes - startMinutes) * pixelsPerMinute
+  const hourMarkers = Array.from({ length: (endMinutes - startMinutes) / 60 + 1 }, function buildHourMarker(_, index) { return startMinutes + index * 60 })
+  const displayDays = displayMode === 'day' ? [selectedDayIndex] : [0, 1, 2, 3, 4]
+  const subjectColorByName = new Map()
+
+  visibleSlots.forEach(function assignSubjectColor(slot) {
+    if (!subjectColorByName.has(slot.subject_name)) {
+      subjectColorByName.set(slot.subject_name, SUBJECT_PALETTE[subjectColorByName.size % SUBJECT_PALETTE.length])
+    }
+  })
+
+  function isSlotOnDay(slot, dayIndex) {
+    return slot.course_date
+      ? slot.course_date === gridDayDates[dayIndex]
+      : slot.day_of_week === dayIndex + 1
+        && (!slot.effective_start_date || gridDayDates[dayIndex] >= slot.effective_start_date)
+        && (!slot.effective_end_date || gridDayDates[dayIndex] <= slot.effective_end_date)
+  }
+
+  function getVerticalStyle(startTime, endTime) {
+    return {
+      top: `${(getTimelineMinutes(startTime) - startMinutes) * pixelsPerMinute}px`,
+      height: `${Math.max((getTimelineMinutes(endTime) - getTimelineMinutes(startTime)) * pixelsPerMinute, 26)}px`,
+    }
+  }
+
+  function renderDeleteButton(slot) {
+    if (!editable || slot.status !== 'DRAFT') return null
+    return <button type="button" className="tmp-icon-button stp-timeline__delete" disabled={deletingSlotId === slot.id} title="Retirer ce créneau" onClick={function deleteSelectedSlot(event) { event.stopPropagation(); onDeleteSlot(slot) }}><Trash2 aria-hidden="true" size={13} /></button>
+  }
+
+  return (
+    <div className="stp-timeline-wrapper">
+      <div className="stp-timeline-toolbar">
+        <div className="stp-timeline-view-switch" aria-label="Mode d’affichage">
+          <button type="button" className={displayMode === 'week' ? 'stp-timeline-view-switch__button stp-timeline-view-switch__button--active' : 'stp-timeline-view-switch__button'} onClick={function showWeek() { setDisplayMode('week') }}>Semaine</button>
+          <button type="button" className={displayMode === 'day' ? 'stp-timeline-view-switch__button stp-timeline-view-switch__button--active' : 'stp-timeline-view-switch__button'} onClick={function showDay() { setDisplayMode('day') }}>Jour</button>
+        </div>
+        {displayMode === 'day' && <select className="stp-timeline-day-select" value={selectedDayIndex} onChange={function selectDay(event) { setSelectedDayIndex(Number(event.target.value)) }} aria-label="Jour affiché">{gridDayDates.map(function renderDayOption(dayDate, index) { return <option key={dayDate} value={index}>{formatDayWithDate(dayDate)}</option> })}</select>}
+      </div>
+      <div className={`stp-timeline stp-timeline--${displayDays.length}-days`} style={{ '--timeline-height': `${timelineHeight}px` }}>
+        <div className="stp-timeline__corner" />
+        {displayDays.map(function renderDayHeader(dayIndex) {
+          const dayDate = gridDayDates[dayIndex]
+          return <div key={dayDate} className={`stp-timeline__day-head ${isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate) ? '' : 'stp-timeline__day-head--outside'}`}>{formatDayWithDate(dayDate)}</div>
+        })}
+        <div className="stp-timeline__hours">
+          {hourMarkers.map(function renderHourMarker(minutes) { return <span key={minutes} style={{ top: `${(minutes - startMinutes) * pixelsPerMinute}px` }}>{formatTimelineHour(minutes)}</span> })}
+        </div>
+        {displayDays.map(function renderDayColumn(dayIndex) {
+          const dayDate = gridDayDates[dayIndex]
+          const outsideSchoolYear = !isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate)
+          const daySlots = visibleSlots.filter(function filterDaySlots(slot) { return isSlotOnDay(slot, dayIndex) })
+          return <div key={dayDate} className={`stp-timeline__day ${outsideSchoolYear ? 'stp-timeline__day--outside' : ''}`}>
+            {hourMarkers.map(function renderHourLine(minutes) { return <span key={minutes} className="stp-timeline__hour-line" style={{ top: `${(minutes - startMinutes) * pixelsPerMinute}px` }} /> })}
+            {!outsideSchoolYear && breaks.map(function renderBreak(schoolBreak) { return <div key={`${schoolBreak.start_time}-${schoolBreak.end_time}-${schoolBreak.label}`} className="stp-timeline__break" style={getVerticalStyle(schoolBreak.start_time, schoolBreak.end_time)}><span>{schoolBreak.label}</span></div> })}
+            {!outsideSchoolYear && daySlots.map(function renderSlot(slot) {
+              const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
+              return <article key={slot.id} className={`stp-timeline__course stp-cell--${color}`} style={getVerticalStyle(slot.start_time, slot.end_time)} title={`${slot.subject_name} : ${formatTime(slot.start_time)}–${formatTime(slot.end_time)}`}><span className="stp-cell__title"><BookOpen aria-hidden="true" size={13} /> {slot.subject_name}</span><span className="stp-cell__meta">{formatTime(slot.start_time)}–{formatTime(slot.end_time)} · {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}</span>{renderDeleteButton(slot)}</article>
+            })}
+          </div>
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function TimetableManagementPage() {
   const toast = useToast()
   const [classes, setClasses] = useState([])
@@ -262,6 +464,11 @@ export default function TimetableManagementPage() {
   const [publishedSlots, setPublishedSlots] = useState([])
   const [draftConflicts, setDraftConflicts] = useState([])
   const [scheduleBreaks, setScheduleBreaks] = useState([])
+  const [timetableConfiguration, setTimetableConfiguration] = useState(null)
+  const [configurationDay, setConfigurationDay] = useState('1')
+  const [scheduleForm, setScheduleForm] = useState({ startTime: '08:00', endTime: '16:00', lessonDuration: '60' })
+  const [breakForm, setBreakForm] = useState(EMPTY_BREAK_FORM)
+  const [savingConfiguration, setSavingConfiguration] = useState(false)
   const [classDataLoading, setClassDataLoading] = useState(false)
   const [savingSlot, setSavingSlot] = useState(false)
   const [deletingSlotId, setDeletingSlotId] = useState('')
@@ -318,8 +525,14 @@ export default function TimetableManagementPage() {
         setPublishedSlots([...published].sort(sortTimetableSlots))
         setRooms(availableRooms)
         setScheduleBreaks(flattenBreaks(configuration.days))
+        setTimetableConfiguration(configuration)
         setDraftConflicts(conflicts)
-        setVisibleWeekStart(getWeekStart(configuration.school_year_start_date))
+        setVisibleWeekStart(
+          getFirstPopulatedWeekStart(
+            classTimetable,
+            configuration.school_year_start_date,
+          ),
+        )
         setSlotForm(function setDefaultCourseDate(currentForm) {
           return { ...currentForm, courseDate: configuration.school_year_start_date }
         })
@@ -327,6 +540,14 @@ export default function TimetableManagementPage() {
           startDate: configuration.school_year_start_date,
           endDate: configuration.school_year_end_date,
         })
+        const firstDay = configuration.days.find(function findMonday(day) { return day.day_of_week === 1 })
+        if (firstDay) {
+          setScheduleForm({
+            startTime: formatTime(firstDay.course_start_time),
+            endTime: formatTime(firstDay.course_end_time),
+            lessonDuration: String(firstDay.lesson_duration_minutes),
+          })
+        }
       } catch (loadError) {
         setError(loadError.message)
       } finally {
@@ -419,6 +640,96 @@ export default function TimetableManagementPage() {
     setSlotForm(function updateSlotForm(currentForm) {
       return { ...currentForm, [name]: value }
     })
+  }
+
+  function getConfiguredDay() {
+    return timetableConfiguration?.days?.find(function findConfiguredDay(day) {
+      return String(day.day_of_week) === configurationDay
+    }) ?? null
+  }
+
+  function handleConfigurationDayChange(event) {
+    const nextDay = event.target.value
+    setConfigurationDay(nextDay)
+    const nextSchedule = timetableConfiguration?.days?.find(function findDay(day) {
+      return String(day.day_of_week) === nextDay
+    })
+    if (nextSchedule) {
+      setScheduleForm({
+        startTime: formatTime(nextSchedule.course_start_time),
+        endTime: formatTime(nextSchedule.course_end_time),
+        lessonDuration: String(nextSchedule.lesson_duration_minutes),
+      })
+    }
+  }
+
+  async function refreshConfiguration() {
+    const configuration = await getTimetableConfiguration(selectedClassId)
+    setTimetableConfiguration(configuration)
+    setScheduleBreaks(flattenBreaks(configuration.days))
+    return configuration
+  }
+
+  async function handleSaveSchedule(event) {
+    event.preventDefault()
+    if (!timetableConfiguration) return
+    setSavingConfiguration(true)
+    setError('')
+    try {
+      await saveSchoolDaySchedule(timetableConfiguration.school_year_id, {
+        education_stage: timetableConfiguration.education_stage,
+        day_of_week: Number(configurationDay),
+        course_start_time: scheduleForm.startTime,
+        course_end_time: scheduleForm.endTime,
+        lesson_duration_minutes: Number(scheduleForm.lessonDuration),
+      })
+      await refreshConfiguration()
+      toast.success('Horaires enregistrés.')
+    } catch (saveError) {
+      setError(saveError.message)
+    } finally {
+      setSavingConfiguration(false)
+    }
+  }
+
+  async function handleCreateBreak(event) {
+    event.preventDefault()
+    const currentDay = getConfiguredDay()
+    if (!currentDay) {
+      setError('Enregistrez d’abord les horaires de cette journée.')
+      return
+    }
+    setSavingConfiguration(true)
+    setError('')
+    try {
+      await createBreakSchedule({
+        school_day_schedule_id: currentDay.id,
+        label: breakForm.label,
+        start_time: breakForm.startTime,
+        end_time: breakForm.endTime,
+      })
+      setBreakForm(EMPTY_BREAK_FORM)
+      await refreshConfiguration()
+      toast.success('Pause ajoutée.')
+    } catch (saveError) {
+      setError(saveError.message)
+    } finally {
+      setSavingConfiguration(false)
+    }
+  }
+
+  async function handleDeleteBreak(breakId) {
+    setSavingConfiguration(true)
+    setError('')
+    try {
+      await deleteBreakSchedule(breakId)
+      await refreshConfiguration()
+      toast.success('Pause supprimée.')
+    } catch (deleteError) {
+      setError(deleteError.message)
+    } finally {
+      setSavingConfiguration(false)
+    }
   }
 
   async function refreshTimetable() {
@@ -621,6 +932,35 @@ export default function TimetableManagementPage() {
 
       {error && <p className="tmp-error" role="alert">{error}</p>}
 
+      <div className="tmp-workspace">
+        <aside className="tmp-class-sidebar">
+          <div className="tmp-class-sidebar__heading">
+            <h2>Classes</h2>
+            <p>Choisissez la classe à organiser.</p>
+          </div>
+          <div className="tmp-class-sidebar__list">
+            {classesLoading ? <p>Chargement…</p> : classes.map(function renderClassItem(schoolClass) {
+              const isSelected = schoolClass.id === selectedClassId
+              return (
+                <button
+                  key={schoolClass.id}
+                  type="button"
+                  className={isSelected ? 'tmp-class-sidebar__item tmp-class-sidebar__item--active' : 'tmp-class-sidebar__item'}
+                  onClick={function selectClassFromSidebar() {
+                    setSelectedClassId(schoolClass.id)
+                    setActiveTab('overview')
+                    setBuildMode(null)
+                  }}
+                >
+                  <School aria-hidden="true" size={17} />
+                  <span><strong>{formatClassName(schoolClass)}</strong><small>{schoolClass.school_year_name}</small></span>
+                </button>
+              )
+            })}
+          </div>
+        </aside>
+
+        <div className="tmp-workspace__content">
       {!selectedClassId && (
         <section className="tmp-landing">
           <div className="tmp-landing__illustration" aria-hidden="true">
@@ -648,7 +988,6 @@ export default function TimetableManagementPage() {
                 <small>{selectedClass?.school_year_name ?? ''}</small>
               </div>
             </div>
-            <button type="button" className="tmp-btn-secondary" onClick={openClassPicker}>Changer de classe</button>
           </section>
 
           <nav className="tmp-tabs" aria-label="Rubriques de l’emploi du temps">
@@ -703,6 +1042,40 @@ export default function TimetableManagementPage() {
                 <button type="button" className="tmp-btn-secondary" onClick={function openSchedule() { setActiveTab('schedule') }}>
                   <Eye aria-hidden="true" size={17} /> Voir l’emploi du temps
                 </button>
+              </div>
+
+              <section className="tmp-overview-config">
+                <div>
+                  <h3><Settings aria-hidden="true" size={18} /> Configuration des horaires</h3>
+                  <p>{timetableConfiguration?.days?.length ? `${timetableConfiguration.days.length} journée(s) configurée(s) pour ce cycle.` : 'Les horaires et pauses ne sont pas encore configurés pour ce cycle.'}</p>
+                </div>
+                <button type="button" className="tmp-btn-primary" onClick={function openConfiguration() { setActiveTab('configuration') }}>
+                  <Settings aria-hidden="true" size={17} /> Configurer
+                </button>
+              </section>
+            </section>
+          )}
+
+          {activeTab === 'configuration' && (
+            <section className="tmp-panel tmp-configuration">
+              <div className="tmp-panel__heading"><div><h2>Configuration des horaires</h2><p>Ces horaires s’appliquent à toutes les classes du même cycle et de la même année scolaire.</p></div></div>
+              <form className="tmp-configuration__form" onSubmit={handleSaveSchedule}>
+                <label className="tmp-field"><span>Jour</span><select value={configurationDay} onChange={handleConfigurationDayChange}>{Object.entries(DAY_LABELS).slice(0, 6).map(function renderDayOption([value, label]) { return <option key={value} value={value}>{label}</option> })}</select></label>
+                <label className="tmp-field"><span>Début des cours *</span><input type="time" value={scheduleForm.startTime} onChange={function changeScheduleStart(event) { setScheduleForm({ ...scheduleForm, startTime: event.target.value }) }} required /></label>
+                <label className="tmp-field"><span>Fin des cours *</span><input type="time" value={scheduleForm.endTime} onChange={function changeScheduleEnd(event) { setScheduleForm({ ...scheduleForm, endTime: event.target.value }) }} required /></label>
+                <label className="tmp-field"><span>Durée d’un cours</span><select value={scheduleForm.lessonDuration} onChange={function changeLessonDuration(event) { setScheduleForm({ ...scheduleForm, lessonDuration: event.target.value }) }}><option value="45">45 minutes</option><option value="50">50 minutes</option><option value="55">55 minutes</option><option value="60">60 minutes</option></select></label>
+                <button type="submit" className="tmp-btn-primary" disabled={savingConfiguration}>Enregistrer les horaires</button>
+              </form>
+
+              <div className="tmp-breaks">
+                <h3>Pauses du {DAY_LABELS[configurationDay]}</h3>
+                <form className="tmp-configuration__form" onSubmit={handleCreateBreak}>
+                  <label className="tmp-field"><span>Libellé</span><input value={breakForm.label} onChange={function changeBreakLabel(event) { setBreakForm({ ...breakForm, label: event.target.value }) }} required /></label>
+                  <label className="tmp-field"><span>Début</span><input type="time" value={breakForm.startTime} onChange={function changeBreakStart(event) { setBreakForm({ ...breakForm, startTime: event.target.value }) }} required /></label>
+                  <label className="tmp-field"><span>Fin</span><input type="time" value={breakForm.endTime} onChange={function changeBreakEnd(event) { setBreakForm({ ...breakForm, endTime: event.target.value }) }} required /></label>
+                  <button type="submit" className="tmp-btn-secondary" disabled={savingConfiguration}>Ajouter une pause</button>
+                </form>
+                <ul className="tmp-break-list">{(getConfiguredDay()?.breaks ?? []).map(function renderBreak(schoolBreak) { return <li key={schoolBreak.id}><span><strong>{schoolBreak.label}</strong> · {formatTime(schoolBreak.start_time)} — {formatTime(schoolBreak.end_time)}</span><button type="button" onClick={function deleteSelectedBreak() { handleDeleteBreak(schoolBreak.id) }}>Supprimer</button></li> })}</ul>
               </div>
             </section>
           )}
@@ -957,12 +1330,13 @@ export default function TimetableManagementPage() {
 
                   {classDataLoading ? (
                     <p className="tmp-empty">Chargement…</p>
-                  ) : savedSlots.length === 0 ? (
-                    <p className="tmp-empty">Aucun créneau pour le moment.</p>
                   ) : (
-                    <TimetableGrid
+                    <TimelineTimetableGrid
                       slots={savedSlots}
                       breaks={scheduleBreaks}
+                      configurationDays={timetableConfiguration?.days}
+                      schoolYearStartDate={timetableConfiguration?.school_year_start_date}
+                      schoolYearEndDate={timetableConfiguration?.school_year_end_date}
                       weekStart={visibleWeekStart}
                       editable
                       onDeleteSlot={handleDeleteSlot}
@@ -1113,19 +1487,22 @@ export default function TimetableManagementPage() {
 
               {classDataLoading ? (
                 <p className="tmp-empty">Chargement de l’emploi du temps…</p>
-              ) : publishedSlots.length === 0 ? (
-                <div className="tmp-empty-state">
-                  <CalendarDays aria-hidden="true" size={38} />
-                  <strong>Aucun emploi du temps publié</strong>
-                  <p>Utilisez la création manuelle ou la génération automatique, puis publiez le brouillon.</p>
-                </div>
               ) : (
-                <TimetableGrid slots={publishedSlots} breaks={scheduleBreaks} weekStart={visibleWeekStart} />
+                <TimelineTimetableGrid
+                  slots={publishedSlots}
+                  breaks={scheduleBreaks}
+                  configurationDays={timetableConfiguration?.days}
+                  schoolYearStartDate={timetableConfiguration?.school_year_start_date}
+                  schoolYearEndDate={timetableConfiguration?.school_year_end_date}
+                  weekStart={visibleWeekStart}
+                />
               )}
             </section>
           )}
         </>
       )}
+        </div>
+      </div>
 
       {showClassPicker && (
         <div className="tmp-dialog-backdrop" role="presentation">

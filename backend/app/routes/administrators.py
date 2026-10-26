@@ -23,6 +23,19 @@ def get_administrators_overview(
     return list_administrators_overview(db=db, q=q)
 
 
+@router.get("/{administrator_id}", response_model=AdministratorOverview)
+def get_administrator(
+    administrator_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Retourne la fiche d'un administrateur identifié par son dossier."""
+    administrator = get_administrator_overview(db=db, administrator_id=administrator_id)
+    if administrator is None:
+        raise HTTPException(status_code=404, detail="Administrateur introuvable.")
+    return administrator
+
+
 @router.patch("/{administrator_id}", response_model=AdministratorOverview)
 def patch_administrator(
     administrator_id: str,

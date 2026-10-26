@@ -198,8 +198,8 @@
 
 .comptes-table-avatar {
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   color: var(--color-primary);

@@ -8,9 +8,7 @@ import {
   Eye,
   EyeOff,
   FileClock,
-  ImagePlus,
   KeyRound,
-  Pencil,
   RefreshCw,
 } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
@@ -20,12 +18,9 @@ import {
   changeAccountState,
   getAccount,
   resetAccountPassword,
-  uploadAccountPhoto,
 } from '../services/account_service.js'
 import { generateSecurePassword } from '../services/password_generator.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
-import { NATIONALITIES } from '../constants/nationalities.js'
-import { INTERNATIONAL_PHONE_PATTERN } from '../utils/phone.js'
 
 const ROLE_LABELS = {
   ADMIN: 'Administrateur',
@@ -40,16 +35,6 @@ const ROLE_BADGE_CLASSES = {
   STUDENT: 'comptes-role-badge-student',
   GUARDIAN: 'comptes-role-badge-guardian',
 }
-
-const GENDER_LABELS = {
-  MALE: 'Masculin',
-  FEMALE: 'Féminin',
-}
-
-const TABS = [
-  { key: 'account', label: 'Informations du compte' },
-  { key: 'personal', label: 'Identité personnelle' },
-]
 
 const ACCESS_RIGHTS = {
   STUDENT: [
@@ -105,27 +90,11 @@ function formatDateTime(dateValue) {
   })}`
 }
 
-/** Bloc "Bientôt disponible" pour les onglets/champs non encore branchés au backend. */
-function ComingSoonPanel({ label }) {
-  return (
-    <div className="details-coming-soon">
-      <p>{label} sera bientôt disponible.</p>
-    </div>
-  )
-}
-
-// eslint-disable-next-line no-unused-vars -- réservé aux prochains onglets
-const _ComingSoonPanel = ComingSoonPanel
-
 /** Affiche les détails complets d'un compte (US suivante). */
 export default function AccountDetailsPage({ account: initialAccount, onNavigate }) {
   const [account, setAccount] = useState(
     initialAccount?.registration_number ? initialAccount : null,
   )
-  const [activeTab, setActiveTab] = useState('account')
-  const [editingPersonal, setEditingPersonal] = useState(false)
-  const [personalForm, setPersonalForm] = useState(initialAccount?.profile || {})
-
   useEffect(
     function fetchAccountByIdEffect() {
       if (account !== null) return
@@ -135,7 +104,6 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
         try {
           const fresh = await getAccount(accountId)
           setAccount(fresh)
-          setPersonalForm(fresh.profile || {})
         } catch {
           setAccount(undefined)
         }
@@ -148,9 +116,6 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
   const [actionMessage, setActionMessage] = useState('')
   const [actionError, setActionError] = useState('')
   const [pendingAction, setPendingAction] = useState(null)
-  const [personalPhoto, setPersonalPhoto] = useState(null)
-  const [personalPhotoPreview, setPersonalPhotoPreview] = useState('')
-  const [photoSaving, setPhotoSaving] = useState(false)
   const [passwordResetOpen, setPasswordResetOpen] = useState(false)
   const [passwordResetStep, setPasswordResetStep] = useState('password')
   const [passwordResetForm, setPasswordResetForm] = useState({
@@ -163,68 +128,6 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
 
   function handleBackNavigation() {
     onNavigate('accounts')
-  }
-
-  function startPersonalEditing() {
-    setPersonalForm(account.profile || {})
-    setPersonalPhoto(null)
-    setPersonalPhotoPreview(account.profile?.photo_path || '')
-    setEditingPersonal(true)
-  }
-
-  function cancelPersonalEditing() {
-    if (personalPhoto && personalPhotoPreview) {
-      URL.revokeObjectURL(personalPhotoPreview)
-    }
-    setPersonalForm(account.profile || {})
-    setPersonalPhoto(null)
-    setPersonalPhotoPreview('')
-    setEditingPersonal(false)
-  }
-
-  function selectPersonalPhoto(event) {
-    const selectedPhoto = event.target.files?.[0] || null
-    if (!selectedPhoto) return
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(selectedPhoto.type)) {
-      setActionError('La photo doit être au format JPEG, PNG ou WebP.')
-      event.target.value = ''
-      return
-    }
-    if (selectedPhoto.size > 5 * 1024 * 1024) {
-      setActionError('La photo doit avoir une taille maximale de 5 Mo.')
-      event.target.value = ''
-      return
-    }
-    if (personalPhoto && personalPhotoPreview) {
-      URL.revokeObjectURL(personalPhotoPreview)
-    }
-    setPersonalPhoto(selectedPhoto)
-    setPersonalPhotoPreview(URL.createObjectURL(selectedPhoto))
-  }
-
-  async function savePersonalPhoto() {
-    if (!personalPhoto) return
-    setPhotoSaving(true)
-    setActionError('')
-    try {
-      const updatedAccount = await uploadAccountPhoto(account.id, personalPhoto)
-      setAccount(updatedAccount)
-      setActionMessage('La photo du profil a été modifiée.')
-      URL.revokeObjectURL(personalPhotoPreview)
-      setPersonalPhoto(null)
-      setPersonalPhotoPreview('')
-      setEditingPersonal(false)
-    } catch (requestError) {
-      setActionError(requestError.message)
-    } finally {
-      setPhotoSaving(false)
-    }
-  }
-
-  function updatePersonalField(event) {
-    const field = event.currentTarget.name
-    const value = event.currentTarget.value
-    setPersonalForm((currentForm) => ({ ...currentForm, [field]: value }))
   }
 
   async function runAccountAction(action, successMessage) {
@@ -372,12 +275,17 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
   const profile = account.profile || {}
   const fullName = formatProfileName(profile.first_name, profile.last_name, profile.gender)
   const inactive = isInactive(account)
-  const qualificationLabel = account.role === 'TEACHER' ? 'Spécialité / Qualification' : 'Fonction'
-  const qualificationValue =
-    account.role === 'TEACHER' ? profile.qualification : profile.job_title
-  const canShowPersonalIdentity = account.role === 'ADMIN'
-  const visibleActiveTab =
-    activeTab === 'personal' && !canShowPersonalIdentity ? 'account' : activeTab
+  const profilePageByRole = {
+    ADMIN: 'administrator-details',
+    TEACHER: 'teacher-details',
+    STUDENT: 'student-details',
+    GUARDIAN: 'guardian-details',
+  }
+
+  function openProfile() {
+    const profilePage = profilePageByRole[account.role]
+    if (profilePage && profile.id) onNavigate(profilePage, profile.id)
+  }
 
   return (
     <main className="comptes-main">
@@ -409,6 +317,11 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
           <SummaryAvatar photoPath={profile?.photo_path} />
           <div>
             <h2>{fullName}</h2>
+            {profilePageByRole[account.role] && profile.id && (
+              <button type="button" className="details-summary-profile-link" onClick={openProfile}>
+                Voir la fiche d’identité
+              </button>
+            )}
             <span
               className={`comptes-status ${
                 inactive ? 'comptes-status-inactive' : 'comptes-status-active'
@@ -436,22 +349,7 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
         </dl>
       </section>
 
-      <nav className="details-tabs" aria-label="Sections du compte">
-        {TABS.filter((tab) => tab.key !== 'personal' || canShowPersonalIdentity).map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`details-tab ${visibleActiveTab === tab.key ? 'details-tab-active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
-            aria-current={visibleActiveTab === tab.key}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
-      {visibleActiveTab === 'account' && (
-        <>
+      <section aria-label="Informations du compte">
           <section className="details-account-grid">
             <article className="details-account-column">
               <h3>Informations du compte</h3>
@@ -558,101 +456,7 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
               </div>
             </section>
           )}
-        </>
-      )}
-
-      {visibleActiveTab === 'personal' && canShowPersonalIdentity && (
-        <section className="details-panel sdp-view">
-          <div className="sdp-section-heading">
-            <h2>Informations personnelles</h2>
-            {!editingPersonal && (
-              <button type="button" className="sdp-btn-outline" onClick={startPersonalEditing}>
-                <Pencil aria-hidden="true" size={16} />
-                Modifier
-              </button>
-            )}
-          </div>
-          {editingPersonal ? (
-            <div className="sdp-form">
-              <label className="sdp-photo-edit">
-                Photo de profil
-                <span>
-                  {personalPhotoPreview ? (
-                    <img src={personalPhotoPreview} alt="Aperçu de la photo du profil" />
-                  ) : (
-                    <ImagePlus aria-hidden="true" size={26} />
-                  )}
-                  <strong>Choisir une nouvelle photo</strong>
-                  <small>JPEG, PNG ou WebP — 5 Mo maximum</small>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={selectPersonalPhoto}
-                  />
-                </span>
-              </label>
-              <div className="sdp-row">
-                <label>Nom<input name="last_name" value={personalForm.last_name || ''} onChange={updatePersonalField} /></label>
-                <label>Prénom<input name="first_name" value={personalForm.first_name || ''} onChange={updatePersonalField} /></label>
-                <label>
-                  Sexe
-                  <select name="gender" value={personalForm.gender || ''} onChange={updatePersonalField}>
-                    <option value="">—</option>
-                    <option value="FEMALE">Féminin</option>
-                    <option value="MALE">Masculin</option>
-                  </select>
-                </label>
-              </div>
-              <div className="sdp-row">
-                <label>Date de naissance<input type="date" name="birth_date" value={personalForm.birth_date || ''} onChange={updatePersonalField} /></label>
-                <label>Lieu de naissance<input name="birth_place" value={personalForm.birth_place || ''} onChange={updatePersonalField} /></label>
-                <label>Nationalité *<select name="nationality" value={personalForm.nationality || ''} onChange={updatePersonalField} required><option value="">Sélectionner une nationalité</option>{NATIONALITIES.map(function nationalityOption(nationality) { return <option key={nationality} value={nationality}>{nationality}</option> })}</select></label>
-              </div>
-              <div className="sdp-row">
-                <label>Téléphone<input name="phone" value={personalForm.phone || ''} onChange={updatePersonalField} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" /></label>
-                <label>Email<input type="email" name="email" value={personalForm.email || personalForm.personal_email || ''} onChange={updatePersonalField} /></label>
-              </div>
-              <label className="sdp-full">Adresse<input name="address" value={personalForm.address || ''} onChange={updatePersonalField} /></label>
-              <div className="sdp-form-actions">
-                <button type="button" className="sdp-btn-outline" onClick={cancelPersonalEditing}>Annuler</button>
-                <button
-                  type="button"
-                  className="sdp-btn-primary"
-                  onClick={savePersonalPhoto}
-                  disabled={!personalPhoto || photoSaving}
-                >
-                  {photoSaving ? 'Enregistrement…' : 'Enregistrer la photo'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="sdp-personal-grid">
-              <section>
-                <h3>Informations d’identité</h3>
-                <dl>
-                  <div><dt>Nom</dt><dd>{profile.last_name || '—'}</dd></div>
-                  <div><dt>Prénom</dt><dd>{profile.first_name || '—'}</dd></div>
-                  <div><dt>Sexe</dt><dd>{GENDER_LABELS[profile.gender] || '—'}</dd></div>
-                  <div><dt>Date de naissance</dt><dd>{formatDate(profile.birth_date)}</dd></div>
-                  <div><dt>Lieu de naissance</dt><dd>{profile.birth_place || '—'}</dd></div>
-                  <div><dt>Nationalité</dt><dd>{profile.nationality || '—'}</dd></div>
-                  <div><dt>{qualificationLabel}</dt><dd>{qualificationValue || '—'}</dd></div>
-                  <div><dt>Date d’embauche</dt><dd>{formatDate(profile.hire_date)}</dd></div>
-                </dl>
-              </section>
-
-              <section>
-                <h3>Informations de contact</h3>
-                <dl>
-                  <div><dt>Adresse</dt><dd>{profile.address || '—'}</dd></div>
-                  <div><dt>Téléphone</dt><dd>{profile.phone || '—'}</dd></div>
-                  <div><dt>Email</dt><dd>{profile.email || profile.personal_email || '—'}</dd></div>
-                </dl>
-              </section>
-            </div>
-          )}
-        </section>
-      )}
+      </section>
 
       {passwordResetOpen && (
         <div className="details-password-reset-overlay" role="presentation">
@@ -770,37 +574,6 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
         onConfirm={confirmAccountAction}
       />
 
-      {activeTab === 'roles' && (
-        <section className="details-panels">
-          <div className="details-panel">
-            <ComingSoonPanel label="La gestion des rôles et permissions" />
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'classes' && (
-        <section className="details-panels">
-          <div className="details-panel">
-            <ComingSoonPanel label="L'affichage des classes et matières" />
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'activity' && (
-        <section className="details-panels">
-          <div className="details-panel">
-            <ComingSoonPanel label="L'activité récente" />
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'journal' && (
-        <section className="details-panels">
-          <div className="details-panel">
-            <ComingSoonPanel label="Le journal des actions" />
-          </div>
-        </section>
-      )}
     </main>
   )
 }

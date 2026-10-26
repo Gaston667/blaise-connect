@@ -14,10 +14,10 @@ export function getAdministratorsOverview(q) {
  * consultable après une actualisation du navigateur.
  */
 export async function getAdministratorOverview(administratorId) {
-  const administrators = await getAdministratorsOverview()
-  const administrator = administrators.find((item) => item.id === administratorId)
-  if (!administrator) throw new Error('Administrateur introuvable.')
-  return administrator
+  return apiRequestJson(`/api/administrators/${administratorId}`, {
+    method: 'GET',
+    fallbackMessage: 'Échec du chargement de l’administrateur',
+  })
 }
 
 /** Modifie les coordonnées et le rôle d'un administrateur. */

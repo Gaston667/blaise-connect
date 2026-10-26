@@ -12,11 +12,40 @@
 
 .stp-grid-wrapper { overflow-x: auto; }
 
+/* Planning à échelle réelle : une heure vaut 69 px et les cours sont placés
+   précisément selon leurs heures de début et de fin. */
+.stp-timeline-wrapper { overflow-x: auto; }
+.stp-timeline-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+.stp-timeline-view-switch { display: inline-flex; overflow: hidden; border: 1px solid var(--color-primary); border-radius: var(--radius-sm); }
+.stp-timeline-view-switch__button { padding: var(--space-2) var(--space-3); color: var(--color-primary); background: var(--color-surface); border: 0; border-right: 1px solid var(--color-primary); font: inherit; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.stp-timeline-view-switch__button:last-child { border-right: 0; }
+.stp-timeline-view-switch__button--active { color: var(--color-text-on-primary); background: var(--color-primary); }
+.stp-timeline-day-select { min-height: 32px; padding: 0 var(--space-2); color: var(--color-text-primary); background: var(--color-surface); border: 1px solid var(--input-border); border-radius: var(--radius-sm); font: inherit; font-size: var(--font-size-xs); }
+.stp-timeline { display: grid; grid-template-columns: 64px repeat(5, minmax(150px, 1fr)); grid-template-rows: auto var(--timeline-height); min-width: 820px; overflow: hidden; border: 1px solid var(--table-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.stp-timeline--1-days { grid-template-columns: 64px minmax(340px, 1fr); min-width: 410px; }
+.stp-timeline__corner { background: var(--table-header-bg); border-bottom: 1px solid var(--table-border); }
+.stp-timeline__day-head { padding: var(--space-2); text-align: center; color: var(--color-text-secondary); background: var(--table-header-bg); border-left: 1px solid var(--table-border); border-bottom: 1px solid var(--table-border); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+.stp-timeline__day-head--outside, .stp-timeline__day--outside { background: repeating-linear-gradient(45deg, var(--table-header-bg), var(--table-header-bg) 7px, var(--color-surface-subtle) 7px, var(--color-surface-subtle) 14px); }
+.stp-timeline__hours { position: relative; height: var(--timeline-height); background: var(--table-header-bg); border-right: 1px solid var(--table-border); }
+.stp-timeline__hours span { position: absolute; right: var(--space-2); transform: translateY(-50%); color: var(--color-text-secondary); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+.stp-timeline__day { position: relative; height: var(--timeline-height); min-width: 0; border-right: 1px solid var(--table-border); background: color-mix(in srgb, var(--table-header-bg) 35%, white); }
+.stp-timeline__day:last-child { border-right: 0; }
+.stp-timeline__hour-line { position: absolute; right: 0; left: 0; height: 1px; background: var(--table-border); }
+.stp-timeline__break { position: absolute; z-index: 1; right: 0; left: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--color-text-muted); background: repeating-linear-gradient(45deg, rgb(226 232 240 / 72%), rgb(226 232 240 / 72%) 5px, rgb(255 255 255 / 62%) 5px, rgb(255 255 255 / 62%) 10px); font-size: 0.6rem; font-weight: var(--font-weight-semibold); text-transform: uppercase; }
+.stp-timeline__break span { padding: 0 var(--space-1); background: rgb(255 255 255 / 72%); }
+.stp-timeline__course { position: absolute; z-index: 2; right: 3px; left: 3px; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 26px; padding: var(--space-2); overflow: hidden; border-radius: 3px; box-shadow: inset 3px 0 currentColor; }
+.stp-timeline__course .stp-cell__title { font-size: var(--font-size-xs); }
+.stp-timeline__course .stp-cell__meta { font-size: 0.62rem; }
+.stp-timeline__delete { position: absolute; top: 2px; right: 2px; z-index: 3; }
+
 .stp-grid {
   display: grid;
   grid-template-columns: 64px repeat(7, minmax(120px, 1fr));
-  gap: 6px;
+  gap: 0;
   min-width: 940px;
+  overflow: hidden;
+  border: 1px solid var(--table-border);
+  border-radius: var(--radius-md);
 }
 
 .stp-grid--5-days {
@@ -24,7 +53,7 @@
   min-width: 680px;
 }
 
-.stp-grid__corner { }
+.stp-grid__corner { background: var(--table-header-bg); }
 
 .stp-grid__day-head {
   padding: var(--space-2);
@@ -32,6 +61,14 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
+  background: var(--table-header-bg);
+  border-left: 1px solid var(--table-border);
+  border-bottom: 1px solid var(--table-border);
+}
+
+.stp-grid__day-head--outside {
+  color: var(--color-text-muted);
+  background: repeating-linear-gradient(45deg, var(--table-header-bg), var(--table-header-bg) 7px, var(--color-surface-subtle) 7px, var(--color-surface-subtle) 14px);
 }
 
 .stp-grid__time {
@@ -41,6 +78,9 @@
   justify-content: center;
   padding: var(--space-2) var(--space-1);
   text-align: right;
+  min-height: 58px;
+  background: var(--table-header-bg);
+  border-bottom: 1px solid var(--table-border);
 }
 .stp-grid__time strong { font-size: var(--font-size-sm); }
 .stp-grid__time span { font-size: 0.65rem; color: var(--color-text-muted); }
@@ -50,17 +90,17 @@
   flex-direction: column;
   gap: 2px;
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  min-height: 56px;
+  min-height: 58px;
   justify-content: center;
+  border-left: 1px solid var(--table-border);
+  border-bottom: 1px solid var(--table-border);
 }
 
 .stp-cell--free {
   align-items: center;
   justify-content: center;
   color: var(--color-text-muted);
-  background: var(--table-header-bg);
-  border: 1px dashed var(--table-border);
+  background: color-mix(in srgb, var(--table-header-bg) 58%, white);
   font-size: var(--font-size-xs);
 }
 
@@ -78,7 +118,11 @@
   letter-spacing: 0.03em;
   color: var(--color-text-muted);
   background: repeating-linear-gradient(45deg, var(--table-header-bg), var(--table-header-bg) 8px, var(--color-surface) 8px, var(--color-surface) 16px);
-  border-radius: var(--radius-md);
+  border-bottom: 1px solid var(--table-border);
+}
+
+.stp-cell--outside {
+  background: repeating-linear-gradient(45deg, var(--table-header-bg), var(--table-header-bg) 7px, var(--color-surface-subtle) 7px, var(--color-surface-subtle) 14px);
 }
 
 .stp-cell--violet { background: var(--sgp-violet-bg); }

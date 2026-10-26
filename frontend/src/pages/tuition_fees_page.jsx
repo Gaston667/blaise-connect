@@ -46,6 +46,9 @@ const EXAM_FEES = [
   { label: 'BAC (Terminale)', gnf: 4000000, eur: 400 },
 ]
 
+// Document public copié dans le build du frontend, donc disponible aussi sur le VPS.
+const FINANCIAL_REGULATIONS_URL = '/documents/reglement-financier-2026-2027.pdf'
+
 /**
  * Formate un montant en francs guinéens.
  */
@@ -68,9 +71,18 @@ function formatEUR(amount) {
  */
 export default function TuitionFeesPage() {
   const navigate = useNavigate()
-
   function handlePrintEnrollmentForm() {
     window.print()
+  }
+
+  /** Télécharge le règlement financier officiel inclus dans le site. */
+  function downloadFinancialRegulations() {
+    const link = document.createElement('a')
+    link.href = FINANCIAL_REGULATIONS_URL
+    link.download = 'reglement-financier-2026-2027.pdf'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
   }
 
   return (
@@ -284,19 +296,18 @@ export default function TuitionFeesPage() {
           </article>
         </section>
 
-        <section className="tuition-enrollment no-print" aria-labelledby="enrollment-title">
-          <h2 id="enrollment-title" className="public-page-title">Fiche d’inscription</h2>
+        <section className="tuition-enrollment no-print" aria-labelledby="financial-regulations-title">
+          <h2 id="financial-regulations-title" className="public-page-title">Règlement financier</h2>
           <p className="public-page-description">
-            Téléchargez la fiche d’inscription, imprimez-la, remplissez-la et
-            ramenez-la à l’établissement pour finaliser l’inscription.
+            Téléchargez le règlement financier de l’établissement pour l’année scolaire 2026-2027.
           </p>
           <button
             className="tuition-enrollment-download"
             type="button"
-            onClick={handlePrintEnrollmentForm}
+            onClick={downloadFinancialRegulations}
           >
             <Download aria-hidden="true" size={19} />
-            Télécharger la fiche d’inscription
+            Télécharger le règlement financier
           </button>
         </section>
 
