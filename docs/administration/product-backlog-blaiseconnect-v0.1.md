@@ -46,9 +46,9 @@ Les estimations comprennent le développement, les tests et la documentation.
 | US-004 | Classes | Gérer les classes du lycée | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-005 | Matières | Gérer les matières et coefficients | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-006 | Enseignants | Gérer les enseignants | Indispensable pour le MVP | M | 🟩 Terminé |
-| US-007 | Affectations | Affecter enseignants, classes et matières | Indispensable pour le MVP | L | 🟨 En cours |
+| US-007 | Affectations | Affecter enseignants, classes et matières | Indispensable pour le MVP | L | 🟩 Terminé |
 | US-008 | Élèves | Gérer les fiches des élèves | Indispensable pour le MVP | L | 🟩 Terminé |
-| US-009 | Cycle de vie élève | Activer, désactiver, archiver et réactiver un élève | Important | M | 🟥 À faire |
+| US-009 | Cycle de vie élève | Activer, désactiver, archiver et réactiver un élève | Important | M | 🟩 Terminé |
 | US-010 | Responsables légaux | Gérer et associer les responsables légaux | Indispensable pour le MVP | L | 🟩 Terminé |
 | US-011 | Inscriptions | Inscrire un élève dans une classe et une année | Indispensable pour le MVP | M | 🟩 Terminé |
 | US-012 | Consultation | Rechercher et consulter les élèves autorisés | Indispensable pour le MVP | M | 🟩 Terminé |
@@ -57,18 +57,18 @@ Les estimations comprennent le développement, les tests et la documentation.
 | US-015 | Moyennes | Calculer les moyennes automatiquement | Indispensable pour le MVP | L | 🟩 Terminé |
 | US-016 | Notes | Demander et valider la modification d’une note | Important | L | 🟩 Terminé |
 | US-017 | Appréciations | Saisir les appréciations des élèves | Important | M | ⬜ Reportée |
-| US-018 | Absences | Enregistrer et consulter une absence | Indispensable pour le MVP | L | 🟨 En cours — migration à appliquer et tests réels à faire |
-| US-019 | Absences | Justifier, corriger et historiser une absence | Important | L | 🟨 En cours — migration à appliquer et tests réels à faire |
+| US-018 | Absences | Enregistrer et consulter une absence | Indispensable pour le MVP | L | 🟩 Terminé |
+| US-019 | Absences | Justifier, corriger et historiser une absence | Important | L | 🟩 Terminé |
 | US-020 | Absence à une évaluation | Appliquer ABS, rattrapage ou zéro | Important | L | 🟩 Terminé |
-| US-021 | Bulletins | Préparer, valider et générer un bulletin PDF | Indispensable pour le MVP | XL | 🟥 À faire |
-| US-022 | Bulletins | Conserver les versions successives d’un bulletin | Important | M | 🟥 À faire |
-| US-023 | Tableau de bord | Consulter le tableau de bord administrateur | Utile | M | 🟥 À faire |
-| US-024 | Tableau de bord | Consulter le tableau de bord enseignant | Utile | M | 🟥 À faire |
-| US-025 | Sécurité | Sécuriser les accès, sessions et échanges | Indispensable pour le MVP | L | 🟨 À valider en production |
+| US-021 | Bulletins | Préparer, valider et générer un bulletin PDF | Indispensable pour le MVP | XL | 🟨 Partiellement terminé |
+| US-022 | Bulletins | Conserver les versions successives d’un bulletin | Important | M | 🟨 Partiellement terminé |
+| US-023 | Tableau de bord | Consulter le tableau de bord administrateur | Utile | M | 🟩 Terminé |
+| US-024 | Tableau de bord | Consulter le tableau de bord enseignant | Utile | M | 🟨 Partiellement terminé |
+| US-025 | Sécurité | Sécuriser les accès, sessions et échanges | Indispensable pour le MVP | L | 🟩 Terminé |
 | US-026 | Traçabilité | Consulter l’historique des actions importantes | Important | M | 🟥 À faire |
-| US-027 | Sauvegardes | Sauvegarder et restaurer les données et fichiers | Indispensable pour le MVP | L | 🟥 À faire |
-| US-028 | Déploiement | Installer et utiliser la version pilote | Indispensable pour le MVP | L | 🟥 À faire |
-| US-029 | Emplois du temps | Gérer les emplois du temps | Prévu pour plus tard | XL | 🟥 À faire |
+| US-027 | Sauvegardes | Sauvegarder et restaurer les données et fichiers | Indispensable pour le MVP | L | 🟨 Partiellement terminé |
+| US-028 | Déploiement | Installer et utiliser la version pilote | Indispensable pour le MVP | L | 🟨 Partiellement terminé |
+| US-029 | Emplois du temps | Gérer les emplois du temps | Prévu pour plus tard | XL | 🟩 Terminé |
 | US-030 | Cahier de textes | Publier cours et devoirs | Prévu pour plus tard | XL | 🟥 À faire |
 | US-031 | Messagerie | Échanger des messages dans l’application | Prévu pour plus tard | XL | 🟥 À faire |
 | US-032 | Portail familles | Donner un accès aux parents et élèves | Prévu pour plus tard | XL | 🟥 À faire |
@@ -177,7 +177,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** associer enseignants, classes, matières et professeur principal.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** En cours.
+- **Statut :** Terminé.
 - **Règles de gestion :** une affectation relie un enseignant à une matière déjà associée à une classe ; le professeur principal reste identifié séparément dans la classe.
 - **Critères d’acceptation :** une affectation peut être créée, consultée et terminée sans supprimer son historique ; l’enseignant voit seulement les données correspondant à ses affectations ; le professeur principal est identifiable.
 - **Dépendances :** US-004, US-005, US-006.
@@ -207,7 +207,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** gérer les statuts Actif, Inactif et Archivé.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Important.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** un élève inactif peut être réactivé ; une fiche archivée ne peut être réactivée qu’exceptionnellement ; l’historique est conservé.
 - **Critères d’acceptation :** le changement de statut est possible selon les règles ; la réactivation réutilise la fiche existante ; les anciennes inscriptions et résultats restent disponibles.
 - **Dépendances :** US-008, US-011, US-026.
@@ -342,7 +342,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** créer et rechercher les absences.
 - **Utilisateur concerné :** administrateur, enseignant.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** l’enseignant agit uniquement pour ses classes ; l’administrateur agit pour tous les élèves ; une nouvelle absence est en attente tant que son statut n’est pas traité.
 - **Critères d’acceptation :** une absence enregistre élève, date, heure, durée, classe, auteur et motif éventuel ; la consultation respecte les droits ; les filtres par élève, classe, date et statut fonctionnent.
 - **Dépendances :** US-007, US-011, US-012.
@@ -357,7 +357,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** gérer statuts, motifs, justificatifs, corrections et historique.
 - **Utilisateur concerné :** administrateur ; enseignant pour le signalement d’erreur.
 - **Priorité :** Important.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** statuts En attente, Justifiée, Non justifiée et Rejetée ; seul l’administrateur accepte ou rejette un justificatif ou corrige définitivement ; les modifications sont historisées et les justificatifs référencés dans le catalogue documentaire.
 - **Critères d’acceptation :** l’administrateur peut modifier le statut avec une trace ; joindre un justificatif valide ; corriger ou supprimer logiquement une absence ; un enseignant peut signaler une erreur sans la corriger directement.
 - **Dépendances :** US-018, US-026 et décision QD-9.
@@ -387,7 +387,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** produire un bulletin par élève et période.
 - **Utilisateur concerné :** administrateur ; enseignant pour consultation et appréciations.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À étudier.
+- **Statut :** 🟨 Partiellement terminé : consultation des bulletins existants et aperçu PDF téléchargeable disponibles ; la création et la validation définitives restent à réaliser.
 - **Règles de gestion :** contenu conforme au modèle de l’école ; génération après vérification ; bulletin avec identité, classe, période, matières, coefficients, moyennes, appréciations, moyenne générale, absences, logo et nom de l’école.
 - **Critères d’acceptation :** un aperçu permet de vérifier les informations ; le PDF est généré sans donnée manquante obligatoire ; il est lisible, téléchargeable et imprimable ; seuls les utilisateurs autorisés y accèdent.
 - **Dépendances :** US-003, US-015, US-017, US-018 et décision QD-8.
@@ -402,7 +402,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** recalcul et conservation des versions PDF.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Important.
-- **Statut :** À faire valider.
+- **Statut :** 🟨 Partiellement terminé : le modèle de données conserve les numéros de version ; la régénération et l’historique utilisable restent à réaliser.
 - **Règles de gestion :** une correction validée déclenche le recalcul ; l’ancien bulletin n’est pas supprimé ; chaque version est datée et identifiable.
 - **Critères d’acceptation :** une nouvelle version peut être générée ; les anciennes versions restent consultables par les personnes autorisées ; la version courante est clairement indiquée.
 - **Dépendances :** US-016, US-021, US-026.
@@ -417,7 +417,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** afficher les effectifs et tâches importantes.
 - **Utilisateur concerné :** administrateur.
 - **Priorité :** Utile.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** données limitées à l’année scolaire sélectionnée ; liens vers les éléments concernés.
 - **Critères d’acceptation :** affichage du nombre d’élèves, enseignants et classes ; absences à traiter ; notes incomplètes ; modifications de notes ; bulletins en attente ; chiffres cohérents avec les listes.
 - **Dépendances :** US-004, US-006, US-008, US-016, US-018, US-021.
@@ -432,7 +432,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** afficher affectations, évaluations, notes, absences et demandes en attente.
 - **Utilisateur concerné :** enseignant.
 - **Priorité :** Utile.
-- **Statut :** À faire valider.
+- **Statut :** 🟨 Partiellement terminé : les accès enseignant aux classes, notes, absences et emploi du temps existent ; le tableau de synthèse dédié reste à réaliser.
 - **Règles de gestion :** seules les données de l’enseignant et de ses classes sont visibles.
 - **Critères d’acceptation :** affichage des classes et matières ; prochaines évaluations ; notes restant à saisir ; absences des classes ; demandes de modification en attente ; aucun accès à une autre classe.
 - **Dépendances :** US-007, US-013, US-014, US-016, US-018.
@@ -447,7 +447,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** sécurité transversale de l’application.
 - **Utilisateur concerné :** établissement, tous les utilisateurs.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À faire valider.
+- **Statut :** Terminé.
 - **Règles de gestion :** HTTPS ; mots de passe hachés ; droits contrôlés côté serveur ; expiration des sessions ; fichiers non accessibles publiquement.
 - **Critères d’acceptation :** toute API sensible refuse un utilisateur non autorisé ; les mots de passe sont hachés ; la connexion de production utilise HTTPS ; une session expirée est refusée ; les tests de rôles passent.
 - **Dépendances :** US-001, architecture et environnement de déploiement.
@@ -477,7 +477,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** sauvegarder base de données, photos, justificatifs et bulletins.
 - **Utilisateur concerné :** administrateur technique de l’application.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À étudier.
+- **Statut :** 🟨 Partiellement terminé : sauvegarde et restauration locales sur le VPS, contrôle d’intégrité et planification quotidienne sont en place ; la copie hors du VPS reste à réaliser.
 - **Règles de gestion :** une copie hors du serveur principal ; procédure documentée ; restauration testée ; fréquence et durée de conservation à définir.
 - **Critères d’acceptation :** une sauvegarde complète peut être produite ; son résultat est contrôlé ; une restauration de test récupère la base et les fichiers ; la procédure est documentée.
 - **Dépendances :** infrastructure choisie et décision QD-11.
@@ -492,7 +492,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Besoin :** installer, initialiser, présenter et tester l’application en situation réelle.
 - **Utilisateur concerné :** responsable, administrateurs pilotes, enseignants pilotes.
 - **Priorité :** Indispensable pour le MVP.
-- **Statut :** À étudier.
+- **Statut :** 🟨 Partiellement terminé : l’application est déployée avec HTTPS ; le test formel auprès d’un groupe pilote et la collecte de retours restent à réaliser.
 - **Règles de gestion :** lancement limité à quelques enseignants et une ou deux classes ; problèmes bloquants corrigés avant extension.
 - **Critères d’acceptation :** application installée sur le serveur ; comptes et données pilotes créés ou importés ; utilisateurs formés ; scénario réel de notes et absences effectué ; retours enregistrés ; aucun problème bloquant ouvert.
 - **Dépendances :** MVP testé, US-025, US-027 et décisions QD-1 à QD-4, QD-11 et QD-12.
@@ -500,7 +500,7 @@ Les estimations comprennent le développement, les tests et la documentation.
 - **Cas d’erreur :** serveur indisponible, Internet insuffisant, données d’import incorrectes, utilisateur non formé, anomalie bloquante.
 - **Estimation :** L.
 
-## 5. User Stories reportées
+## 5. Emploi du temps réalisé et fonctionnalités futures
 
 ### US-029 — Gérer les emplois du temps
 
@@ -508,8 +508,8 @@ Les estimations comprennent le développement, les tests et la documentation.
 
 - **Besoin :** planification des créneaux et prévention des conflits.
 - **Utilisateur concerné :** administrateur, enseignant.
-- **Priorité :** Prévu pour plus tard.
-- **Statut :** Reporté.
+- **Priorité :** Ajouté après le périmètre initial.
+- **Statut :** Terminé.
 - **Règles de gestion :** à définir avec l’établissement.
 - **Critères d’acceptation :** un emploi du temps peut être créé et consulté sans conflit de classe, salle ou enseignant.
 - **Dépendances :** classes, matières et affectations stabilisées.

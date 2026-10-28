@@ -328,7 +328,6 @@ def create_account_with_profile(
             birth_place=profile_data.birth_place,
             admission_date=profile_data.admission_date,
             previous_establishment=profile_data.previous_establishment,
-            medical_condition=profile_data.medical_condition,
             is_enrolled_in_cned=profile_data.is_enrolled_in_cned,
         )
     elif creation_data.role == "TEACHER":

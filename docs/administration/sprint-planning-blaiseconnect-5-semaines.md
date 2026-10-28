@@ -29,7 +29,7 @@
 |---|---|---|---|---|---|
 | US-001 | 22/07/2026 | Connexion et déconnexion | En tant qu’utilisateur, je veux me connecter avec mon compte personnel afin d’accéder aux fonctionnalités autorisées par mon rôle. | 🟩 Terminé | `backend/app/routes/auth.py`, `backend/app/services/auth_service.py`, `backend/app/services/session_service.py`, `frontend/src/pages/login_page.jsx`, `frontend/src/pages/home_page.jsx`, `frontend/src/services/auth_service.js`, `backend/tests/services/` |
 | US-002 | 23/07/2026 | Gestion des comptes et rôles | En tant qu'administrateur, je veux gérer les comptes utilisateurs afin de contrôler l'accès à BlaiseConnect. | 🟩 Terminé | `backend/app/models/account.py`, `backend/app/schemas/account_*.py`, `backend/app/routes/accounts.py`, `backend/app/services/account_service.py`, `frontend/src/App.jsx`, `frontend/src/layouts/main_layout.jsx`, `frontend/src/components/`, `frontend/src/pages/accounts_page.jsx`, `frontend/src/styles/App.css` |
-| US-025 | 24/07/2026 | Sécurité des accès | En tant qu’établissement, je veux sécuriser les accès et les sessions afin de protéger les données scolaires. | 🟨 À valider en production | `backend/app/core/security.py`, `backend/app/core/authentication.py`, `backend/app/core/session_cookie_config.py`, `backend/app/core/http_security_config.py`, `backend/app/core/http_security_middleware.py`, `docs/administration/securite-production.md`, `database/migration/001_db_access.sql`, `database/migration/002_accounts_and_profiles.sql`, `database/migration/003_relationships_and_documents.sql`, `compose.yaml` |
+| US-025 | 24/07/2026 | Sécurité des accès | En tant qu’établissement, je veux sécuriser les accès et les sessions afin de protéger les données scolaires. | 🟩 Terminé | `backend/app/core/security.py`, `backend/app/core/authentication.py`, `backend/app/core/session_cookie_config.py`, `backend/app/core/http_security_config.py`, `backend/app/core/http_security_middleware.py`, `docs/administration/securite-production.md`, `database/migration/001_db_access.sql`, `database/migration/002_accounts_and_profiles.sql`, `database/migration/003_relationships_and_documents.sql`, `compose.yaml` |
 
 ---
 
@@ -44,7 +44,7 @@
 | US-005 | 30/07/2026 | Gestion des matières | En tant qu’administrateur, je veux gérer les matières et leurs coefficients afin de configurer les enseignements et les calculs. | 🟩 Terminé | `backend/app/models/subject.py`, `backend/app/models/class_subject.py`, `backend/app/schemas/subject_*.py`, `backend/app/schemas/class_subject_*.py`, `backend/app/routes/subjects.py`, `backend/app/services/subject_service.py`, `frontend/src/pages/subjects_page.jsx`, `frontend/src/pages/subject_details_page.jsx`, `frontend/src/services/subject_service.js`, `frontend/src/styles/subject_details_page.css` |
 | US-006 | 31/07/2026 | Gestion des enseignants | En tant qu’administrateur, je veux gérer les enseignants afin de conserver leurs informations et préparer leurs affectations. | 🟩 Terminé | `backend/app/models/teacher.py`, `backend/app/schemas/teacher_*.py`, `backend/app/routes/teachers.py`, `backend/app/services/teacher_service.py`, `frontend/src/pages/teachers_page.jsx`, `frontend/src/pages/teacher_details_page.jsx`, `frontend/src/services/teachers_overview_service.js`, `frontend/src/styles/teacher_details_page.css` |
 
-**Fichiers transversaux du Sprint 2 :** `docs/diagramme/diagramme_mvc_sprint_2.plantuml`, `docs/diagramme/diagrame_classe.plantuml`, `docs/administration/journal-des-decisions-blaiseconnect.md`.
+**Fichiers transversaux du Sprint 2 :** `docs/diagramme/diagramme_mvc_sprint_2.plantuml`, `docs/diagramme/diagrame_classe.plantuml`, `docs/administration/liste-de-taches-blaiseconnect.md`.
 
 ---
 
@@ -54,7 +54,7 @@
 
 | US | Deadline | Nom de l’US | Description de l’US | Statut | Fichiers concernés |
 |---|---|---|---|---|---|
-| US-007 | 04/08/2026 | Affectation des enseignants | En tant qu’administrateur, je veux affecter un enseignant à des classes et des matières afin de définir les enseignements dont il est responsable. | 🟨 En cours | `database/migration/005_academic_activity.sql`, `backend/app/routes/teachers.py`, `backend/app/services/teacher_service.py`, `backend/app/schemas/teacher_assignment_*.py`, `frontend/src/pages/teacher_details_page.jsx`, `frontend/src/services/teachers_overview_service.js` |
+| US-007 | 04/08/2026 | Affectation des enseignants | En tant qu’administrateur, je veux affecter un enseignant à des classes et des matières afin de définir les enseignements dont il est responsable. | 🟩 Terminé | `database/migration/005_academic_activity.sql`, `backend/app/routes/teachers.py`, `backend/app/services/teacher_service.py`, `backend/app/schemas/teacher_assignment_*.py`, `frontend/src/pages/teacher_details_page.jsx`, `frontend/src/services/teachers_overview_service.js` |
 | US-008 | 05/08/2026 | Gestion des élèves | En tant qu’administrateur, je veux gérer les fiches des élèves afin de centraliser les informations nécessaires à leur suivi scolaire. | 🟩 Terminé | `backend/app/models/student.py`, `backend/app/schemas/student_*.py`, `backend/app/routes/students.py`, `backend/app/services/student_service.py`, `frontend/src/pages/students_page.jsx`, `frontend/src/pages/student_details_page.jsx`, `frontend/src/services/students_service.js`, `frontend/src/styles/students_page.css`, `frontend/src/styles/student_details_page.css` |
 | US-010 | 06/08/2026 | Gestion des responsables légaux | En tant qu’administrateur, je veux gérer les responsables légaux et les associer aux élèves afin de conserver les contacts familiaux utiles. | 🟩 Terminé | `backend/app/models/guardian.py`, `backend/app/schemas/guardian_*.py`, `backend/app/routes/guardians.py`, `backend/app/services/guardian_service.py`, `frontend/src/pages/guardians_page.jsx`, `frontend/src/pages/guardian_details_page.jsx`, `frontend/src/pages/student_details_page.jsx`, `frontend/src/services/guardians_service.js`, `frontend/src/services/guardians_overview_service.js` |
 | US-011 | 07/08/2026 | Inscription des élèves | En tant qu’administrateur, je veux inscrire un élève dans une classe pour une année scolaire afin de conserver son parcours scolaire. | 🟩 Terminé | `backend/app/schemas/student_enrollment_create.py`, `backend/app/routes/students.py`, `backend/app/services/student_service.py`, `frontend/src/pages/student_details_page.jsx`, `frontend/src/services/students_service.js` |
@@ -84,23 +84,24 @@
 | US | Deadline | Nom de l’US | Description de l’US | Statut | Fichiers concernés |
 |---|---|---|---|---|---|
 | US-017 | — | Saisie des appréciations | En tant qu’enseignant, je veux ajouter une appréciation sur le travail d’un élève afin de compléter ses résultats et son bulletin. | Reportée | À redéfinir lors de sa réalisation ; aucune route, page ou table de brouillon n’est conservée dans la version actuelle. |
-| US-021 | 19/08/2026 | Génération du bulletin PDF | En tant qu’administrateur, je veux vérifier et générer le bulletin PDF d’un élève afin de fournir un document scolaire imprimable. | 🟥 À faire | `database/migration/006_report_cards_and_year_deletion.sql`, `docs/diagramme/database_05_report_cards.plantuml` ; génération PDF à créer |
-| US-027 | 20/08/2026 | Sauvegarde des données | En tant qu’administrateur technique, je veux sauvegarder les données et les fichiers afin de limiter le risque de perte. | 🟥 À faire | À compléter pendant le développement |
-| US-028 | 21/08/2026 | Version pilote | En tant que responsable de l’établissement, je veux utiliser une version pilote de BlaiseConnect afin de vérifier son fonctionnement avant une ouverture plus large. | 🟥 À faire | À compléter pendant le développement |
+| US-021 | 19/08/2026 | Génération du bulletin PDF | En tant qu’administrateur, je veux vérifier et générer le bulletin PDF d’un élève afin de fournir un document scolaire imprimable. | 🟨 Partiellement terminé | Consultation et aperçu PDF test disponibles ; création et validation définitives restent à finaliser |
+| US-027 | 20/08/2026 | Sauvegarde des données | En tant qu’administrateur technique, je veux sauvegarder les données et les fichiers afin de limiter le risque de perte. | 🟨 Partiellement terminé | Scripts de sauvegarde/restauration testés sur le VPS, contrôle SHA-256 et exécution quotidienne planifiée ; copie hors VPS à ajouter |
+| US-028 | 21/08/2026 | Version pilote | En tant que responsable de l’établissement, je veux utiliser une version pilote de BlaiseConnect afin de vérifier son fonctionnement avant une ouverture plus large. | 🟨 Partiellement terminé | Application déployée sur VPS avec HTTPS et données de démonstration ; test formel avec le groupe pilote à réaliser |
 
 ## User Stories non planifiées pendant les cinq semaines
 
 | US | Nom | Statut |
 |---|---|---|
-| US-009 | Cycle de vie complet des élèves | 🟥 À faire |
+| US-009 | Cycle de vie complet des élèves | 🟩 Terminé |
 | US-016 | Validation des modifications de notes | 🟩 Terminé |
-| US-018 et US-019 | Gestion complète des absences de cours | 🟨 En cours — migrations principales, API et interfaces créées ; tests réels restant à faire |
+| US-018 et US-019 | Gestion complète des absences de cours | 🟩 Terminé |
 | US-020 | Absences aux évaluations | 🟩 Terminé |
-| US-022 | Versionnement des bulletins | 🟥 À faire |
-| US-023 et US-024 | Tableaux de bord | 🟥 À faire |
+| US-022 | Versionnement des bulletins | 🟨 Partiellement terminé — schéma prêt, génération de nouvelles versions à finaliser |
+| US-023 | Tableau de bord administrateur | 🟩 Terminé |
+| US-024 | Tableau de bord enseignant | 🟨 Partiellement terminé — accès aux données métier et raccourcis présents, tableau de synthèse dédié à finaliser |
 | US-026 | Historique général des actions | 🟥 À faire |
-| US-029 à US-037 | Fonctionnalités prévues pour les versions futures | 🟥 À faire |
-us30 : gerer le renvoie des des profs et la reaffectation a un nouveaux profs 
+| US-029 | Emploi du temps | 🟩 Terminé |
+| US-030 à US-037 | Fonctionnalités prévues pour les versions futures | 🟥 À faire |
 
 ## Mise à jour pendant le stage
 

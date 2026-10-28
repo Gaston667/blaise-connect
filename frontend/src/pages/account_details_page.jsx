@@ -9,6 +9,7 @@ import {
   EyeOff,
   FileClock,
   KeyRound,
+  Pencil,
   RefreshCw,
 } from 'lucide-react'
 import defaultPhoto from '../assets/image_phtoto_default.png'
@@ -18,6 +19,7 @@ import {
   changeAccountState,
   getAccount,
   resetAccountPassword,
+  uploadAccountPhoto,
 } from '../services/account_service.js'
 import { reactivateStudent } from '../services/students_service.js'
 import { generateSecurePassword } from '../services/password_generator.js'
@@ -37,18 +39,6 @@ const ROLE_BADGE_CLASSES = {
   GUARDIAN: 'comptes-role-badge-guardian',
 }
 
-const ACCESS_RIGHTS = {
-  STUDENT: [
-    'Tableau de bord',
-    'Consulter ses informations',
-    'Consulter ses notes',
-    'Consulter ses absences',
-  ],
-  TEACHER: ['Tableau de bord', 'Gérer ses classes', 'Saisir les notes', 'Gérer les absences'],
-  ADMIN: ['Tableau de bord', 'Gestion des comptes', 'Gestion scolaire', 'Paramètres'],
-  GUARDIAN: ['Tableau de bord', 'Consulter les informations de ses enfants'],
-}
-
 function isInactive(account) {
   return !account.is_active || account.archived_at !== null
 }
@@ -61,16 +51,28 @@ function getInitials(firstName, lastName) {
 
 const DEFAULT_PHOTO = defaultPhoto
 
-function SummaryAvatar({ photoPath }) {
+function SummaryAvatar({ photoPath, disabled, onPhotoChange }) {
   return (
-    <span className="details-summary-avatar">
+    <div className="details-summary-avatar">
       <img
         src={photoPath || DEFAULT_PHOTO}
-        alt=""
+        alt="Photo de profil"
         onError={(e) => { e.currentTarget.src = DEFAULT_PHOTO }}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
       />
-    </span>
+      <label
+        className="details-summary-photo-edit"
+        title="Modifier la photo"
+        aria-label="Modifier la photo"
+      >
+        <Pencil aria-hidden="true" size={16} />
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          disabled={disabled}
+          onChange={onPhotoChange}
+        />
+      </label>
+    </div>
   )
 }
 
@@ -126,6 +128,7 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
   })
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [passwordResetLoading, setPasswordResetLoading] = useState(false)
+  const [photoUploading, setPhotoUploading] = useState(false)
 
   function handleBackNavigation() {
     onNavigate('accounts')
@@ -289,6 +292,34 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
     setActionMessage('L’authentification à deux facteurs sera disponible dans une prochaine version.')
   }
 
+  async function updateProfilePhoto(event) {
+    const photo = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!photo) return
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.type)) {
+      setActionError('Choisissez une image JPG, PNG ou WebP.')
+      return
+    }
+    if (photo.size > 5 * 1024 * 1024) {
+      setActionError('La photo doit peser au maximum 5 Mo.')
+      return
+    }
+
+    setPhotoUploading(true)
+    setActionError('')
+    try {
+      await uploadAccountPhoto(account.id, photo)
+      const updatedAccount = await getAccount(account.id)
+      setAccount(updatedAccount)
+      setActionMessage('La photo de profil a été mise à jour.')
+    } catch (requestError) {
+      setActionError(requestError.message)
+    } finally {
+      setPhotoUploading(false)
+    }
+  }
+
   if (account === null || account === undefined) {
     return (
       <main className="comptes-main">
@@ -341,7 +372,11 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
 
       <section className="details-summary-card">
         <div className="details-summary-identity">
-          <SummaryAvatar photoPath={profile?.photo_path} />
+          <SummaryAvatar
+            photoPath={profile?.photo_path}
+            disabled={photoUploading}
+            onPhotoChange={updateProfilePhoto}
+          />
           <div>
             <h2>{fullName}</h2>
             {profilePageByRole[account.role] && profile.id && (
@@ -435,20 +470,6 @@ export default function AccountDetailsPage({ account: initialAccount, onNavigate
               </div>
             </article>
 
-            <article className="details-account-column">
-              <div className="details-account-column-heading">
-                <h3>Droits d’accès</h3>
-                <span>Indisponible en V1</span>
-              </div>
-              <ul className="details-access-rights">
-                {(ACCESS_RIGHTS[account.role] || []).map((right) => (
-                  <li key={right}>
-                    <span>{right}</span>
-                    <strong>Autorisé</strong>
-                  </li>
-                ))}
-              </ul>
-            </article>
           </section>
 
           <section className="details-panel details-account-security">

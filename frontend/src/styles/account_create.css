@@ -422,6 +422,50 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.creation-cned-toggle {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 4.75rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-primary-light, #b9d3ff);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #f5f9ff, #eef5ff);
+  cursor: pointer;
+}
+
+.creation-cned-toggle:hover {
+  border-color: var(--color-primary);
+}
+
+.creation-cned-toggle:has(input:checked) {
+  border-color: var(--color-primary);
+  background: #eaf2ff;
+}
+
+.creation-compte-grid .creation-cned-toggle input[type='checkbox'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  min-height: 1.25rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--color-primary);
+}
+
+.creation-cned-toggle span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.creation-cned-toggle strong {
+  color: var(--color-text-primary);
+}
+
+.creation-cned-toggle small {
+  color: var(--color-text-secondary);
+}
+
 @media (min-width: 760px) {
   .creation-compte-page {
     padding: var(--space-8) var(--space-10);

@@ -716,7 +716,6 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
       email: d.email ?? '',
       address: d.address ?? '',
       previous_establishment: d.previous_establishment ?? '',
-      medical_condition: d.medical_condition ?? '',
       is_enrolled_in_cned: d.is_enrolled_in_cned ?? false,
     })
   }
@@ -1076,9 +1075,8 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                 <label className="sdp-full">Adresse<input value={form.address} onChange={(e) => update('address', e.target.value)} /></label>
                 <div className="sdp-row">
                   <label>Établissement précédent<input value={form.previous_establishment} onChange={(e) => update('previous_establishment', e.target.value)} /></label>
-                  <label className="sdp-checkbox"><input type="checkbox" checked={form.is_enrolled_in_cned} onChange={(e) => update('is_enrolled_in_cned', e.target.checked)} /> Inscrit au CNED</label>
+                  <label className="sdp-cned-toggle"><input type="checkbox" checked={form.is_enrolled_in_cned} onChange={(e) => update('is_enrolled_in_cned', e.target.checked)} /><span><strong>Inscrit au CNED</strong><small>Activez si l’élève suit un parcours CNED.</small></span></label>
                 </div>
-                <label className="sdp-full">Maladie particulière<textarea value={form.medical_condition} onChange={(e) => update('medical_condition', e.target.value)} /></label>
 
                 <div className="sdp-form-actions">
                   <button type="button" className="sdp-btn-outline" onClick={cancelStudentEditing}>Annuler</button>
@@ -1124,7 +1122,6 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
                     <dl>
                       <div><dt>Établissement précédent</dt><dd>{details.previous_establishment ?? '—'}</dd></div>
                       <div><dt>Inscrit au CNED</dt><dd>{details.is_enrolled_in_cned ? 'Oui' : 'Non'}</dd></div>
-                      <div><dt>Maladie particulière</dt><dd>{details.medical_condition ?? 'Aucune renseignée'}</dd></div>
                     </dl>
                   </section>
                 </div>

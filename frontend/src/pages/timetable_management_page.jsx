@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock3,
   Eye,
@@ -137,6 +138,14 @@ function formatDayWithDate(value) {
   const dateValue = new Date(`${value}T12:00:00`)
   const dayName = DAY_LABELS[dateValue.getDay() || 7]
   return `${dayName} ${dateValue.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}`
+}
+
+function formatWeekRange(weekStart) {
+  const firstDay = new Date(`${weekStart}T12:00:00`)
+  const lastDay = new Date(`${addDays(weekStart, 4)}T12:00:00`)
+  const firstLabel = firstDay.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+  const lastLabel = lastDay.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  return `${firstLabel} — ${lastLabel}`
 }
 
 /** Retourne le lundi de la première semaine qui contient un cours daté. */
@@ -364,9 +373,59 @@ function formatTimelineHour(minutes) {
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:00`
 }
 
+/**
+ * Répartit côte à côte les créneaux qui se chevauchent dans une même journée.
+ * Un conflit reste visible au lieu qu’un cours masque entièrement un autre cours.
+ */
+function getOverlappingSlotLayouts(daySlots) {
+  const orderedSlots = [...daySlots].sort(function sortByTime(firstSlot, secondSlot) {
+    const startDifference = getTimelineMinutes(firstSlot.start_time) - getTimelineMinutes(secondSlot.start_time)
+    if (startDifference !== 0) return startDifference
+    return getTimelineMinutes(firstSlot.end_time) - getTimelineMinutes(secondSlot.end_time)
+  })
+  const groups = []
+  let currentGroup = []
+  let currentGroupEnd = -1
+
+  for (const slot of orderedSlots) {
+    const start = getTimelineMinutes(slot.start_time)
+    const end = getTimelineMinutes(slot.end_time)
+    if (currentGroup.length > 0 && start >= currentGroupEnd) {
+      groups.push(currentGroup)
+      currentGroup = []
+      currentGroupEnd = -1
+    }
+    currentGroup.push(slot)
+    currentGroupEnd = Math.max(currentGroupEnd, end)
+  }
+  if (currentGroup.length > 0) groups.push(currentGroup)
+
+  const layouts = new Map()
+  for (const group of groups) {
+    const activeSlots = []
+    let columnCount = 0
+    for (const slot of group) {
+      const start = getTimelineMinutes(slot.start_time)
+      for (let index = activeSlots.length - 1; index >= 0; index -= 1) {
+        if (activeSlots[index].end <= start) activeSlots.splice(index, 1)
+      }
+      const usedColumns = new Set(activeSlots.map(function getColumn(activeSlot) { return activeSlot.column }))
+      let column = 0
+      while (usedColumns.has(column)) column += 1
+      activeSlots.push({ end: getTimelineMinutes(slot.end_time), column })
+      layouts.set(slot.id, { column })
+      columnCount = Math.max(columnCount, column + 1)
+    }
+    for (const slot of group) {
+      layouts.set(slot.id, { ...layouts.get(slot.id), columnCount })
+    }
+  }
+  return layouts
+}
+
 /** Planning horaire : les blocs sont positionnés à leur minute réelle. */
-function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearStartDate, schoolYearEndDate, weekStart, editable = false, onDeleteSlot, deletingSlotId }) {
-  const [displayMode, setDisplayMode] = useState('week')
+function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearStartDate, schoolYearEndDate, weekStart, editable = false, onDeleteSlot, deletingSlotId, onWeekStartChange }) {
+  const [displayMode, setDisplayMode] = useState('day')
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
   const currentWeekStart = weekStart || getWeekStart('')
   const currentWeekEnd = addDays(currentWeekStart, 6)
@@ -387,6 +446,18 @@ function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearSta
   const displayDays = displayMode === 'day' ? [selectedDayIndex] : [0, 1, 2, 3, 4]
   const subjectColorByName = new Map()
 
+  useEffect(function chooseInitialViewForScreen() {
+    const desktopMediaQuery = window.matchMedia('(min-width: 900px)')
+    function updateDisplayMode() {
+      setDisplayMode(desktopMediaQuery.matches ? 'week' : 'day')
+    }
+    updateDisplayMode()
+    desktopMediaQuery.addEventListener('change', updateDisplayMode)
+    return function cleanupDisplayModeListener() {
+      desktopMediaQuery.removeEventListener('change', updateDisplayMode)
+    }
+  }, [])
+
   visibleSlots.forEach(function assignSubjectColor(slot) {
     if (!subjectColorByName.has(slot.subject_name)) {
       subjectColorByName.set(slot.subject_name, SUBJECT_PALETTE[subjectColorByName.size % SUBJECT_PALETTE.length])
@@ -401,10 +472,20 @@ function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearSta
         && (!slot.effective_end_date || gridDayDates[dayIndex] <= slot.effective_end_date)
   }
 
-  function getVerticalStyle(startTime, endTime) {
-    return {
+  function getVerticalStyle(startTime, endTime, layout) {
+    const style = {
       top: `${(getTimelineMinutes(startTime) - startMinutes) * pixelsPerMinute}px`,
       height: `${Math.max((getTimelineMinutes(endTime) - getTimelineMinutes(startTime)) * pixelsPerMinute, 26)}px`,
+    }
+    if (!layout || layout.columnCount === 1) return style
+
+    const horizontalGap = 4
+    const columnWidth = 100 / layout.columnCount
+    return {
+      ...style,
+      left: `calc(${columnWidth * layout.column}% + ${horizontalGap / 2}px)`,
+      width: `calc(${columnWidth}% - ${horizontalGap}px)`,
+      right: 'auto',
     }
   }
 
@@ -413,14 +494,30 @@ function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearSta
     return <button type="button" className="tmp-icon-button stp-timeline__delete" disabled={deletingSlotId === slot.id} title="Retirer ce créneau" onClick={function deleteSelectedSlot(event) { event.stopPropagation(); onDeleteSlot(slot) }}><Trash2 aria-hidden="true" size={13} /></button>
   }
 
+  function changeWeek(offset) {
+    if (onWeekStartChange) onWeekStartChange(addDays(currentWeekStart, offset * 7))
+  }
+
+  function showCurrentWeek() {
+    if (onWeekStartChange) onWeekStartChange(getWeekStart(''))
+  }
+
   return (
     <div className="stp-timeline-wrapper">
       <div className="stp-timeline-toolbar">
-        <div className="stp-timeline-view-switch" aria-label="Mode d’affichage">
-          <button type="button" className={displayMode === 'week' ? 'stp-timeline-view-switch__button stp-timeline-view-switch__button--active' : 'stp-timeline-view-switch__button'} onClick={function showWeek() { setDisplayMode('week') }}>Semaine</button>
-          <button type="button" className={displayMode === 'day' ? 'stp-timeline-view-switch__button stp-timeline-view-switch__button--active' : 'stp-timeline-view-switch__button'} onClick={function showDay() { setDisplayMode('day') }}>Jour</button>
+        <div className="stp-timeline-toolbar__navigation" aria-label="Navigation dans le calendrier">
+          <button type="button" className="stp-timeline-nav-button" onClick={function showPreviousWeek() { changeWeek(-1) }} aria-label="Semaine précédente"><ChevronLeft aria-hidden="true" size={17} /></button>
+          <button type="button" className="stp-timeline-today-button" onClick={showCurrentWeek}>Aujourd’hui</button>
+          <button type="button" className="stp-timeline-nav-button" onClick={function showNextWeek() { changeWeek(1) }} aria-label="Semaine suivante"><ChevronRight aria-hidden="true" size={17} /></button>
         </div>
-        {displayMode === 'day' && <select className="stp-timeline-day-select" value={selectedDayIndex} onChange={function selectDay(event) { setSelectedDayIndex(Number(event.target.value)) }} aria-label="Jour affiché">{gridDayDates.map(function renderDayOption(dayDate, index) { return <option key={dayDate} value={index}>{formatDayWithDate(dayDate)}</option> })}</select>}
+        <strong className="stp-timeline-toolbar__range">{formatWeekRange(currentWeekStart)}</strong>
+        <div className="stp-timeline-toolbar__view">
+          <div className="stp-timeline-view-switch" aria-label="Mode d’affichage">
+            <button type="button" className={displayMode === 'day' ? 'stp-timeline-view-switch__button stp-timeline-view-switch__button--active' : 'stp-timeline-view-switch__button'} onClick={function showDay() { setDisplayMode('day') }}>Jour</button>
+            <button type="button" className={displayMode === 'week' ? 'stp-timeline-view-switch__button stp-timeline-view-switch__button--active' : 'stp-timeline-view-switch__button'} onClick={function showWeek() { setDisplayMode('week') }}>Semaine</button>
+          </div>
+          {displayMode === 'day' && <select className="stp-timeline-day-select" value={selectedDayIndex} onChange={function selectDay(event) { setSelectedDayIndex(Number(event.target.value)) }} aria-label="Jour affiché">{gridDayDates.map(function renderDayOption(dayDate, index) { return <option key={dayDate} value={index}>{formatDayWithDate(dayDate)}</option> })}</select>}
+        </div>
       </div>
       <div className={`stp-timeline stp-timeline--${displayDays.length}-days`} style={{ '--timeline-height': `${timelineHeight}px` }}>
         <div className="stp-timeline__corner" />
@@ -435,12 +532,15 @@ function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearSta
           const dayDate = gridDayDates[dayIndex]
           const outsideSchoolYear = !isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate)
           const daySlots = visibleSlots.filter(function filterDaySlots(slot) { return isSlotOnDay(slot, dayIndex) })
+          const layoutsBySlotId = getOverlappingSlotLayouts(daySlots)
           return <div key={dayDate} className={`stp-timeline__day ${outsideSchoolYear ? 'stp-timeline__day--outside' : ''}`}>
             {hourMarkers.map(function renderHourLine(minutes) { return <span key={minutes} className="stp-timeline__hour-line" style={{ top: `${(minutes - startMinutes) * pixelsPerMinute}px` }} /> })}
             {!outsideSchoolYear && breaks.map(function renderBreak(schoolBreak) { return <div key={`${schoolBreak.start_time}-${schoolBreak.end_time}-${schoolBreak.label}`} className="stp-timeline__break" style={getVerticalStyle(schoolBreak.start_time, schoolBreak.end_time)}><span>{schoolBreak.label}</span></div> })}
             {!outsideSchoolYear && daySlots.map(function renderSlot(slot) {
               const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
-              return <article key={slot.id} className={`stp-timeline__course stp-cell--${color}`} style={getVerticalStyle(slot.start_time, slot.end_time)} title={`${slot.subject_name} : ${formatTime(slot.start_time)}–${formatTime(slot.end_time)}`}><span className="stp-cell__title"><BookOpen aria-hidden="true" size={13} /> {slot.subject_name}</span><span className="stp-cell__meta">{formatTime(slot.start_time)}–{formatTime(slot.end_time)} · {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}</span>{renderDeleteButton(slot)}</article>
+              const duration = getTimelineMinutes(slot.end_time) - getTimelineMinutes(slot.start_time)
+              const isCompact = duration <= 30
+              return <article key={slot.id} className={`stp-timeline__course stp-cell--${color}${isCompact ? ' stp-timeline__course--compact' : ''}`} style={getVerticalStyle(slot.start_time, slot.end_time, layoutsBySlotId.get(slot.id))} title={`${slot.subject_name} : ${formatTime(slot.start_time)}–${formatTime(slot.end_time)}`}><span className="stp-cell__title"><BookOpen aria-hidden="true" size={isCompact ? 11 : 13} /> {slot.subject_name}</span>{!isCompact && <span className="stp-cell__meta">{formatTime(slot.start_time)}–{formatTime(slot.end_time)} · {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}</span>}{renderDeleteButton(slot)}</article>
             })}
           </div>
         })}
@@ -1338,6 +1438,7 @@ export default function TimetableManagementPage() {
                       schoolYearStartDate={timetableConfiguration?.school_year_start_date}
                       schoolYearEndDate={timetableConfiguration?.school_year_end_date}
                       weekStart={visibleWeekStart}
+                      onWeekStartChange={setVisibleWeekStart}
                       editable
                       onDeleteSlot={handleDeleteSlot}
                       deletingSlotId={deletingSlotId}
@@ -1495,6 +1596,7 @@ export default function TimetableManagementPage() {
                   schoolYearStartDate={timetableConfiguration?.school_year_start_date}
                   schoolYearEndDate={timetableConfiguration?.school_year_end_date}
                   weekStart={visibleWeekStart}
+                  onWeekStartChange={setVisibleWeekStart}
                 />
               )}
             </section>

@@ -23,7 +23,6 @@ class AccountProfileCreate(BaseModel):
     birth_place: str | None = Field(default=None, max_length=150)
     admission_date: date | None = None
     previous_establishment: str | None = Field(default=None, max_length=150)
-    medical_condition: str | None = None
     is_enrolled_in_cned: bool = False
     hire_date: date | None = None
     qualification: str | None = None

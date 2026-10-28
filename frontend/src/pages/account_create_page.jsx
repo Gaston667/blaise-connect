@@ -25,7 +25,6 @@ const INITIAL_FORM = {
   birth_place: '',
   admission_date: '',
   previous_establishment: '',
-  medical_condition: '',
   is_enrolled_in_cned: false,
   hire_date: '',
   qualification: '',
@@ -233,7 +232,6 @@ export default function AccountCreatePage({ onNavigate }) {
             birth_place: cleanOptionalValue(form.birth_place),
             admission_date: form.admission_date || null,
             previous_establishment: cleanOptionalValue(form.previous_establishment),
-            medical_condition: cleanOptionalValue(form.medical_condition),
             is_enrolled_in_cned: form.is_enrolled_in_cned,
             hire_date: form.hire_date || null,
           qualification: cleanOptionalValue(form.qualification),
@@ -343,7 +341,6 @@ export default function AccountCreatePage({ onNavigate }) {
               <div><dt>Adresse</dt><dd>{summaryProfile.address || 'Non renseignée'}</dd></div>
               <div><dt>Date d’admission</dt><dd>{summaryProfile.admission_date || 'Non concerné'}</dd></div>
               <div><dt>Établissement précédent</dt><dd>{summaryProfile.previous_establishment || 'Non renseigné'}</dd></div>
-              <div><dt>Maladie particulière</dt><dd>{summaryProfile.medical_condition || 'Aucune renseignée'}</dd></div>
               <div><dt>Inscrit au CNED</dt><dd>{summaryProfile.is_enrolled_in_cned ? 'Oui' : 'Non'}</dd></div>
               <div><dt>Date d’embauche</dt><dd>{summaryProfile.hire_date || 'Non concerné'}</dd></div>
               <div><dt>Qualification</dt><dd>{summaryProfile.qualification || 'Non concerné'}</dd></div>
@@ -538,16 +535,18 @@ export default function AccountCreatePage({ onNavigate }) {
               {isGuardian && <label>Profession *<input name="occupation" value={form.occupation} onChange={updateField} maxLength="150" required /></label>}
               {isGuardian && <label>Employeur *<input name="employer" value={form.employer} onChange={updateField} maxLength="150" required /></label>}
               {isStudent && <label>Établissement précédent<input name="previous_establishment" value={form.previous_establishment} onChange={updateField} maxLength="150" autoComplete="off" /></label>}
-              {isStudent && <label className="creation-compte-wide">Maladie particulière<textarea name="medical_condition" value={form.medical_condition} onChange={updateField} autoComplete="off" /></label>}
               {isStudent && (
-                <label className="creation-compte-checkbox">
+                <label className="creation-cned-toggle">
                   <input
                     name="is_enrolled_in_cned"
                     type="checkbox"
                     checked={form.is_enrolled_in_cned}
                     onChange={updateField}
                   />
-                  <span>Inscrit au CNED</span>
+                  <span>
+                    <strong>Inscrit au CNED</strong>
+                    <small>Activez cette option si l’élève suit un parcours CNED.</small>
+                  </span>
                 </label>
               )}
             </div>

@@ -24,7 +24,6 @@ class AccountProfileResponse(BaseModel):
     hire_date: date | None = None
     admission_date: date | None = None
     previous_establishment: str | None = None
-    medical_condition: str | None = None
     is_enrolled_in_cned: bool | None = None
     qualification: str | None = None
     job_title: str | None = None

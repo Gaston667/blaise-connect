@@ -66,10 +66,6 @@ const EMPTY_CLASS_FORM = {
   capacity: '',
 }
 
-function isHighSchoolLevel(level) {
-  return level?.education_stage === 'HIGH_SCHOOL'
-}
-
 export default function SchoolClassesPage({ account, onNavigate }) {
   const canEdit = account?.role === 'ADMIN'
   const [query, setQuery] = useState('')
@@ -203,9 +199,8 @@ export default function SchoolClassesPage({ account, onNavigate }) {
       setCreateError('Veuillez sélectionner un professeur principal.')
       return
     }
-    const selectedLevel = classLevels.find((level) => level.id === classForm.class_level_id)
-    if (!selectedLevel || !isHighSchoolLevel(selectedLevel)) {
-      setCreateError('Seuls les niveaux lycée sont activés pour le moment.')
+    if (!classLevels.some((level) => level.id === classForm.class_level_id)) {
+      setCreateError('Veuillez sélectionner un niveau de classe valide.')
       return
     }
     setCreating(true)
@@ -390,17 +385,9 @@ export default function SchoolClassesPage({ account, onNavigate }) {
                 <select name="class_level_id" value={classForm.class_level_id} onChange={updateClassForm} required>
                   <option value="">Sélectionner un niveau</option>
                   {classLevels.map((level) => (
-                    <option
-                      key={level.id}
-                      value={level.id}
-                      disabled={!isHighSchoolLevel(level)}
-                    >
-                      {level.name}
-                      {!isHighSchoolLevel(level) ? ' (indisponible pour le moment)' : ''}
-                    </option>
+                    <option key={level.id} value={level.id}>{level.name}</option>
                   ))}
                 </select>
-                <small className="scp-modal__hint">Les niveaux hors lycée sont visibles mais temporairement inactifs.</small>
               </label>
 
               <label>

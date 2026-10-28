@@ -33,7 +33,6 @@ class StudentResponse(BaseModel):
     nationality: str | None
     previous_level: str | None
     previous_establishment: str | None
-    medical_condition: str | None
     is_enrolled_in_cned: bool
     guardians: list[dict] = Field(default_factory=list)
 

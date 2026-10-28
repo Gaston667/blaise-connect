@@ -19,6 +19,7 @@ from app.schemas.weekly_subject_requirement_upsert import (
 # blocs de 2 heures.
 SINGLE_HOUR_SUBJECT_NAMES = {
     "Enseignement moral et civique (EMC)",
+    "EMC",
     "Anglais",
     "Espagnol",
 }
@@ -451,6 +452,11 @@ def _build_available_periods(configuration: dict) -> list[dict]:
         breaks = day["breaks"]
         while cursor < day_end:
             next_end = min(cursor + duration, day_end)
+            # Le générateur automatique ne crée pas de dernier créneau amputé
+            # (par exemple 16:15-17:00 pour un cours normal de 60 minutes).
+            # Cela évite de produire ensuite des cours de 15 minutes.
+            if next_end - cursor < duration:
+                break
             overlapping_break = None
             for school_break in breaks:
                 if _periods_overlap(
@@ -766,7 +772,7 @@ def generate_timetable(
         available_subjects = [
             subject
             for subject in single_hour_subjects
-            if subject["remaining_minutes"] > 0
+            if subject["remaining_minutes"] >= candidate["duration"]
             and not _teacher_is_busy(busy_slots, subject["teacher_id"], candidate)
         ]
         if not available_subjects:
@@ -779,8 +785,7 @@ def generate_timetable(
         candidates = unused_subjects or available_subjects
         candidates.sort(key=_remaining_minutes_sort_key)
         selected = candidates[0]
-        effective_duration = min(candidate["duration"], selected["remaining_minutes"])
-        _insert_slot(candidate, selected, effective_duration)
+        _insert_slot(candidate, selected, candidate["duration"])
 
     unplaced = [
         {
