@@ -22,7 +22,11 @@ from app.core.session_cookie_config import (
 from app.schemas.current_account_response import CurrentAccountResponse
 from app.schemas.login_request import LoginRequest
 from app.schemas.login_response import LoginResponse
-from app.services.auth_service import authenticate_account, get_account_full_name
+from app.services.auth_service import (
+    authenticate_account,
+    get_account_full_name,
+    get_guardian_gender,
+)
 from app.services.session_service import create_session, revoke_session
 
 
@@ -84,6 +88,7 @@ def login(
             **CurrentAccountResponse.model_validate(account).model_dump(),
             "first_name": first_name,
             "last_name": last_name,
+            "gender": get_guardian_gender(db=db, account=account),
         }
     )
 
@@ -110,6 +115,7 @@ def get_current_account_information(
             **CurrentAccountResponse.model_validate(current_account).model_dump(),
             "first_name": first_name,
             "last_name": last_name,
+            "gender": get_guardian_gender(db=db, account=current_account),
         }
     )
 

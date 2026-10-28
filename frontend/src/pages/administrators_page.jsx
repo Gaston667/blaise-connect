@@ -5,6 +5,7 @@ import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getAdministratorsOverview } from '../services/administrators_overview_service.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/administrators_page.css'
+import MobileCardList from '../components/mobile_card_list.jsx'
 
 const PAGE_SIZE = 6
 const STATUS_LABEL = { ACTIVE: 'Actif', INACTIVE: 'Inactif' }
@@ -152,7 +153,18 @@ export default function AdministratorsPage({ onNavigate }) {
       </form>
 
       <section className="adp-list">
-        <div className="adp-table-wrapper">
+        <MobileCardList
+          label="Liste des administrateurs"
+          items={loading ? [] : pageItems}
+          getKey={(administrator) => administrator.id}
+          onOpen={openAdministratorDetails}
+          lead={(administrator) => <ProfilePhoto photoPath={administrator.photo_path} />}
+          title={(administrator) => formatProfileName(administrator.first_name, administrator.last_name, administrator.gender)}
+          subtitle={(administrator) => administrator.job_title}
+          meta={(administrator) => administrator.registration_number}
+          badge={(administrator) => <StatusBadge status={administrator.status} />}
+        />
+        <div className={!loading && pageItems.length > 0 ? 'adp-table-wrapper mcards-hide' : 'adp-table-wrapper'}>
           <table className="adp-table">
             <thead>
               <tr>

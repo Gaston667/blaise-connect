@@ -33,6 +33,8 @@ import {
   updateAttendanceRecord,
   uploadMyAttendanceJustification,
 } from '../services/attendance_service.js'
+import { useGuardianChild } from '../context/guardian_child_context.js'
+import MobileCardList from '../components/mobile_card_list.jsx'
 import '../styles/attendance_page.css'
 
 function todayValue() {
@@ -90,7 +92,7 @@ function AttendanceCourseFields({ options, classId, assignmentId, onClassChange,
 }
 
 export default function AttendancePage({ account, onNavigate }) {
-  if (account.role === 'STUDENT') return <StudentAttendanceView onNavigate={onNavigate} />
+  if (account.role === 'STUDENT' || account.role === 'GUARDIAN') return <StudentAttendanceView onNavigate={onNavigate} />
   if (account.role === 'TEACHER') return <TeacherAttendanceView onNavigate={onNavigate} />
   return <AdminAttendanceView onNavigate={onNavigate} />
 }
@@ -469,19 +471,22 @@ function AdminCallPanel({ onSaved }) {
 
 function StudentAttendanceView({ onNavigate }) {
   const toast = useToast()
+  // Responsable légal : consultation seule des incidents de l'enfant choisi.
+  const { childId, selectedChild } = useGuardianChild()
+  const isGuardianView = Boolean(childId)
   const [data, setData] = useState({ absence_count: 0, late_count: 0, pending_justification_count: 0, incidents: [] })
   const [selected, setSelected] = useState(null)
 
   async function loadData() {
-    try { setData(await getMyAttendance()) } catch (error) { toast.error(error.message) }
+    try { setData(await getMyAttendance(childId)) } catch (error) { toast.error(error.message) }
   }
-  useEffect(function loadStudentAttendanceEffect() { loadData() }, [])
+  useEffect(function loadStudentAttendanceEffect() { loadData() }, [childId])
 
   return <div className="attendance-page">
-    <PageHeader subtitle="Consultez votre assiduité et transmettez vos justificatifs." />
+    <PageHeader subtitle={isGuardianView ? `Consultez l'assiduité de ${selectedChild.first_name}.` : "Consultez votre assiduité et transmettez vos justificatifs."} />
     <SummaryCards absenceCount={data.absence_count} lateCount={data.late_count} pendingCount={data.pending_justification_count} />
-    <section className="attendance-panel"><h2>Mon historique</h2>
-      <IncidentTable records={data.incidents} actionLabel="Justifier" onAction={setSelected} student onOpen={function openDetail(record) { onNavigate('attendance-record-details', record) }} />
+    <section className="attendance-panel"><h2>{isGuardianView ? 'Historique' : 'Mon historique'}</h2>
+      <IncidentTable records={data.incidents} actionLabel="Justifier" onAction={setSelected} student selfLabel={isGuardianView ? selectedChild.first_name : 'Moi'} onOpen={isGuardianView ? undefined : function openDetail(record) { onNavigate('attendance-record-details', record) }} />
     </section>
     {selected && <JustificationModal record={selected} onClose={() => setSelected(null)} onSaved={async () => { setSelected(null); toast.success('Justificatif transmis.'); await loadData() }} />}
   </div>
@@ -493,7 +498,17 @@ function TabButton({ active, onClick, icon, label }) {
 
 function EventTable({ events }) {
   if (!events.length) return <p className="attendance-empty">Aucun appel enregistré.</p>
-  return <div className="attendance-table-wrap"><table className="attendance-table"><thead><tr><th>Date</th><th>Classe</th><th>Matière</th><th>Horaire</th><th>Absences</th><th>Retards</th></tr></thead><tbody>{events.map((event) => <tr key={event.id}><td>{formatDate(event.attendance_date)}</td><td>{event.class_name}</td><td>{event.subject_name}</td><td>{String(event.course_start_time).slice(0, 5)}–{String(event.course_end_time).slice(0, 5)}</td><td>{event.absence_count}</td><td>{event.late_count}</td></tr>)}</tbody></table></div>
+  return <>
+    <MobileCardList
+      label="Appels enregistrés"
+      items={events}
+      getKey={(event) => event.id}
+      title={(event) => `${event.class_name} · ${event.subject_name}`}
+      subtitle={(event) => `${formatDate(event.attendance_date)} · ${String(event.course_start_time).slice(0, 5)}–${String(event.course_end_time).slice(0, 5)}`}
+      meta={(event) => `${event.absence_count} absence(s) · ${event.late_count} retard(s)`}
+    />
+    <div className="attendance-table-wrap mcards-hide"><table className="attendance-table"><thead><tr><th>Date</th><th>Classe</th><th>Matière</th><th>Horaire</th><th>Absences</th><th>Retards</th></tr></thead><tbody>{events.map((event) => <tr key={event.id}><td>{formatDate(event.attendance_date)}</td><td>{event.class_name}</td><td>{event.subject_name}</td><td>{String(event.course_start_time).slice(0, 5)}–{String(event.course_end_time).slice(0, 5)}</td><td>{event.absence_count}</td><td>{event.late_count}</td></tr>)}</tbody></table></div>
+  </>
 }
 
 function LegacyIncidentTable({ records, onOpen }) {

@@ -36,7 +36,7 @@ export default function MainLayout({
     setIsSidebarOpen(false)
   }
 
-  const hasMobileBottomNav = account?.role === 'STUDENT'
+  const hasMobileBottomNav = Boolean(account?.role)
 
   return (
     <div className={hasMobileBottomNav ? 'layout-page layout-page--has-bottom-nav' : 'layout-page'}>
@@ -65,7 +65,7 @@ export default function MainLayout({
         {children}
       </div>
 
-      <MobileBottomNav account={account} currentPage={currentPage} onNavigate={onNavigate} />
+      <MobileBottomNav account={account} currentPage={currentPage} onNavigate={onNavigate} onMenuOpen={handleSidebarOpen} />
     </div>
   )
 }

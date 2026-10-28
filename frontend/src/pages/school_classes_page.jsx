@@ -10,6 +10,7 @@ import {
 } from '../services/school_classes_overview_service.js'
 import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import '../styles/school_classes_page.css'
+import MobileCardList from '../components/mobile_card_list.jsx'
 const AVATAR_PALETTE = [
   { bg: '#E8ECFB', fg: '#3355DD' },
   { bg: '#FDEBEA', fg: '#D9534F' },
@@ -297,7 +298,18 @@ export default function SchoolClassesPage({ account, onNavigate }) {
           </span>
         </div>
 
-        <table className="scp-table">
+        <MobileCardList
+          label="Liste des classes"
+          items={classes}
+          getKey={(c) => c.id}
+          onOpen={(c) => onNavigate?.('school-class-details', c)}
+          lead={(c) => { const badge = levelBadge(c.level_name); return <span className="scp-avatar" style={{ background: badge.bg, color: badge.fg }}>{levelInitials(c.level_name, c.group_label)}</span> }}
+          title={(c) => `${c.level_name} ${c.group_label}`}
+          subtitle={(c) => `${c.school_year_name} · ${c.teacher_name ?? '—'}`}
+          meta={(c) => `${c.student_count} élève${c.student_count > 1 ? 's' : ''}${c.capacity ? ` / ${c.capacity}` : ''}`}
+          badge={(c) => <StatusBadge status={c.status} />}
+        />
+        <table className={classes.length > 0 ? 'scp-table mcards-hide' : 'scp-table'}>
           <thead>
             <tr>
               <th>Classe</th>

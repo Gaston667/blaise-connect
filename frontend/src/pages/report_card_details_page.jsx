@@ -45,7 +45,7 @@ function downloadBlob(blob, filename) {
 }
 
 /** Affiche un bulletin dans une mise en page prête pour l'impression. */
-export default function ReportCardDetailsPage({ reportCardId, onNavigate }) {
+export default function ReportCardDetailsPage({ reportCardId, onNavigate, childId = null }) {
   const [reportCard, setReportCard] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
@@ -54,7 +54,7 @@ export default function ReportCardDetailsPage({ reportCardId, onNavigate }) {
     async function loadReportCard() {
       try {
         setErrorMessage('')
-        setReportCard(await getReportCard(reportCardId))
+        setReportCard(await getReportCard(reportCardId, childId))
       } catch (error) {
         const code = error?.code || 'UNKNOWN_ERROR'
         const reference = error?.errorId ? ` Référence : ${error.errorId}.` : ''
@@ -63,7 +63,7 @@ export default function ReportCardDetailsPage({ reportCardId, onNavigate }) {
     }
 
     loadReportCard()
-  }, [reportCardId])
+  }, [reportCardId, childId])
 
   if (errorMessage) {
     return <main className="rcd-main"><p className="rcd-error" role="alert">{errorMessage}</p></main>
@@ -93,15 +93,15 @@ export default function ReportCardDetailsPage({ reportCardId, onNavigate }) {
         <nav className="rcd-breadcrumb" aria-label="Fil d’Ariane">
           <button type="button" onClick={function goHome() { onNavigate('home') }}>Accueil</button>
           <span>›</span>
-          <button type="button" onClick={function goToReportCards() { onNavigate('report-cards') }}>Bulletins</button>
+          <button type="button" onClick={function goToReportCards() { onNavigate(childId ? 'guardian-report-cards' : 'report-cards') }}>Bulletins</button>
           <span>›</span><span>Détail du bulletin</span>
         </nav>
         <h1>Détail du bulletin</h1>
       </div>
       <div className="rcd-actions rcd-no-print">
         <button type="button" className="rcd-button rcd-button--secondary" onClick={printReportCard}><Printer size={17} /> Imprimer</button>
-        <button type="button" className="rcd-button rcd-button--secondary" onClick={downloadTestPdf} disabled={isGeneratingPdf}><Download size={17} /> {isGeneratingPdf ? 'Génération…' : 'Télécharger PDF test'}</button>
-        <button type="button" className="rcd-button rcd-button--primary" disabled title="La validation sera ajoutée après la génération des bulletins."><CheckCircle2 size={17} /> Valider le bulletin</button>
+        {childId ? null : <button type="button" className="rcd-button rcd-button--secondary" onClick={downloadTestPdf} disabled={isGeneratingPdf}><Download size={17} /> {isGeneratingPdf ? 'Génération…' : 'Télécharger PDF test'}</button>}
+        {childId ? null : <button type="button" className="rcd-button rcd-button--primary" disabled title="La validation sera ajoutée après la génération des bulletins."><CheckCircle2 size={17} /> Valider le bulletin</button>}
       </div>
     </header>
 

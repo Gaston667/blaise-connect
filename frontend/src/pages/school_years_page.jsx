@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 
+import MobileCardList from '../components/mobile_card_list.jsx'
 import {
   createSchoolYear,
   getSchoolYears,
@@ -259,7 +260,16 @@ export default function SchoolYearsPage({ onNavigate }) {
           </div>
         ) : (
           <>
-            <div className="comptes-table-wrapper">
+            <MobileCardList
+              label="Liste des années scolaires"
+              items={visibleSchoolYears}
+              getKey={(schoolYear) => schoolYear.id}
+              onOpen={(schoolYear) => handleSchoolYearSelection(schoolYear.id)}
+              title={(schoolYear) => schoolYear.name}
+              subtitle={(schoolYear) => `${formatDate(schoolYear.start_date)} → ${formatDate(schoolYear.end_date)}`}
+              badge={(schoolYear) => <span className={getYearStatusClassName(schoolYear)}>{getYearStatusLabel(schoolYear)}</span>}
+            />
+            <div className={visibleSchoolYears.length > 0 ? 'comptes-table-wrapper mcards-hide' : 'comptes-table-wrapper'}>
               <table className="comptes-table">
                 <thead>
                   <tr>

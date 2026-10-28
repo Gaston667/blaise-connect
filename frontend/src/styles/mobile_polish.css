@@ -1,0 +1,106 @@
+/*
+ * Ajustements « téléphone d'abord » appliqués après tous les autres styles :
+ * lisibilité, zones tactiles confortables et grilles compactes.
+ */
+@media (max-width: 767px) {
+  /* Sur téléphone, l'échelle à 90 % rendait les petits textes illisibles (≈ 10,8 px). */
+  html { font-size: 100%; }
+
+  /* Évite le zoom automatique d'iOS au focus et agrandit les zones tactiles. */
+  select,
+  textarea,
+  input:not([type='checkbox']):not([type='radio']):not([type='file']) {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .layout-navigation-item,
+  .layout-navigation-subitem,
+  .sidebar-tour-button,
+  .comptes-pagination-button,
+  .sgp-more__btn,
+  .sgp-period-picker__button,
+  .sp-btn-reset,
+  .scp-btn-reset,
+  .sjp-btn-reset {
+    min-height: 44px;
+  }
+  .comptes-pagination-button { min-width: 44px; }
+  .sp-page,
+  .scp-page { min-width: 40px; min-height: 40px; }
+  .stp-day-tab { min-height: 44px; }
+
+  /* Planning administrateur : la grille ne doit pas élargir la page. */
+  .tmp-workspace { grid-template-columns: minmax(0, 1fr); }
+  .tmp-class-sidebar { min-width: 0; }
+
+  /* Indicateurs en deux colonnes plutôt qu'empilés sur toute la hauteur. */
+  .ntp-stats,
+  .adp-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+  .ntp-stat-card { flex-direction: column; align-items: flex-start; padding: var(--space-3); gap: var(--space-2); }
+  .ntp-stat-card strong { font-size: 1.5rem; }
+  .ntp-stats > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+/* Listes en cartes (remplacent les tableaux sur téléphone) */
+.mcards { display: none; margin: 0; padding: 0; list-style: none; }
+
+@media (max-width: 767px) {
+  .mcards-hide { display: none !important; }
+  .mcards { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-3); }
+  .mcards > li { min-width: 0; }
+  .mcard {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 64px;
+    padding: var(--space-2) var(--space-3);
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    background: var(--color-surface);
+    border: var(--border-default);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+  .mcard:active { background: var(--table-row-hover-bg); }
+  .mcard__lead { display: flex; flex: 0 0 auto; }
+  .mcard__info { display: flex; flex: 1; flex-direction: column; min-width: 0; line-height: 1.3; }
+  .mcard__info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-secondary); }
+  .mcard__info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+  .mcard__info small { color: var(--color-primary); font-weight: var(--font-weight-semibold); }
+  .mcard__badge { flex: 0 0 auto; }
+}
+
+/* Cartes du tableau de bord admin : alignement à gauche (le nom de classe .adp-stat-card existe aussi dans la page Administrateurs). */
+.adp-stat-card:has(.adp-stat-card__icon) { align-items: flex-start; text-align: left; }
+.adp-stat-card:has(.adp-stat-card__icon) > * { align-self: flex-start; }
+
+@media (max-width: 767px) {
+  /* Liens et boutons d'appoint : zones tactiles plus confortables. */
+  [class$='-breadcrumb'] button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding-inline: 4px;
+  }
+  [class*='-pagination'] button { min-width: 44px !important; min-height: 44px !important; }
+  .adp-stat-card__link,
+  .adp-panel-link { min-height: 44px; display: inline-flex; align-items: center; }
+  .adp-performance-zoom button { min-width: 40px; min-height: 40px; }
+}
+
+@media (max-width: 767px) {
+  /* Résumé des comptes : deux cartes par ligne, sans la description, pour gagner de la hauteur. */
+  .comptes-stats-carousel { padding: var(--space-2); }
+  .comptes-stats-slide { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+  .comptes-stat-card { padding: var(--space-3); gap: var(--space-2); }
+  .comptes-stat-card p { display: none; }
+}
+
+@media (max-width: 767px) {
+  .attendance-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+  .attendance-summary > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}

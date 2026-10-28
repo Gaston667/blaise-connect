@@ -1019,16 +1019,16 @@ export default function TimetableManagementPage() {
 
   return (
     <main className="tmp-main">
+      <header className="tmp-page-header">
+        <h1>Emploi du temps</h1>
+        <p>Consultez et organisez les plannings de l’établissement.</p>
+      </header>
+
       <nav className="tmp-breadcrumb" aria-label="Fil d’Ariane">
         <span>Accueil</span>
         <ChevronRight aria-hidden="true" size={14} />
         <span>Emploi du temps</span>
       </nav>
-
-      <header className="tmp-page-header">
-        <h1>Emploi du temps</h1>
-        <p>Consultez et organisez les plannings de l’établissement.</p>
-      </header>
 
       {error && <p className="tmp-error" role="alert">{error}</p>}
 

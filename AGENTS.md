@@ -183,6 +183,20 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
   de fin incluses dans l'année scolaire. Le brouillon produit ne vaut que sur
   cette plage ; l'interface affiche ensuite les jours avec leurs dates réelles.
 
+### 3.10 Portail responsable légal
+
+- Un compte `GUARDIAN` peut se connecter. Il ne voit que les élèves non archivés
+  rattachés à son dossier par `student_guardians`; ce contrôle est fait par le
+  serveur à chaque requête (`get_guardian_child`). Un élève non rattaché produit
+  la même réponse 404 qu'un élève inexistant.
+- La V1 est en lecture seule : notes, emploi du temps publié, absences et retards,
+  bulletins. Seuls les bulletins validés sont visibles par la famille.
+- Un responsable qui a plusieurs enfants choisit l'enfant consulté ; les chiffres
+  affichés sont produits par les mêmes services que l'espace élève.
+- Le dépôt d'un justificatif par le parent et un journal des consultations ne sont
+  pas encore implémentés ; ils demanderont une validation puis, pour le journal,
+  une nouvelle migration.
+
 ## 4. Conventions PostgreSQL obligatoires
 
 - Utiliser PostgreSQL 15 ou une version supérieure, sauf contrainte contraire du déploiement.

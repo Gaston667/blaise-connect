@@ -10,7 +10,7 @@ from app.core.security import DUMMY_PASSWORD_HASH, verify_password
 from app.models.account import Account
 
 
-ALLOWED_AUTHENTICATION_ROLES = ("ADMIN", "TEACHER", "STUDENT")
+ALLOWED_AUTHENTICATION_ROLES = ("ADMIN", "TEACHER", "STUDENT", "GUARDIAN")
 MAX_FAILED_LOGIN_ATTEMPTS = 5
 ACCOUNT_LOCK_DURATION = timedelta(minutes=5)
 
@@ -18,6 +18,7 @@ _PROFILE_TABLE_BY_ROLE = {
     "ADMIN": "administrators",
     "TEACHER": "teachers",
     "STUDENT": "students",
+    "GUARDIAN": "guardians",
 }
 
 
@@ -35,6 +36,17 @@ def get_account_full_name(db: Session, account: Account) -> tuple[str | None, st
     if row is None:
         return None, None
     return row["first_name"], row["last_name"]
+
+
+def get_guardian_gender(db: Session, account: Account) -> str | None:
+    """Retourne le genre d'un responsable, pour adapter la formule de politesse."""
+
+    if account.role != "GUARDIAN":
+        return None
+    return db.execute(
+        text("SELECT gender FROM guardians WHERE account_id = :account_id"),
+        {"account_id": account.id},
+    ).scalar()
 
 
 def get_account_by_registration_number(

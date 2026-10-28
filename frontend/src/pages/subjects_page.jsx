@@ -7,6 +7,7 @@ import { getSchoolClassesOverview } from '../services/school_classes_overview_se
 import { createSubject, getSubjectsOverview } from '../services/subject_service.js'
 import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import '../styles/subjects_page.css'
+import MobileCardList from '../components/mobile_card_list.jsx'
 
 const PAGE_SIZE = 10
 
@@ -220,7 +221,17 @@ export default function SubjectsPage({ account, onNavigate }) {
           </span>
         </div>
 
-        <div className="sjp-table-wrapper">
+        <MobileCardList
+          label="Liste des matières"
+          items={loading ? [] : pageItems}
+          getKey={(subject) => subject.id}
+          onOpen={(subject) => onNavigate('subject-details', subject)}
+          lead={(subject) => { const badge = subjectBadge(subject.name); return <span className="sjp-avatar" style={{ background: badge.bg, color: badge.fg }}>{subjectInitials(subject.name)}</span> }}
+          title={(subject) => subject.name}
+          subtitle={(subject) => subject.description || '—'}
+          meta={(subject) => `${subject.teacher_count} enseignant${subject.teacher_count > 1 ? 's' : ''}`}
+        />
+        <div className={!loading && pageItems.length > 0 ? 'sjp-table-wrapper mcards-hide' : 'sjp-table-wrapper'}>
           <table className="sjp-table">
             <thead>
               <tr>

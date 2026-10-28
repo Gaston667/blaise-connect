@@ -5,6 +5,7 @@ import { getGuardiansOverview } from '../services/guardians_overview_service.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
 import { useDebouncedValue } from '../hooks/useDebouncedValue.js'
 import '../styles/guardians_page.css'
+import MobileCardList from '../components/mobile_card_list.jsx'
 
 const STATUS_LABEL = { ACTIVE: 'Actif', ARCHIVED: 'Archivé' }
 const PAGE_SIZE = 10
@@ -94,7 +95,18 @@ export default function GuardiansPage({ onNavigate }) {
           <span>{loading ? 'Chargement…' : `${guardians.length} responsable(s)`}</span>
         </div>
 
-        <div className="glp-table-wrapper">
+        <MobileCardList
+          label="Liste des responsables légaux"
+          items={pageItems}
+          getKey={(guardian) => guardian.id}
+          onOpen={openGuardianDetails}
+          lead={(guardian) => <ProfilePhoto photoPath={guardian.photo_path} firstName={guardian.first_name} lastName={guardian.last_name} />}
+          title={(guardian) => formatProfileName(guardian.first_name, guardian.last_name, guardian.gender)}
+          subtitle={(guardian) => guardian.phone ?? '—'}
+          meta={(guardian) => guardian.occupation ?? guardian.email ?? ''}
+          badge={(guardian) => <span className={guardianStatus(guardian) === 'ACTIVE' ? 'glp-badge glp-badge--active' : 'glp-badge glp-badge--archived'}>{STATUS_LABEL[guardianStatus(guardian)]}</span>}
+        />
+        <div className={pageItems.length > 0 ? 'glp-table-wrapper mcards-hide' : 'glp-table-wrapper'}>
           <table className="glp-table">
             <thead>
               <tr>

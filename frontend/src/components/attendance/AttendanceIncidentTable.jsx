@@ -1,3 +1,5 @@
+import MobileCardList from '../mobile_card_list.jsx'
+
 /** Liste consultable des incidents d'assiduité, sans actions directes. */
 function formatDate(value) {
   if (!value) return '—'
@@ -26,13 +28,28 @@ function statusTone(value) {
   }[value] || 'neutral'
 }
 
-export default function AttendanceIncidentTable({ records, onOpen }) {
+export default function AttendanceIncidentTable({ records, onOpen, selfLabel = 'Moi' }) {
   if (!records.length) {
     return <p className="attendance-empty">Aucun incident enregistré.</p>
   }
 
   return (
-    <div className="attendance-table-wrap">
+    <>
+    <MobileCardList
+      label="Incidents d'assiduité"
+      items={records}
+      getKey={(record) => record.id}
+      onOpen={onOpen}
+      title={(record) => `${incidentLabel(record.incident_type)}${record.late_minutes ? ` (${record.late_minutes} min)` : ''} · ${formatDate(record.attendance_date)}`}
+      subtitle={(record) => `${record.student_name || selfLabel} · ${record.class_name ?? ''}`}
+      meta={(record) => record.subject_name}
+      badge={(record) => (
+        <span className={`attendance-badge attendance-badge--${statusTone(record.justification_status)}`}>
+          {justificationLabel(record.justification_status)}
+        </span>
+      )}
+    />
+    <div className="attendance-table-wrap mcards-hide">
       <table className="attendance-table">
         <thead>
           <tr>
@@ -56,7 +73,7 @@ export default function AttendanceIncidentTable({ records, onOpen }) {
                 }}
               >
                 <td>{formatDate(record.attendance_date)}</td>
-                <td>{record.student_name || 'Moi'}<small>{record.registration_number}</small></td>
+                <td>{record.student_name || selfLabel}<small>{record.registration_number}</small></td>
                 <td>{record.class_name}<small>{record.subject_name}</small></td>
                 <td>{incidentLabel(record.incident_type)}{record.late_minutes ? ` (${record.late_minutes} min)` : ''}</td>
                 <td>
@@ -70,5 +87,6 @@ export default function AttendanceIncidentTable({ records, onOpen }) {
         </tbody>
       </table>
     </div>
+    </>
   )
 }

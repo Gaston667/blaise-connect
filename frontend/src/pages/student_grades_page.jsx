@@ -23,6 +23,7 @@ import {
   getMyGradesSummary,
   getMyProfile,
 } from '../services/student_grades_service.js'
+import { useGuardianChild } from '../context/guardian_child_context.js'
 import '../styles/student_grades_page.css'
 
 const PALETTE = ['violet', 'green', 'blue', 'orange']
@@ -89,6 +90,7 @@ function scoreTone(grade) {
 }
 
 export default function StudentGradesPage() {
+  const { childId } = useGuardianChild()
   const [profile, setProfile] = useState(null)
   const [grades, setGrades] = useState([])
   const [summary, setSummary] = useState(null)
@@ -106,9 +108,9 @@ export default function StudentGradesPage() {
     async function load() {
       try {
         const [profileData, gradesData, summaryData] = await Promise.all([
-          getMyProfile(),
-          getMyGrades(),
-          getMyGradesSummary(),
+          getMyProfile(childId),
+          getMyGrades(childId),
+          getMyGradesSummary(childId),
         ])
         setProfile(profileData)
         setGrades(gradesData)
@@ -122,7 +124,7 @@ export default function StudentGradesPage() {
       }
     }
     load()
-  }, [])
+  }, [childId])
 
   if (loading) return <main className="sgp-main"><p>Chargement de vos notes…</p></main>
   if (errorMessage) return <main className="sgp-main"><p className="sgp-error">{errorMessage}</p></main>
@@ -160,7 +162,7 @@ export default function StudentGradesPage() {
     setIsAssessmentDetailLoading(true)
 
     try {
-      setAssessmentDetail(await getMyAssessmentDetail(assessmentId))
+      setAssessmentDetail(await getMyAssessmentDetail(assessmentId, childId))
     } catch (error) {
       setAssessmentDetailError(error.message)
     } finally {

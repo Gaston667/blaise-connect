@@ -14,9 +14,12 @@ export function getReportCards(filters = {}) {
   })
 }
 
-/** Charge le contenu figé d'un bulletin. */
-export function getReportCard(reportCardId) {
-  return apiRequestJson(`/api/report-cards/${reportCardId}`, {
+/** Charge le contenu figé d'un bulletin (administrateur, ou parent via `childId`). */
+export function getReportCard(reportCardId, childId) {
+  const path = childId
+    ? `/api/guardian/children/${childId}/report-cards/${reportCardId}`
+    : `/api/report-cards/${reportCardId}`
+  return apiRequestJson(path, {
     method: 'GET',
     fallbackMessage: 'Impossible de charger ce bulletin.',
   })

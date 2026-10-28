@@ -230,6 +230,22 @@ export default function StudentsPage({ onNavigate }) {
             {loading ? 'Chargement…' : `Total : ${total} élèves`}
           </div>
 
+          <ul className="sp-cards" aria-label="Liste des élèves">
+            {students.map((s) => (
+              <li key={s.id}>
+                <button type="button" className="sp-card" onClick={() => onNavigate?.('student-details', s)}>
+                  <ProfilePhoto photoPath={s.photo_path} />
+                  <span className="sp-card__info">
+                    <strong>{formatProfileName(s.first_name, s.last_name, s.gender, { fallback: '—' })}</strong>
+                    <span>{s.class_name ?? className(s.class_id)}{s.school_year_name ? ` · ${s.school_year_name}` : ''}</span>
+                    <small>{s.registration_number ?? '—'}</small>
+                  </span>
+                  <StatusBadge status={s.status} />
+                </button>
+              </li>
+            ))}
+          </ul>
+
           <div className="sp-table-wrapper">
             <table className="sp-table">
             <thead>

@@ -106,8 +106,11 @@ export function reviewAttendanceJustification(recordId, data) {
   )
 }
 
-export function getMyAttendance() {
-  return apiRequestJson(`${ATTENDANCE_API_URL}/me`)
+/** Absences et retards de l'élève, ou de l'enfant d'un responsable légal. */
+export function getMyAttendance(childId) {
+  return apiRequestJson(
+    childId ? `/api/guardian/children/${childId}/attendance` : `${ATTENDANCE_API_URL}/me`,
+  )
 }
 
 export function uploadMyAttendanceJustification(recordId, reason, file) {

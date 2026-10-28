@@ -1,38 +1,42 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import MainLayout from './layouts/main_layout.jsx'
-import AccountDetailsPage from './pages/account_details_page.jsx'
-import AccountCreatePage from './pages/account_create_page.jsx'
-import AccountsPage from './pages/accounts_page.jsx'
+const AccountDetailsPage = lazy(() => import('./pages/account_details_page.jsx'))
+const AccountCreatePage = lazy(() => import('./pages/account_create_page.jsx'))
+const AccountsPage = lazy(() => import('./pages/accounts_page.jsx'))
 import HomePage from './pages/home_page.jsx'
-import AdminDashboardPage from './pages/admin_dashboard_page.jsx'
-import GuardianDetailsPage from './pages/guardian_details_page.jsx'
-import GuardiansPage from './pages/guardians_page.jsx'
+const AdminDashboardPage = lazy(() => import('./pages/admin_dashboard_page.jsx'))
+const GuardianDetailsPage = lazy(() => import('./pages/guardian_details_page.jsx'))
+const GuardiansPage = lazy(() => import('./pages/guardians_page.jsx'))
 import LoginPage from './pages/login_page.jsx'
-import AboutPage from './pages/about_page.jsx'
-import TuitionFeesPage from './pages/tuition_fees_page.jsx'
-import SchoolClassDetailsPage from './pages/school_class_details_page.jsx'
-import SchoolClassesPage from './pages/school_classes_page.jsx'
-import SchoolYearDetailsPage from './pages/school_year_details_page.jsx'
-import SchoolYearsPage from './pages/school_years_page.jsx'
-import StudentDetailsPage from './pages/student_details_page.jsx'
-import StudentsPage from './pages/students_page.jsx'
-import SubjectsPage from './pages/subjects_page.jsx'
-import SubjectDetailsPage from './pages/subject_details_page.jsx'
-import NotesPage from './pages/notes_page.jsx'
-import AdministratorsPage from './pages/administrators_page.jsx'
-import AdministratorDetailsPage from './pages/administrator_details_page.jsx'
-import TeachersPage from './pages/teachers_page.jsx'
-import TeacherDetailsPage from './pages/teacher_details_page.jsx'
-import StudentGradesPage from './pages/student_grades_page.jsx'
-import StudentTimetablePage from './pages/student_timetable_page.jsx'
-import TeacherTimetablePage from './pages/teacher_timetable_page.jsx'
-import TimetableManagementPage from './pages/timetable_management_page.jsx'
-import AttendancePage from './pages/attendance_page.jsx'
-import AttendanceRecordDetailsPage from './pages/attendance_record_details_page.jsx'
-import ReportCardsPage from './pages/report_cards_page.jsx'
-import ReportCardDetailsPage from './pages/report_card_details_page.jsx'
+const AboutPage = lazy(() => import('./pages/about_page.jsx'))
+const TuitionFeesPage = lazy(() => import('./pages/tuition_fees_page.jsx'))
+const SchoolClassDetailsPage = lazy(() => import('./pages/school_class_details_page.jsx'))
+const SchoolClassesPage = lazy(() => import('./pages/school_classes_page.jsx'))
+const SchoolYearDetailsPage = lazy(() => import('./pages/school_year_details_page.jsx'))
+const SchoolYearsPage = lazy(() => import('./pages/school_years_page.jsx'))
+const StudentDetailsPage = lazy(() => import('./pages/student_details_page.jsx'))
+const StudentsPage = lazy(() => import('./pages/students_page.jsx'))
+const SubjectsPage = lazy(() => import('./pages/subjects_page.jsx'))
+const SubjectDetailsPage = lazy(() => import('./pages/subject_details_page.jsx'))
+const NotesPage = lazy(() => import('./pages/notes_page.jsx'))
+const AdministratorsPage = lazy(() => import('./pages/administrators_page.jsx'))
+const AdministratorDetailsPage = lazy(() => import('./pages/administrator_details_page.jsx'))
+const TeachersPage = lazy(() => import('./pages/teachers_page.jsx'))
+const TeacherDetailsPage = lazy(() => import('./pages/teacher_details_page.jsx'))
+const StudentGradesPage = lazy(() => import('./pages/student_grades_page.jsx'))
+const StudentTimetablePage = lazy(() => import('./pages/student_timetable_page.jsx'))
+const TeacherTimetablePage = lazy(() => import('./pages/teacher_timetable_page.jsx'))
+const TimetableManagementPage = lazy(() => import('./pages/timetable_management_page.jsx'))
+const AttendancePage = lazy(() => import('./pages/attendance_page.jsx'))
+const GuardianHomePage = lazy(() => import('./pages/guardian_home_page.jsx'))
+const GuardianReportCardsPage = lazy(() => import('./pages/guardian_report_cards_page.jsx'))
+const GuardianReportCardDetails = lazy(() => import('./pages/guardian_report_cards_page.jsx').then((module) => ({ default: module.GuardianReportCardDetails })))
+import { GuardianChildProvider, GuardianGate } from './context/guardian_child_provider.jsx'
+const AttendanceRecordDetailsPage = lazy(() => import('./pages/attendance_record_details_page.jsx'))
+const ReportCardsPage = lazy(() => import('./pages/report_cards_page.jsx'))
+const ReportCardDetailsPage = lazy(() => import('./pages/report_card_details_page.jsx'))
 import GuidedTour from './components/guided_tour.jsx'
 import { ADMIN_TOUR_STEPS } from './tour/admin_tour_steps.js'
 import { getCurrentAccount } from './services/auth_service.js'
@@ -56,14 +60,19 @@ const PAGE_PATHS = {
   timetables: '/timetables',
   attendance: '/attendance',
   'report-cards': '/report-cards',
+  'guardian-report-cards': '/my-report-cards',
 }
 
 /**
  * Déduit la section active à partir de l'URL affichée par le navigateur.
  */
+// Affiché pendant le chargement à la demande d'une page (connexion lente).
+const pageFallback = <main className="application-loading">Chargement…</main>
+
 function getCurrentPage(pathname) {
   if (/^\/attendance\/records\/[^/]+$/.test(pathname)) return 'attendance-record-details'
   if (/^\/report-cards\/[^/]+$/.test(pathname)) return 'report-card-details'
+  if (/^\/my-report-cards\/[^/]+$/.test(pathname)) return 'guardian-report-card-details'
   if (pathname === '/accounts/new') return 'account-new'
   if (/^\/accounts\/[^/]+$/.test(pathname)) return 'account-details'
   if (/^\/students\/[^/]+$/.test(pathname)) return 'student-details'
@@ -88,6 +97,7 @@ function getCurrentPage(pathname) {
   if (pathname === '/timetables') return 'timetables'
   if (pathname === '/attendance') return 'attendance'
   if (pathname === '/report-cards') return 'report-cards'
+  if (pathname === '/my-report-cards') return 'guardian-report-cards'
   return 'home'
 }
 
@@ -106,6 +116,7 @@ function getNavigationPath(page, entity) {
   if (page === 'administrator-details' && entityId) return `/administrators/${entityId}`
   if (page === 'attendance-record-details' && entityId) return `/attendance/records/${entityId}`
   if (page === 'report-card-details' && entityId) return `/report-cards/${entityId}`
+  if (page === 'guardian-report-card-details' && entityId) return `/my-report-cards/${entityId}`
   return PAGE_PATHS[page] || '/'
 }
 
@@ -215,11 +226,11 @@ export default function App() {
   }
 
   if (location.pathname === '/about') {
-    return <AboutPage />
+    return <Suspense fallback={pageFallback}><AboutPage /></Suspense>
   }
 
   if (location.pathname === '/tuition-fees') {
-    return <TuitionFeesPage />
+    return <Suspense fallback={pageFallback}><TuitionFeesPage /></Suspense>
   }
 
   if (isSessionLoading) {
@@ -233,9 +244,12 @@ export default function App() {
   const canManageSchool = currentAccount.role === 'ADMIN'
   const canViewSchoolDirectory = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
   const canManageNotes = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
+  const isGuardian = currentAccount.role === 'GUARDIAN'
   let pageContent = canManageSchool
     ? <AdminDashboardPage account={currentAccount} onNavigate={handleNavigate} />
-    : <HomePage account={currentAccount} onNavigate={handleNavigate} />
+    : isGuardian
+      ? <GuardianHomePage account={currentAccount} onNavigate={handleNavigate} />
+      : <HomePage account={currentAccount} onNavigate={handleNavigate} />
 
   if (currentPage === 'students' && canViewSchoolDirectory) {
     pageContent = <StudentsPage onNavigate={handleNavigate} />
@@ -336,10 +350,10 @@ export default function App() {
       />
     )
   }
-  else if (currentPage === 'student-grades' && currentAccount.role === 'STUDENT') {
+  else if (currentPage === 'student-grades' && ['STUDENT', 'GUARDIAN'].includes(currentAccount.role)) {
     pageContent = <StudentGradesPage />
   }
-  else if (currentPage === 'student-timetable' && currentAccount.role === 'STUDENT') {
+  else if (currentPage === 'student-timetable' && ['STUDENT', 'GUARDIAN'].includes(currentAccount.role)) {
     pageContent = <StudentTimetablePage />
   }
   else if (currentPage === 'teacher-timetable' && currentAccount.role === 'TEACHER') {
@@ -350,9 +364,15 @@ export default function App() {
   }
   else if (
     currentPage === 'attendance'
-    && ['ADMIN', 'STUDENT'].includes(currentAccount.role)
+    && ['ADMIN', 'STUDENT', 'GUARDIAN'].includes(currentAccount.role)
   ) {
     pageContent = <AttendancePage account={currentAccount} onNavigate={handleNavigate} />
+  }
+  else if (currentPage === 'guardian-report-cards' && isGuardian) {
+    pageContent = <GuardianReportCardsPage onNavigate={handleNavigate} />
+  }
+  else if (currentPage === 'guardian-report-card-details' && isGuardian) {
+    pageContent = <GuardianReportCardDetails reportCardId={pathId} onNavigate={handleNavigate} />
   }
   else if (
     currentPage === 'attendance-record-details'
@@ -367,7 +387,7 @@ export default function App() {
     )
   }
   return (
-    <>
+    <GuardianChildProvider account={currentAccount}>
       <MainLayout
         account={currentAccount}
         currentPage={currentPage}
@@ -376,7 +396,7 @@ export default function App() {
         onStartTour={handleStartTour}
         isTourActive={isTourActive}
       >
-        {pageContent}
+        <GuardianGate><Suspense fallback={pageFallback}>{pageContent}</Suspense></GuardianGate>
       </MainLayout>
 
       {isTourActive && (
@@ -389,6 +409,6 @@ export default function App() {
           onClose={handleTourClose}
         />
       )}
-    </>
+    </GuardianChildProvider>
   )
 }

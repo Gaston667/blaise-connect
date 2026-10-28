@@ -44,6 +44,7 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
   const isAdmin = account.role === 'ADMIN'
   const isTeacher = account.role === 'TEACHER'
   const isStudent = account.role === 'STUDENT'
+  const isGuardian = account.role === 'GUARDIAN'
   const [accountsOpen, setAccountsOpen] = useState(isAccountManagementPage(currentPage))
 
   useEffect(function openAccountGroupOnNavigation() {
@@ -74,6 +75,12 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
         <NavigationButton page="student-grades" currentPage={currentPage} onNavigate={navigate} icon={<NotebookPen size={20} />}>Mes notes</NavigationButton>
         <NavigationButton page="student-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Mon emploi du temps</NavigationButton>
         <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>Mes absences</NavigationButton>
+      </> : null}
+      {isGuardian ? <>
+        <NavigationButton page="student-grades" currentPage={currentPage} onNavigate={navigate} icon={<NotebookPen size={20} />}>Notes</NavigationButton>
+        <NavigationButton page="student-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Emploi du temps</NavigationButton>
+        <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>Absences et retards</NavigationButton>
+        <NavigationButton page="guardian-report-cards" currentPage={currentPage} onNavigate={navigate} icon={<FileText size={20} />}>Bulletins</NavigationButton>
       </> : null}
       {isTeacher ? <NavigationButton page="teacher-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Mon emploi du temps</NavigationButton> : null}
     </nav>

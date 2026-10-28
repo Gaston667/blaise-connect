@@ -20,6 +20,7 @@ class CurrentAccountResponse(BaseModel):
     role: AccountRole
     first_name: str | None = None
     last_name: str | None = None
+    gender: str | None = None
     is_active: bool
     locked_until: datetime | None
     last_login_at: datetime | None

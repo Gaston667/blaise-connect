@@ -5,6 +5,7 @@ import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getTeachersOverview } from '../services/teachers_overview_service.js'
 import { formatProfileName } from '../utils/profileDisplay.js'
 import '../styles/teachers_page.css'
+import MobileCardList from '../components/mobile_card_list.jsx'
 
 const PAGE_SIZE = 6
 const STATUS_LABEL = { ACTIVE: 'Actif', INACTIVE: 'Inactif' }
@@ -166,7 +167,18 @@ export default function TeachersPage({ onNavigate }) {
       </form>
 
       <section className="tp-list">
-        <div className="tp-table-wrapper">
+        <MobileCardList
+          label="Liste des enseignants"
+          items={loading ? [] : pageItems}
+          getKey={(teacher) => teacher.id}
+          onOpen={openTeacherDetails}
+          lead={(teacher) => <ProfilePhoto photoPath={teacher.photo_path} />}
+          title={(teacher) => formatProfileName(teacher.first_name, teacher.last_name, teacher.gender)}
+          subtitle={(teacher) => teacher.phone ?? teacher.email ?? '—'}
+          meta={(teacher) => teacher.registration_number}
+          badge={(teacher) => <StatusBadge status={teacher.status} />}
+        />
+        <div className={!loading && pageItems.length > 0 ? 'tp-table-wrapper mcards-hide' : 'tp-table-wrapper'}>
           <table className="tp-table">
             <thead>
               <tr>

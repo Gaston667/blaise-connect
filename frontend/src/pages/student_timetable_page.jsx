@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import { getMyTimetable } from '../services/student_timetable_service.js'
+import { useGuardianChild } from '../context/guardian_child_context.js'
 import { DAY_LABELS, getScheduleRows } from '../utils/timetable_display.js'
 import '../styles/student_timetable_page.css'
 
@@ -46,6 +47,7 @@ function getDefaultDayIndex() {
 }
 
 export default function StudentTimetablePage() {
+  const { childId } = useGuardianChild()
   const [slots, setSlots] = useState([])
   const [breaks, setBreaks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -55,7 +57,7 @@ export default function StudentTimetablePage() {
   useEffect(function loadTimetableEffect() {
     async function load() {
       try {
-        const timetable = await getMyTimetable()
+        const timetable = await getMyTimetable(childId)
         setSlots(timetable.slots ?? [])
         setBreaks(timetable.breaks ?? [])
       } catch (e) {
@@ -65,7 +67,7 @@ export default function StudentTimetablePage() {
       }
     }
     load()
-  }, [])
+  }, [childId])
 
   if (loading) return <main className="stp-main"><p>Chargement de votre emploi du temps…</p></main>
   if (error) return <main className="stp-main"><p className="stp-error">{error}</p></main>

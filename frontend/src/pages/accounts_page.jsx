@@ -15,6 +15,7 @@ import {
 import defaultPhoto from '../assets/image_phtoto_default.png'
 import { getAccounts } from '../services/account_service'
 import { formatProfileName } from '../utils/profileDisplay.js'
+import MobileCardList from '../components/mobile_card_list.jsx'
 
 const PAGE_SIZE = 10
 const STATS_PER_SLIDE = 3
@@ -371,7 +372,23 @@ export default function AccountsPage({ onNavigate }) {
           </div>
         ) : (
           <>
-            <div className="comptes-table-wrapper">
+            <MobileCardList
+              label="Liste des comptes"
+              items={paginatedAccounts}
+              getKey={(account) => account.id}
+              onOpen={(account) => onNavigate('account-details', account)}
+              lead={(account) => <ProfilePhoto photoPath={account.profile?.photo_path} />}
+              title={(account) => getFullName(account)}
+              subtitle={(account) => ROLE_LABELS[account.role] || account.role}
+              meta={(account) => account.registration_number || '—'}
+              badge={(account) => (
+                <span className={`comptes-status ${isInactive(account) ? 'comptes-status-inactive' : 'comptes-status-active'}`}>
+                  <span className="comptes-status-dot" aria-hidden="true" />
+                  {isInactive(account) ? 'Inactif' : 'Actif'}
+                </span>
+              )}
+            />
+            <div className={paginatedAccounts.length > 0 ? 'comptes-table-wrapper mcards-hide' : 'comptes-table-wrapper'}>
               <table className="comptes-table">
                 <thead>
                   <tr>

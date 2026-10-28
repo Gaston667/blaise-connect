@@ -5,6 +5,7 @@ import { getSchoolClassesOverview } from '../services/school_classes_overview_se
 import { getReportingPeriods, getSchoolYears } from '../services/school_year_service.js'
 import { getReportCards } from '../services/report_cards_service.js'
 import '../styles/report_cards_page.css'
+import MobileCardList from '../components/mobile_card_list.jsx'
 
 function formatAverage(value) {
   const numericValue = Number(value)
@@ -92,7 +93,17 @@ export default function ReportCardsPage({ onNavigate }) {
     </section>
 
     {errorMessage ? <p className="rcp-error" role="alert">{errorMessage}</p> : null}
-    <section className="rcp-table-wrap">
+    <MobileCardList
+      label="Liste des bulletins"
+      items={reportCards}
+      getKey={(reportCard) => reportCard.id}
+      onOpen={openReportCard}
+      title={(reportCard) => reportCard.student_name}
+      subtitle={(reportCard) => `${reportCard.class_name} · ${reportCard.reporting_period_name}`}
+      meta={(reportCard) => `Moyenne ${formatAverage(reportCard.general_average)} /20`}
+      badge={(reportCard) => <span className={`rcp-status rcp-status--${reportCard.status.toLowerCase()}`}>{getStatusLabel(reportCard.status)}</span>}
+    />
+    <section className={reportCards.length > 0 ? 'rcp-table-wrap mcards-hide' : 'rcp-table-wrap'}>
       <table className="rcp-table"><thead><tr><th>Élève</th><th>Classe</th><th>Période</th><th>Moyenne générale</th><th>Statut</th><th>Généré le</th></tr></thead><tbody>
         {reportCards.map(function renderReportCard(reportCard) { return <tr key={reportCard.id} className="rcp-row" onClick={function openSelectedReportCard() { openReportCard(reportCard) }}><td><strong>{reportCard.student_name}</strong><small>{reportCard.registration_number}</small></td><td>{reportCard.class_name}</td><td>{reportCard.reporting_period_name}</td><td>{formatAverage(reportCard.general_average)} /20</td><td><span className={`rcp-status rcp-status--${reportCard.status.toLowerCase()}`}>{getStatusLabel(reportCard.status)}</span></td><td>{new Date(reportCard.generated_at).toLocaleDateString('fr-FR')}</td></tr> })}
         {reportCards.length === 0 ? <tr><td colSpan="6" className="rcp-empty">Aucun bulletin généré avec ces filtres.</td></tr> : null}
