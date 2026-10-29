@@ -364,6 +364,38 @@ function TimetableGrid({ slots, breaks, configurationDays, schoolYearStartDate, 
   )
 }
 
+/** Minutes de cours disponibles par semaine : horaires configurés moins les pauses. */
+function getWeeklyCapacityMinutes(days) {
+  return (days ?? []).reduce(function addDay(total, day) {
+    const dayMinutes = getTimelineMinutes(day.course_end_time) - getTimelineMinutes(day.course_start_time)
+    const breakMinutes = (day.breaks ?? []).reduce(function addBreak(sum, schoolBreak) {
+      return sum + getTimelineMinutes(schoolBreak.end_time) - getTimelineMinutes(schoolBreak.start_time)
+    }, 0)
+    return total + Math.max(dayMinutes - breakMinutes, 0)
+  }, 0)
+}
+
+/**
+ * Avertit quand les volumes demandés dépassent les créneaux disponibles. Les
+ * spécialités se déroulent en parallèle : on ne compte, au minimum, que la
+ * plus longue d'entre elles en plus des autres matières.
+ */
+function getCapacityWarning(requirements, days) {
+  const capacity = getWeeklyCapacityMinutes(days)
+  if (!capacity || !requirements.length) return ''
+  const planned = requirements.filter(function isPlanned(row) { return Number(row.weekly_minutes) > 0 })
+  const regularMinutes = planned
+    .filter(function isRegular(row) { return !row.is_specialty })
+    .reduce(function sum(total, row) { return total + Number(row.weekly_minutes) }, 0)
+  const longestSpecialty = Math.max(0, ...planned
+    .filter(function isSpecialty(row) { return row.is_specialty })
+    .map(function toMinutes(row) { return Number(row.weekly_minutes) }))
+  const minimumNeeded = regularMinutes + longestSpecialty
+  if (minimumNeeded <= capacity) return ''
+  const toHours = function toHours(minutes) { return (minutes / 60).toFixed(1).replace(/\.0$/, '') }
+  return `Volume trop important : au minimum ${toHours(minimumNeeded)} h demandées pour ${toHours(capacity)} h de créneaux disponibles. Réduisez des volumes horaires, sinon des heures ne pourront pas être placées.`
+}
+
 function getTimelineMinutes(timeValue) {
   const [hours, minutes] = formatTime(timeValue).split(':').map(Number)
   return hours * 60 + minutes
@@ -427,6 +459,7 @@ function getOverlappingSlotLayouts(daySlots) {
 function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearStartDate, schoolYearEndDate, weekStart, editable = false, onDeleteSlot, deletingSlotId, onWeekStartChange }) {
   const [displayMode, setDisplayMode] = useState('day')
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
+  const [detailSlot, setDetailSlot] = useState(null)
   const currentWeekStart = weekStart || getWeekStart('')
   const currentWeekEnd = addDays(currentWeekStart, 6)
   const gridDayDates = [0, 1, 2, 3, 4].map(function getDayDate(index) { return addDays(currentWeekStart, index) })
@@ -540,11 +573,46 @@ function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearSta
               const color = subjectColorByName.get(slot.subject_name) ?? 'violet'
               const duration = getTimelineMinutes(slot.end_time) - getTimelineMinutes(slot.start_time)
               const isCompact = duration <= 30
-              return <article key={slot.id} className={`stp-timeline__course stp-cell--${color}${isCompact ? ' stp-timeline__course--compact' : ''}`} style={getVerticalStyle(slot.start_time, slot.end_time, layoutsBySlotId.get(slot.id))} title={`${slot.subject_name} : ${formatTime(slot.start_time)}–${formatTime(slot.end_time)}`}><span className="stp-cell__title"><BookOpen aria-hidden="true" size={isCompact ? 11 : 13} /> {slot.subject_name}</span>{!isCompact && <span className="stp-cell__meta">{formatTime(slot.start_time)}–{formatTime(slot.end_time)} · {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}</span>}{renderDeleteButton(slot)}</article>
+              return <article key={slot.id} role="button" tabIndex={0} onClick={function openSlotDetail() { setDetailSlot(slot) }} onKeyDown={function openSlotDetailWithKeyboard(event) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setDetailSlot(slot) } }} className={`stp-timeline__course stp-timeline__course--clickable stp-cell--${color}${isCompact ? ' stp-timeline__course--compact' : ''}`} style={getVerticalStyle(slot.start_time, slot.end_time, layoutsBySlotId.get(slot.id))} title={`${slot.subject_name} : ${formatTime(slot.start_time)}–${formatTime(slot.end_time)}`}><span className="stp-cell__title"><BookOpen aria-hidden="true" size={isCompact ? 11 : 13} /> {slot.subject_name}</span>{!isCompact && <span className="stp-cell__meta">{formatTime(slot.start_time)}–{formatTime(slot.end_time)} · {slot.teacher_name}{slot.room_name ? ` · ${slot.room_name}` : ''}</span>}{renderDeleteButton(slot)}</article>
             })}
           </div>
         })}
       </div>
+      {detailSlot && <TimetableSlotDetail slot={detailSlot} dayDate={detailSlot.course_date || gridDayDates[detailSlot.day_of_week - 1]} onClose={function closeSlotDetail() { setDetailSlot(null) }} />}
+    </div>
+  )
+}
+
+/** Fenêtre d'informations d'un cours de l'emploi du temps. */
+function TimetableSlotDetail({ slot, dayDate, onClose }) {
+  useEffect(function closeOnEscape() {
+    function handleKey(event) { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handleKey)
+    return function removeListener() { window.removeEventListener('keydown', handleKey) }
+  }, [onClose])
+
+  const duration = getTimelineMinutes(slot.end_time) - getTimelineMinutes(slot.start_time)
+  const durationLabel = `${Math.floor(duration / 60) ? `${Math.floor(duration / 60)} h` : ''}${duration % 60 ? ` ${duration % 60} min` : ''}`.trim()
+  const kind = slot.course_date ? 'Cours ponctuel' : slot.is_specialty ? 'Spécialité' : 'Cours hebdomadaire'
+  const rows = [
+    ['Enseignant', slot.teacher_name || 'Non renseigné'],
+    ['Salle', slot.room_name || 'Non définie'],
+    ['Jour', dayDate ? formatDayWithDate(dayDate) : '—'],
+    ['Horaire', `${formatTime(slot.start_time)} – ${formatTime(slot.end_time)} (${durationLabel})`],
+    ['Type', kind],
+    ['Statut', slot.status === 'DRAFT' ? 'Brouillon' : 'Publié'],
+  ]
+  return (
+    <div className="tmp-slot-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="tmp-slot-dialog" role="dialog" aria-modal="true" aria-labelledby="tmp-slot-title" onMouseDown={function keepOpen(event) { event.stopPropagation() }}>
+        <header>
+          <h2 id="tmp-slot-title"><BookOpen aria-hidden="true" size={20} /> {slot.subject_name}</h2>
+          <button type="button" className="tmp-icon-button" onClick={onClose} aria-label="Fermer">×</button>
+        </header>
+        <dl>
+          {rows.map(function renderRow([label, value]) { return <div key={label}><dt>{label}</dt><dd>{value}</dd></div> })}
+        </dl>
+      </section>
     </div>
   )
 }
@@ -667,7 +735,7 @@ export default function TimetableManagementPage() {
       try {
         const configuration = await getTimetableConfiguration(selectedClassId)
         setRequirements(configuration.requirements.map(function toFormRow(requirement) {
-          return { ...requirement, weekly_minutes: requirement.weekly_minutes ?? 60 }
+          return { ...requirement, weekly_minutes: requirement.weekly_minutes ?? 0 }
         }))
       } catch (loadError) {
         setError(loadError.message)
@@ -926,6 +994,8 @@ export default function TimetableManagementPage() {
     })
   }
 
+  const capacityWarning = getCapacityWarning(requirements, timetableConfiguration?.days)
+
   async function handleGenerateTimetable(event) {
     event.preventDefault()
     setError('')
@@ -942,7 +1012,9 @@ export default function TimetableManagementPage() {
     try {
       const result = await generateTimetable(
         selectedClassId,
-        requirements.map(function toPayload(row) {
+        requirements.filter(function keepPlannedSubjects(row) {
+          return Number(row.weekly_minutes) > 0
+        }).map(function toPayload(row) {
           return {
             class_subject_id: row.class_subject_id,
             weekly_minutes: Number(row.weekly_minutes),
@@ -1326,7 +1398,7 @@ export default function TimetableManagementPage() {
                           <div className="tmp-field-with-suffix">
                             <input
                               type="number"
-                              min="0.25"
+                              min="0"
                               max="40"
                               step="0.25"
                               value={hoursValue}
@@ -1337,10 +1409,12 @@ export default function TimetableManagementPage() {
                             />
                             <span className="tmp-field-suffix">h/semaine</span>
                           </div>
-                          <small className="tmp-field-hint">Soit {hoursLabel} par semaine.</small>
+                          <small className="tmp-field-hint">{totalMinutes === 0 ? 'Non planifiée (0 h).' : `Soit ${hoursLabel} par semaine.`}</small>
                         </label>
                       )
                     })}
+
+                    {capacityWarning && <p className="tmp-error" role="alert">{capacityWarning}</p>}
 
                     <div className="tmp-manual-form__summary">
                       <Sparkles aria-hidden="true" size={19} />
@@ -1352,14 +1426,14 @@ export default function TimetableManagementPage() {
 
                     {unplacedRequirements.length > 0 && (
                       <div className="tmp-error" role="alert">
-                        <p>Volume horaire incomplet, plus assez de créneaux libres cette semaine :</p>
+                        <p>Volume horaire incomplet : le brouillon ne pourra pas être publié tant que ces heures ne sont pas placées.</p>
                         <ul>
                           {unplacedRequirements.map(function renderUnplaced(item) {
                             const placedHours = (item.placed_minutes / 60).toFixed(1).replace(/\.0$/, '')
                             const requestedHours = (item.requested_minutes / 60).toFixed(1).replace(/\.0$/, '')
                             return (
                               <li key={item.class_subject_id}>
-                                {item.subject_name} : {placedHours} h sur {requestedHours} h placées
+                                {item.subject_name} : {placedHours} h sur {requestedHours} h placées{item.reason ? ` — ${item.reason}` : ''}
                               </li>
                             )
                           })}

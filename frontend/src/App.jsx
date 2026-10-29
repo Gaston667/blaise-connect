@@ -26,6 +26,7 @@ const AdministratorDetailsPage = lazy(() => import('./pages/administrator_detail
 const TeachersPage = lazy(() => import('./pages/teachers_page.jsx'))
 const TeacherDetailsPage = lazy(() => import('./pages/teacher_details_page.jsx'))
 const StudentGradesPage = lazy(() => import('./pages/student_grades_page.jsx'))
+const StudentSubjectGradesPage = lazy(() => import('./pages/student_subject_grades_page.jsx'))
 const StudentTimetablePage = lazy(() => import('./pages/student_timetable_page.jsx'))
 const TeacherTimetablePage = lazy(() => import('./pages/teacher_timetable_page.jsx'))
 const TimetableManagementPage = lazy(() => import('./pages/timetable_management_page.jsx'))
@@ -73,6 +74,7 @@ function getCurrentPage(pathname) {
   if (/^\/attendance\/records\/[^/]+$/.test(pathname)) return 'attendance-record-details'
   if (/^\/report-cards\/[^/]+$/.test(pathname)) return 'report-card-details'
   if (/^\/my-report-cards\/[^/]+$/.test(pathname)) return 'guardian-report-card-details'
+  if (/^\/my-grades\/subjects\/[^/]+$/.test(pathname)) return 'student-subject-grades'
   if (pathname === '/accounts/new') return 'account-new'
   if (/^\/accounts\/[^/]+$/.test(pathname)) return 'account-details'
   if (/^\/students\/[^/]+$/.test(pathname)) return 'student-details'
@@ -117,6 +119,7 @@ function getNavigationPath(page, entity) {
   if (page === 'attendance-record-details' && entityId) return `/attendance/records/${entityId}`
   if (page === 'report-card-details' && entityId) return `/report-cards/${entityId}`
   if (page === 'guardian-report-card-details' && entityId) return `/my-report-cards/${entityId}`
+  if (page === 'student-subject-grades' && entityId) return `/my-grades/subjects/${entityId}`
   return PAGE_PATHS[page] || '/'
 }
 
@@ -351,7 +354,10 @@ export default function App() {
     )
   }
   else if (currentPage === 'student-grades' && ['STUDENT', 'GUARDIAN'].includes(currentAccount.role)) {
-    pageContent = <StudentGradesPage />
+    pageContent = <StudentGradesPage onNavigate={handleNavigate} />
+  }
+  else if (currentPage === 'student-subject-grades' && ['STUDENT', 'GUARDIAN'].includes(currentAccount.role)) {
+    pageContent = <StudentSubjectGradesPage subjectId={pathId} onNavigate={handleNavigate} />
   }
   else if (currentPage === 'student-timetable' && ['STUDENT', 'GUARDIAN'].includes(currentAccount.role)) {
     pageContent = <StudentTimetablePage />

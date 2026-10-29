@@ -24,8 +24,10 @@ class AccountCompleteCreate(BaseModel):
         required_common_fields = {
             "gender": self.profile.gender,
             "nationality": self.profile.nationality,
-            "address": self.profile.address,
         }
+        # L'adresse reste facultative pour un administrateur.
+        if self.role != "ADMIN":
+            required_common_fields["address"] = self.profile.address
         if self.role not in {"STUDENT", "GUARDIAN"}:
             required_common_fields["email"] = self.profile.email
         if self.role != "STUDENT":
@@ -47,8 +49,6 @@ class AccountCompleteCreate(BaseModel):
             raise ValueError("La date d'embauche est obligatoire pour ce rôle.")
         if self.role == "TEACHER" and not self.profile.qualification:
             raise ValueError("La qualification est obligatoire pour un enseignant.")
-        if self.role == "ADMIN" and not self.profile.job_title:
-            raise ValueError("La fonction est obligatoire pour un administrateur.")
         if self.role == "GUARDIAN" and (
             not self.profile.occupation or not self.profile.employer
         ):

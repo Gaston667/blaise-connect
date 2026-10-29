@@ -15,7 +15,7 @@ class AdministratorOverview(BaseModel):
     phone: str | None
     address: str | None
     hire_date: date
-    job_title: str
+    job_title: str | None = None
     photo_path: str | None = None
     status: str
     account_created_at: datetime

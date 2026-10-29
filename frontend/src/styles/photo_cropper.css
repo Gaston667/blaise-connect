@@ -1,0 +1,42 @@
+.photo-cropper { display: grid; gap: var(--space-3); justify-items: center; width: 100%; }
+
+.photo-cropper__frame {
+  position: relative;
+  width: min(100%, 260px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: #111;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.photo-cropper__frame:active { cursor: grabbing; }
+
+.photo-cropper__frame img { position: absolute; max-width: none; pointer-events: none; }
+
+/* Cercle de visibilité : tout ce qui est hors du cercle est assombri. */
+.photo-cropper__mask {
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.photo-cropper__zoom { display: flex; align-items: center; gap: var(--space-2); width: min(100%, 260px); }
+.photo-cropper__zoom input[type='range'] { flex: 1; min-width: 0; }
+.photo-cropper__zoom button {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--table-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.photo-cropper__hint { margin: 0; text-align: center; font-size: var(--font-size-xs); color: var(--color-text-muted); }

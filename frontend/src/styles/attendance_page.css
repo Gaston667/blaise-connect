@@ -145,3 +145,7 @@
 @media (min-width: 1280px) {
   .attendance-call-fields { grid-template-columns: minmax(12rem, 2fr) minmax(12rem, 2fr) repeat(3, minmax(6.5rem, 1fr)) auto; }
 }
+
+/* Les champs ne doivent jamais dépasser leur colonne (sinon Matière et Date se chevauchent). */
+.attendance-call-fields label { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.attendance-call-fields input, .attendance-call-fields select { width: 100%; min-width: 0; box-sizing: border-box; }

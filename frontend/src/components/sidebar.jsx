@@ -15,9 +15,9 @@ function isAccountManagementPage(page) {
     'guardians', 'guardian-details'].includes(page)
 }
 
-function NavigationButton({ page, pages = [page], currentPage, onNavigate, icon, children }) {
+function NavigationButton({ page, pages = [page], currentPage, onNavigate, icon, children, disabled = false }) {
   function navigate() { onNavigate(page) }
-  return <button type="button" data-page={page} onClick={navigate} className={pages.includes(currentPage) ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}>{icon}{children}</button>
+  return <button type="button" data-page={page} onClick={navigate} disabled={disabled} title={disabled ? 'Bientôt disponible' : undefined} className={pages.includes(currentPage) ? 'layout-navigation-item layout-navigation-item-active' : 'layout-navigation-item'}>{icon}{children}{disabled ? <small className="layout-navigation-soon">Bientôt</small> : null}</button>
 }
 
 function NavigationGroupButton({ label, icon, active, onOpen }) {
@@ -66,7 +66,7 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
           {isAdmin ? <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>Absences</NavigationButton> : null}
         </> : null}
         {isAdmin ? <>
-          <NavigationButton page="report-cards" currentPage={currentPage} onNavigate={navigate} icon={<FileText size={20} />}>Bulletins</NavigationButton>
+          <NavigationButton page="report-cards" currentPage={currentPage} onNavigate={navigate} icon={<FileText size={20} />} disabled>Bulletins</NavigationButton>
           <NavigationButton page="timetables" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Emploi du temps</NavigationButton>
           <NavigationButton page="school-years" currentPage={currentPage} onNavigate={navigate} icon={<CalendarRange size={20} />}>Années scolaires</NavigationButton>
         </> : null}
@@ -79,7 +79,7 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
           <NavigationButton page="student-grades" currentPage={currentPage} onNavigate={navigate} icon={<NotebookPen size={20} />}>Notes</NavigationButton>
           <NavigationButton page="student-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Emploi du temps</NavigationButton>
           <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>Absences et retards</NavigationButton>
-          <NavigationButton page="guardian-report-cards" currentPage={currentPage} onNavigate={navigate} icon={<FileText size={20} />}>Bulletins</NavigationButton>
+          <NavigationButton page="guardian-report-cards" currentPage={currentPage} onNavigate={navigate} icon={<FileText size={20} />} disabled>Bulletins</NavigationButton>
         </> : null}
         {isTeacher ? <NavigationButton page="teacher-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Mon emploi du temps</NavigationButton> : null}
       </>}

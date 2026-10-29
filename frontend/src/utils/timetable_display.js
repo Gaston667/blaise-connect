@@ -39,3 +39,40 @@ export function getScheduleRows(slots, breaks = []) {
 
   return [...periodRows, ...breakRows].sort((first, second) => first.start.localeCompare(second.start))
 }
+
+/**
+ * Prépare les cellules d'une colonne (un jour) : les lignes consécutives qui
+ * portent exactement les mêmes cours sont fusionnées en une seule cellule
+ * (ex. un bloc de 2 h n'est plus coupé en deux lignes d'une heure).
+ * Retourne, pour chaque ligne, `null` (absorbée par la cellule précédente),
+ * ou `{ slots, span }` avec `slots` = tous les cours simultanés (spécialités).
+ */
+export function getMergedDayCells(rows, getSlotsForRow) {
+  const cells = []
+  let runIndex = -1
+  let runKey = ''
+  rows.forEach((row, index) => {
+    if (row.type === 'break') {
+      cells.push({ slots: [], span: 1, isBreak: true })
+      runIndex = -1
+      return
+    }
+    const slots = getSlotsForRow(row)
+    const key = slots.map((slot) => slot.id ?? `${slot.subject_name}-${slot.start_time}`).sort().join('|')
+    if (runIndex >= 0 && key && key === runKey) {
+      cells[runIndex].span += 1
+      cells.push(null)
+      return
+    }
+    cells.push({ slots, span: 1 })
+    runIndex = index
+    runKey = key
+  })
+  return cells
+}
+
+/** Nom affiché sous un cours : enseignant, sinon libellé du cours particulier. */
+export function getSlotSubtitle(slot, fallback = '') {
+  if (slot.is_special) return slot.title || 'Cours particulier'
+  return slot.teacher_name || fallback
+}

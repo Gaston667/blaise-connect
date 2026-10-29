@@ -118,7 +118,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
         email: form.email || null,
         phone: form.phone ? normalizeInternationalPhone(form.phone) : null,
         address: form.address || null,
-        job_title: form.job_title,
+        job_title: form.job_title || null,
       })
       setDetails(updated)
       setEditing(false)
@@ -211,7 +211,7 @@ export default function AdministratorDetailsPage({ administrator, onNavigate }) 
                     <option value="FEMALE">Féminin</option>
                   </select>
                 </label>
-                <label>Fonction / Rôle *<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" required /></label>
+                <label>Fonction / Rôle (facultatif)<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" /></label>
                 <label>Email<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" /></label>
                 <label>Téléphone<input name="phone" value={form.phone} onChange={updateField} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" maxLength="30" /></label>
                 <label className="addp-form-wide">Adresse<input name="address" value={form.address} onChange={updateField} /></label>

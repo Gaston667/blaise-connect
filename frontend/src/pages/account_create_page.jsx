@@ -7,6 +7,8 @@ import ConfirmationPopup from '../components/confirmation_popup.jsx'
 import NotificationPopup from '../components/notification_popup.jsx'
 import { formatProfileName } from '../utils/profileDisplay.js'
 import { NATIONALITIES } from '../constants/nationalities.js'
+import PhotoCropper from '../components/photo_cropper.jsx'
+import { DEFAULT_PHOTO_CROP, cropPhotoFile } from '../utils/photo_crop.js'
 import { INTERNATIONAL_PHONE_PATTERN, normalizeInternationalPhone } from '../utils/phone.js'
 
 const INITIAL_FORM = {
@@ -38,12 +40,6 @@ const REGISTRATION_PREFIXES = {
   TEACHER: 'e',
   STUDENT: 'u',
   GUARDIAN: 'p',
-}
-
-const DEFAULT_PHOTO_ADJUSTMENTS = {
-  zoom: 1.15,
-  offsetX: 0,
-  offsetY: 0,
 }
 
 /** Calcule un aperçu du matricule selon la même formule UTC que le backend. */
@@ -79,7 +75,7 @@ export default function AccountCreatePage({ onNavigate }) {
   const [creationSummary, setCreationSummary] = useState(null)
   const [photo, setPhoto] = useState(null)
   const [photoPreview, setPhotoPreview] = useState('')
-  const [photoAdjustments, setPhotoAdjustments] = useState(DEFAULT_PHOTO_ADJUSTMENTS)
+  const [photoCrop, setPhotoCrop] = useState(DEFAULT_PHOTO_CROP)
   const [confirmationOpen, setConfirmationOpen] = useState(false)
 
   function updateField(event) {
@@ -121,7 +117,7 @@ export default function AccountCreatePage({ onNavigate }) {
     setForm(INITIAL_FORM)
     setPhoto(null)
     setPhotoPreview('')
-    setPhotoAdjustments(DEFAULT_PHOTO_ADJUSTMENTS)
+    setPhotoCrop(DEFAULT_PHOTO_CROP)
     setCreationSummary(null)
     setShowPassword(false)
     setErrorMessage('')
@@ -144,57 +140,8 @@ export default function AccountCreatePage({ onNavigate }) {
     if (photoPreview) URL.revokeObjectURL(photoPreview)
     setPhoto(selectedPhoto)
     setPhotoPreview(URL.createObjectURL(selectedPhoto))
-    setPhotoAdjustments(DEFAULT_PHOTO_ADJUSTMENTS)
+    setPhotoCrop(DEFAULT_PHOTO_CROP)
     setErrorMessage('')
-  }
-
-  function updatePhotoAdjustment(field, value) {
-    setPhotoAdjustments((current) => ({ ...current, [field]: value }))
-  }
-
-  async function buildAdjustedPhotoFile(sourcePhoto, adjustments) {
-    const imageUrl = URL.createObjectURL(sourcePhoto)
-    try {
-      const image = await new Promise((resolve, reject) => {
-        const loadedImage = new Image()
-        loadedImage.onload = () => resolve(loadedImage)
-        loadedImage.onerror = () => reject(new Error('Impossible de charger la photo sélectionnée.'))
-        loadedImage.src = imageUrl
-      })
-
-      const cropSize = Math.min(image.width, image.height) / adjustments.zoom
-      const maxOffsetX = (image.width - cropSize) / 2
-      const maxOffsetY = (image.height - cropSize) / 2
-      const sourceX = Math.max(0, Math.min(image.width - cropSize, (image.width - cropSize) / 2 + (adjustments.offsetX / 100) * maxOffsetX))
-      const sourceY = Math.max(0, Math.min(image.height - cropSize, (image.height - cropSize) / 2 + (adjustments.offsetY / 100) * maxOffsetY))
-
-      const canvas = document.createElement('canvas')
-      canvas.width = 512
-      canvas.height = 512
-      const context = canvas.getContext('2d')
-      if (!context) throw new Error('Impossible de préparer la photo sélectionnée.')
-
-      context.drawImage(image, sourceX, sourceY, cropSize, cropSize, 0, 0, canvas.width, canvas.height)
-
-      const blob = await new Promise((resolve, reject) => {
-        canvas.toBlob((result) => {
-          if (!result) {
-            reject(new Error('Impossible de préparer la photo sélectionnée.'))
-            return
-          }
-          resolve(result)
-        }, sourcePhoto.type || 'image/jpeg', 0.92)
-      })
-
-      const extension = sourcePhoto.type === 'image/png'
-        ? 'png'
-        : sourcePhoto.type === 'image/webp'
-          ? 'webp'
-          : 'jpg'
-      return new File([blob], `profile-photo.${extension}`, { type: blob.type || sourcePhoto.type })
-    } finally {
-      URL.revokeObjectURL(imageUrl)
-    }
   }
 
   function cleanOptionalValue(value) {
@@ -243,7 +190,7 @@ export default function AccountCreatePage({ onNavigate }) {
       let photoUploadFailed = false
       if (photo) {
         try {
-          const adjustedPhoto = await buildAdjustedPhotoFile(photo, photoAdjustments)
+          const adjustedPhoto = await cropPhotoFile(photo, photoCrop)
           createdAccount = await uploadAccountPhoto(createdAccount.id, adjustedPhoto)
         } catch {
           photoUploadFailed = true
@@ -428,69 +375,27 @@ export default function AccountCreatePage({ onNavigate }) {
         <section className="creation-compte-section">
           <h2><IdCard size={19} aria-hidden="true" /> Informations d’identité</h2>
           <div className="creation-compte-grid">
-            <label className="creation-compte-photo-field">
-              Photo (facultative)
-              <span className="creation-compte-photo-picker">
-                {photoPreview ? (
-                  <img
-                    src={photoPreview}
-                    alt="Aperçu de la photo sélectionnée"
-                    style={{
-                      objectPosition: `${50 + photoAdjustments.offsetX * 0.35}% ${50 + photoAdjustments.offsetY * 0.35}%`,
-                      transform: `scale(${photoAdjustments.zoom})`,
-                    }}
-                  />
-                ) : (
+            <div className="creation-compte-photo-field">
+              <span className="creation-compte-photo-title">Photo (facultative)</span>
+              {photoPreview ? (
+                <>
+                  <PhotoCropper imageUrl={photoPreview} value={photoCrop} onChange={setPhotoCrop} />
+                  <label className="creation-compte-photo-change">
+                    Changer de photo
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} />
+                  </label>
+                </>
+              ) : (
+                <label className="creation-compte-photo-picker">
                   <ImagePlus aria-hidden="true" size={28} />
-                )}
-                <span>
-                  Choisir une photo
-                  <small>JPEG, PNG ou WebP — 5 Mo maximum</small>
-                </span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={selectPhoto}
-                />
-              </span>
-              {photoPreview && (
-                <div className="creation-compte-photo-adjustments">
-                  <label>
-                    Zoom
-                    <input
-                      type="range"
-                      min="1"
-                      max="2"
-                      step="0.01"
-                      value={photoAdjustments.zoom}
-                      onChange={(event) => updatePhotoAdjustment('zoom', Number(event.target.value))}
-                    />
-                  </label>
-                  <label>
-                    Position horizontale
-                    <input
-                      type="range"
-                      min="-100"
-                      max="100"
-                      step="1"
-                      value={photoAdjustments.offsetX}
-                      onChange={(event) => updatePhotoAdjustment('offsetX', Number(event.target.value))}
-                    />
-                  </label>
-                  <label>
-                    Position verticale
-                    <input
-                      type="range"
-                      min="-100"
-                      max="100"
-                      step="1"
-                      value={photoAdjustments.offsetY}
-                      onChange={(event) => updatePhotoAdjustment('offsetY', Number(event.target.value))}
-                    />
-                  </label>
-                </div>
+                  <span>
+                    Choisir une photo
+                    <small>JPEG, PNG ou WebP — 5 Mo maximum</small>
+                  </span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} />
+                </label>
               )}
-            </label>
+            </div>
             <label>Prénom *<input name="first_name" value={form.first_name} onChange={updateField} maxLength="100" autoComplete="off" required /></label>
             <label>Nom *<input name="last_name" value={form.last_name} onChange={updateField} maxLength="100" autoComplete="off" required /></label>
 
@@ -520,7 +425,7 @@ export default function AccountCreatePage({ onNavigate }) {
 
             <label>Email {isEmailRequired ? '*' : '(facultatif)'}<input name="email" type="email" value={form.email} onChange={updateField} maxLength="254" autoComplete="off" required={isEmailRequired} /></label>
             <label>Téléphone {isPhoneRequired ? '*' : '(facultatif)'}<input name="phone" value={form.phone} onChange={updateField} placeholder="+224 610 70 08 00" pattern={INTERNATIONAL_PHONE_PATTERN} title="Exemple : +224 610 70 08 00" inputMode="tel" maxLength="30" autoComplete="off" required={isPhoneRequired} /></label>
-            <label className="creation-compte-wide">Adresse *<input name="address" value={form.address} onChange={updateField} autoComplete="off" required /></label>
+            <label className="creation-compte-wide">Adresse {isAdministrator ? '(facultative)' : '*'}<input name="address" value={form.address} onChange={updateField} autoComplete="off" required={!isAdministrator} /></label>
           </div>
         </section>
 
@@ -531,7 +436,7 @@ export default function AccountCreatePage({ onNavigate }) {
               {isStudent && <label>Date d’admission *<input name="admission_date" type="date" value={form.admission_date} onChange={updateField} required /></label>}
               {(isTeacher || isAdministrator) && <label>Date d’embauche *<input name="hire_date" type="date" value={form.hire_date} onChange={updateField} required /></label>}
               {isTeacher && <label>Qualification *<input name="qualification" value={form.qualification} onChange={updateField} required /></label>}
-              {isAdministrator && <label>Fonction / Poste *<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" required /></label>}
+              {isAdministrator && <label>Fonction / Poste (facultatif)<input name="job_title" value={form.job_title} onChange={updateField} maxLength="100" /></label>}
               {isGuardian && <label>Profession *<input name="occupation" value={form.occupation} onChange={updateField} maxLength="150" required /></label>}
               {isGuardian && <label>Employeur *<input name="employer" value={form.employer} onChange={updateField} maxLength="150" required /></label>}
               {isStudent && <label>Établissement précédent<input name="previous_establishment" value={form.previous_establishment} onChange={updateField} maxLength="150" autoComplete="off" /></label>}

@@ -446,3 +446,6 @@
 .layout-current-account small {
   color: var(--color-text-secondary);
 }
+
+.layout-navigation-item:disabled { opacity: 0.55; cursor: not-allowed; }
+.layout-navigation-soon { margin-left: auto; padding: 1px 8px; border-radius: 999px; background: var(--color-surface-subtle, #eef2f7); color: var(--color-text-muted); font-size: 0.65rem; font-weight: 600; }

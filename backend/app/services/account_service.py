@@ -341,7 +341,7 @@ def create_account_with_profile(
         profile = Administrator(
             **common_fields,
             hire_date=profile_data.hire_date,
-            job_title=profile_data.job_title.strip(),
+            job_title=(profile_data.job_title or '').strip() or None,
         )
     else:
         profile = Guardian(

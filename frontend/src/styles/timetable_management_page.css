@@ -324,3 +324,17 @@
   .tmp-manual-form { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .tmp-field--wide { grid-column: span 2; }
 }
+
+.stp-timeline__course--clickable { cursor: pointer; }
+.stp-timeline__course--clickable:hover { filter: brightness(0.97); box-shadow: 0 2px 8px rgba(16, 24, 40, 0.15); }
+.stp-timeline__course--clickable:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+
+.tmp-slot-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: var(--space-4); background: rgba(16, 24, 40, 0.45); }
+.tmp-slot-dialog { width: min(100%, 420px); padding: var(--space-5); border-radius: var(--radius-xl); background: var(--color-surface); box-shadow: var(--shadow-xl); }
+.tmp-slot-dialog header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.tmp-slot-dialog h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--font-size-lg); color: var(--color-primary); }
+.tmp-slot-dialog header button { width: 44px; height: 44px; font-size: 1.4rem; }
+.tmp-slot-dialog dl { display: grid; gap: var(--space-2); margin: 0; }
+.tmp-slot-dialog dl > div { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-2) 0; border-bottom: 1px solid var(--table-border); }
+.tmp-slot-dialog dt { color: var(--color-text-secondary); }
+.tmp-slot-dialog dd { margin: 0; font-weight: 600; text-align: right; }

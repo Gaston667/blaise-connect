@@ -7,7 +7,6 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
-  X,
   FlaskConical,
   Globe2,
   Languages,
@@ -17,12 +16,9 @@ import {
   TrendingUp,
 } from 'lucide-react'
 
-import {
-  getMyAssessmentDetail,
-  getMyGrades,
-  getMyGradesSummary,
-  getMyProfile,
-} from '../services/student_grades_service.js'
+import AssessmentDetailModal from '../components/assessment_detail_modal.jsx'
+import { getMyGrades, getMyGradesSummary, getMyProfile } from '../services/student_grades_service.js'
+import { formatAverage, formatDate, formatScore, scoreTone } from '../utils/grades_format.js'
 import { useGuardianChild } from '../context/guardian_child_context.js'
 import '../styles/student_grades_page.css'
 
@@ -51,21 +47,6 @@ function getSubjectInitials(subjectName) {
   return `${words[0][0]}${words[1][0]}`
 }
 
-function formatAverage(value) {
-  if (value === null || value === undefined) return '—'
-
-  const numericValue = Number(value)
-
-  return Number.isFinite(numericValue)
-    ? numericValue.toFixed(2).replace('.', ',')
-    : '—'
-}
-
-function formatDate(value) {
-  if (!value) return '—'
-  return new Intl.DateTimeFormat('fr-FR').format(new Date(`${value}T00:00:00`))
-}
-
 function formatDay(value) {
   if (!value) return { day: '—', month: '' }
   const date = new Date(`${value}T00:00:00`)
@@ -75,34 +56,16 @@ function formatDay(value) {
   }
 }
 
-function formatScore(grade) {
-  if (grade.result_type === 'ABSENT') return 'Absent'
-  if (grade.score === null || grade.score === undefined) return '—'
-  return `${Number(grade.score).toFixed(2)} / ${Number(grade.maximum_score).toFixed(2)}`
-}
-
-function scoreTone(grade) {
-  if (grade.result_type === 'ABSENT') return 'sgp-score--absent'
-  const ratio = Number(grade.score) / Number(grade.maximum_score)
-  if (ratio >= 0.7) return 'sgp-score--good'
-  if (ratio >= 0.5) return 'sgp-score--average'
-  return 'sgp-score--low'
-}
-
-export default function StudentGradesPage() {
+export default function StudentGradesPage({ onNavigate }) {
   const { childId } = useGuardianChild()
   const [profile, setProfile] = useState(null)
   const [grades, setGrades] = useState([])
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [showAllEvaluationsTab, setShowAllEvaluationsTab] = useState(false)
-  const [selectedSubjectId, setSelectedSubjectId] = useState(null)
   const [selectedPeriodId, setSelectedPeriodId] = useState(null)
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false)
-  const [assessmentDetail, setAssessmentDetail] = useState(null)
-  const [assessmentDetailError, setAssessmentDetailError] = useState('')
-  const [isAssessmentDetailLoading, setIsAssessmentDetailLoading] = useState(false)
+  const [openAssessmentId, setOpenAssessmentId] = useState(null)
 
   useEffect(function loadDashboardEffect() {
     async function load() {
@@ -132,11 +95,7 @@ export default function StudentGradesPage() {
   const subjectColorBySubjectId = new Map(
     summary.subject_averages.map((subject, index) => [subject.subject_id, PALETTE[index % PALETTE.length]])
   )
-  const gradesForSelectedSubject = selectedSubjectId
-    ? grades.filter((grade) => grade.subject_id === selectedSubjectId)
-    : []
-  const recentGrades = grades.slice(0, 2)
-  const hiddenGradeCount = grades.length - recentGrades.length
+  const recentGrades = grades.slice(0, 3)
 
   const periodIndex = summary.period_averages.findIndex((period) => period.period_id === selectedPeriodId)
   const selectedPeriod = periodIndex >= 0 ? summary.period_averages[periodIndex] : null
@@ -147,39 +106,16 @@ export default function StudentGradesPage() {
       ? selectedPeriod.average - previousPeriod.average
       : null
 
-  function toggleSubjectFilter(subjectId) {
-    setSelectedSubjectId((current) => (current === subjectId ? null : subjectId))
-  }
-
   function selectPeriod(periodId) {
     setSelectedPeriodId(periodId)
     setIsPeriodMenuOpen(false)
   }
 
-  async function openAssessmentDetail(assessmentId) {
-    setAssessmentDetailError('')
-    setAssessmentDetail(null)
-    setIsAssessmentDetailLoading(true)
-
-    try {
-      setAssessmentDetail(await getMyAssessmentDetail(assessmentId, childId))
-    } catch (error) {
-      setAssessmentDetailError(error.message)
-    } finally {
-      setIsAssessmentDetailLoading(false)
-    }
-  }
-
   function handleEvaluationClick(event) {
-    openAssessmentDetail(event.currentTarget.dataset.assessmentId)
+    setOpenAssessmentId(event.currentTarget.dataset.assessmentId)
   }
 
-  function closeAssessmentDetail() {
-    setAssessmentDetail(null)
-    setAssessmentDetailError('')
-  }
-
-  /** Ligne d'évaluation partagée entre l'aperçu et l'onglet "Toutes mes évaluations". */
+  /** Ligne d'une évaluation récente. */
   function renderEvaluationRow(grade) {
     const SubjectIcon = getSubjectIcon(grade.subject_name)
     const color = subjectColorBySubjectId.get(grade.subject_id) ?? 'violet'
@@ -263,91 +199,10 @@ export default function StudentGradesPage() {
         </article>
       </div>
 
-      {showAllEvaluationsTab ? (
-        <div className="sgp-layout">
-          <section className="sgp-section sgp-section--full">
-            <div className="sgp-section-head">
-              <h2><CalendarClock aria-hidden="true" size={18} /> Toutes mes évaluations</h2>
-              <button type="button" className="sgp-more__btn" onClick={() => setShowAllEvaluationsTab(false)}>
-                Retour
-              </button>
-            </div>
-            <div className="sgp-evaluation-list">
-              {grades.length === 0 ? (
-                <p className="sgp-empty">Aucune note pour le moment.</p>
-              ) : (
-                grades.map(renderEvaluationRow)
-              )}
-            </div>
-          </section>
-        </div>
-      ) : (
       <div className="sgp-layout">
         <div className="sgp-main-col">
           <section className="sgp-section">
-            <h2><BookOpen aria-hidden="true" size={18} /> Moyennes par matière</h2>
-            <div className="sgp-subject-list">
-              {summary.subject_averages.length === 0 ? (
-                <p className="sgp-empty">Aucune moyenne disponible pour le moment.</p>
-              ) : (
-                summary.subject_averages.map((subject) => {
-                  const isSelected = subject.subject_id === selectedSubjectId
-                  const color = subjectColorBySubjectId.get(subject.subject_id)
-                  const subjectGrades = isSelected ? gradesForSelectedSubject : []
-                  return (
-                    <div key={subject.subject_id} className={`sgp-subject-row sgp-subject-row--${color}${isSelected ? ' sgp-subject-row--open' : ''}`}>
-                      <button
-                        type="button"
-                        className="sgp-subject-row__head"
-                        onClick={() => toggleSubjectFilter(subject.subject_id)}
-                        aria-expanded={isSelected}
-                      >
-                        <span className="sgp-subject-row__badge">{getSubjectInitials(subject.subject_name)}</span>
-                        <span className="sgp-subject-row__name">{subject.subject_name}</span>
-                        <span className="sgp-subject-row__average">{formatAverage(subject.average)} <small>/20</small></span>
-                        <span className="sgp-subject-row__coef">Coef. {subject.coefficient % 1 === 0 ? subject.coefficient : subject.coefficient.toFixed(1)}</span>
-                        <ChevronRight aria-hidden="true" size={17} className="sgp-subject-row__chevron" />
-                      </button>
-
-                      {isSelected && (
-                        <div className="sgp-subject-row__body">
-                          {subjectGrades.length === 0 ? (
-                            <p className="sgp-empty">Aucune note dans cette matière.</p>
-                          ) : (
-                            subjectGrades.map((grade) => (
-                              <button
-                                key={grade.id}
-                                type="button"
-                                className="sgp-subject-row__grade"
-                                data-assessment-id={grade.assessment_id}
-                                onClick={handleEvaluationClick}
-                              >
-                                <div>
-                                  <strong>{grade.assessment_title}</strong>
-                                  <span>{formatDate(grade.assessment_date)}</span>
-                                </div>
-                                <span className={`sgp-score ${scoreTone(grade)}`}>{formatScore(grade)}</span>
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </section>
-
-          <section className="sgp-section">
-            <div className="sgp-section-head">
-              <h2><CalendarClock aria-hidden="true" size={18} /> Dernières évaluations</h2>
-              {grades.length > 2 && (
-                <button type="button" className="sgp-more__btn" onClick={() => setShowAllEvaluationsTab(true)}>
-                  Voir tout <ChevronRight aria-hidden="true" size={14} />
-                </button>
-              )}
-            </div>
+            <h2><CalendarClock aria-hidden="true" size={18} /> Dernières évaluations</h2>
             <div className="sgp-evaluation-list">
               {recentGrades.length === 0 ? (
                 <p className="sgp-empty">Aucune note pour le moment.</p>
@@ -355,9 +210,34 @@ export default function StudentGradesPage() {
                 recentGrades.map(renderEvaluationRow)
               )}
             </div>
-            {hiddenGradeCount > 0 && (
-              <p className="sgp-more">{hiddenGradeCount} autre(s) note(s) non affichée(s) ici.</p>
-            )}
+          </section>
+
+          <section className="sgp-section">
+            <h2><BookOpen aria-hidden="true" size={18} /> Moyennes par matière</h2>
+            <div className="sgp-subject-list">
+              {summary.subject_averages.length === 0 ? (
+                <p className="sgp-empty">Aucune moyenne disponible pour le moment.</p>
+              ) : (
+                summary.subject_averages.map((subject) => {
+                  const color = subjectColorBySubjectId.get(subject.subject_id)
+                  return (
+                    <div key={subject.subject_id} className={`sgp-subject-row sgp-subject-row--${color}`}>
+                      <button
+                        type="button"
+                        className="sgp-subject-row__head"
+                        onClick={() => onNavigate('student-subject-grades', { id: subject.subject_id })}
+                      >
+                        <span className="sgp-subject-row__badge">{getSubjectInitials(subject.subject_name)}</span>
+                        <span className="sgp-subject-row__name">{subject.subject_name}</span>
+                        <span className="sgp-subject-row__average">{formatAverage(subject.average)} <small>/20</small></span>
+                        <span className="sgp-subject-row__coef">Coef. {subject.coefficient % 1 === 0 ? subject.coefficient : subject.coefficient.toFixed(1)}</span>
+                        <ChevronRight aria-hidden="true" size={17} className="sgp-subject-row__chevron" />
+                      </button>
+                    </div>
+                  )
+                })
+              )}
+            </div>
           </section>
         </div>
 
@@ -388,45 +268,13 @@ export default function StudentGradesPage() {
           </section>
         </aside>
       </div>
-      )}
 
-      {(isAssessmentDetailLoading || assessmentDetail || assessmentDetailError) && (
-        <div className="sgp-modal-backdrop" role="presentation" onMouseDown={closeAssessmentDetail}>
-          <section
-            className="sgp-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="sgp-assessment-detail-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button type="button" className="sgp-modal__close" onClick={closeAssessmentDetail} aria-label="Fermer">
-              <X aria-hidden="true" size={20} />
-            </button>
-            {isAssessmentDetailLoading && <p>Chargement du détail de l'évaluation…</p>}
-            {assessmentDetailError && <p className="sgp-error">{assessmentDetailError}</p>}
-            {assessmentDetail && (
-              <>
-                <h2 id="sgp-assessment-detail-title">{assessmentDetail.title}</h2>
-                <p className="sgp-modal__subtitle">
-                  {assessmentDetail.subject_name} · {assessmentDetail.class_name} · {formatDate(assessmentDetail.assessment_date)}
-                </p>
-                {assessmentDetail.description && <p>{assessmentDetail.description}</p>}
-                <div className="sgp-detail-grid">
-                  <article><span>Votre note</span><strong>{formatScore(assessmentDetail)}</strong></article>
-                  <article><span>Meilleure note</span><strong>{formatAverage(assessmentDetail.highest_score)} /20</strong></article>
-                  <article><span>Note la plus basse</span><strong>{formatAverage(assessmentDetail.lowest_score)} /20</strong></article>
-                  <article><span>Moyenne de classe</span><strong>{formatAverage(assessmentDetail.class_average)} /20</strong><small>{assessmentDetail.class_appreciation ?? 'Non disponible'}</small></article>
-                  <article><span>Rang</span><strong>{assessmentDetail.rank ? `${assessmentDetail.rank} / ${assessmentDetail.ranked_students_count}` : 'Non classé'}</strong></article>
-                  <article><span>Coefficient</span><strong>{assessmentDetail.coefficient}</strong><small>Barème : {assessmentDetail.maximum_score}</small></article>
-                </div>
-                <section className="sgp-detail-comment">
-                  <h3>Appréciation de l'enseignant</h3>
-                  <p>{assessmentDetail.comment || 'Aucune appréciation renseignée.'}</p>
-                </section>
-              </>
-            )}
-          </section>
-        </div>
+      {openAssessmentId && (
+        <AssessmentDetailModal
+          assessmentId={openAssessmentId}
+          childId={childId}
+          onClose={() => setOpenAssessmentId(null)}
+        />
       )}
     </main>
   )

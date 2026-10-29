@@ -320,6 +320,7 @@ def get_class_timetable_configuration(db: Session, class_id: UUID) -> dict:
             SELECT class_subject.id AS class_subject_id,
                    class_subject.subject_id,
                    subject.name AS subject_name,
+                   subject.is_specialty,
                    requirement.weekly_minutes
             FROM class_subjects AS class_subject
             JOIN subjects AS subject ON subject.id = class_subject.subject_id
@@ -413,6 +414,7 @@ def _get_generation_subjects(db: Session, class_id: UUID) -> list[dict]:
             """
             SELECT
                 class_subject.id AS class_subject_id,
+                subject.id AS subject_id,
                 subject.name AS subject_name,
                 subject.is_specialty,
                 assignment.id AS assignment_id,
@@ -439,6 +441,119 @@ def _get_generation_subjects(db: Session, class_id: UUID) -> list[dict]:
         {**dict(row), "remaining_minutes": row["weekly_minutes"]}
         for row in rows
     ]
+
+
+def _get_specialty_conflicting_pairs(db: Session, class_id: UUID) -> set[frozenset]:
+    """Paires de spécialités choisies ensemble par au moins un élève de la classe.
+
+    Deux spécialités d'une même paire ne doivent jamais avoir lieu en même temps.
+    """
+
+    rows = db.execute(
+        text(
+            """
+            SELECT DISTINCT first.subject_id AS first_subject_id,
+                            second.subject_id AS second_subject_id
+            FROM student_specialties AS first
+            JOIN student_specialties AS second
+              ON second.student_enrollment_id = first.student_enrollment_id
+             AND second.subject_id <> first.subject_id
+            JOIN student_enrollments AS enrollment
+              ON enrollment.id = first.student_enrollment_id
+            WHERE enrollment.class_id = :class_id
+              AND enrollment.end_date IS NULL
+            """
+        ),
+        {"class_id": class_id},
+    ).mappings().all()
+    return {frozenset((row["first_subject_id"], row["second_subject_id"])) for row in rows}
+
+
+def get_incomplete_requirements(db: Session, timetable_id: UUID | str) -> list[dict]:
+    """Matières dont le volume hebdomadaire configuré n'est pas entièrement placé dans le brouillon."""
+
+    rows = db.execute(
+        text(
+            """
+            SELECT subject.name AS subject_name,
+                   requirement.weekly_minutes AS requested_minutes,
+                   COALESCE(
+                       SUM(EXTRACT(EPOCH FROM (slot.end_time - slot.start_time)) / 60), 0
+                   )::int AS placed_minutes
+            FROM timetables AS timetable
+            JOIN classes AS class ON class.id = timetable.class_id
+            JOIN class_subjects AS class_subject ON class_subject.class_id = class.id
+            JOIN subjects AS subject ON subject.id = class_subject.subject_id
+            JOIN level_subject_requirements AS requirement
+              ON requirement.school_year_id = class.school_year_id
+             AND requirement.class_level_id = class.class_level_id
+             AND requirement.subject_id = class_subject.subject_id
+            LEFT JOIN teacher_assignments AS assignment
+              ON assignment.class_subject_id = class_subject.id
+            LEFT JOIN timetable_slots AS slot
+              ON slot.teacher_assignment_id = assignment.id
+             AND slot.timetable_id = timetable.id
+            WHERE timetable.id = :timetable_id
+            GROUP BY subject.name, requirement.weekly_minutes
+            HAVING COALESCE(
+                       SUM(EXTRACT(EPOCH FROM (slot.end_time - slot.start_time)) / 60), 0
+                   ) < requirement.weekly_minutes
+            ORDER BY subject.name
+            """
+        ),
+        {"timetable_id": timetable_id},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def get_student_specialty_overlaps(db: Session, class_id: UUID | str) -> list[dict]:
+    """Élèves dont deux spécialités choisies se chevauchent dans le brouillon."""
+
+    rows = db.execute(
+        text(
+            """
+            SELECT DISTINCT student.first_name, student.last_name,
+                   first_subject.name AS first_subject_name,
+                   second_subject.name AS second_subject_name,
+                   first_slot.day_of_week, first_slot.start_time, first_slot.end_time
+            FROM timetables AS timetable
+            JOIN timetable_slots AS first_slot ON first_slot.timetable_id = timetable.id
+            JOIN timetable_slots AS second_slot
+              ON second_slot.timetable_id = timetable.id
+             AND second_slot.id <> first_slot.id
+             AND second_slot.day_of_week = first_slot.day_of_week
+             AND second_slot.start_time < first_slot.end_time
+             AND second_slot.end_time > first_slot.start_time
+            JOIN teacher_assignments AS first_assignment
+              ON first_assignment.id = first_slot.teacher_assignment_id
+            JOIN class_subjects AS first_class_subject
+              ON first_class_subject.id = first_assignment.class_subject_id
+            JOIN teacher_assignments AS second_assignment
+              ON second_assignment.id = second_slot.teacher_assignment_id
+            JOIN class_subjects AS second_class_subject
+              ON second_class_subject.id = second_assignment.class_subject_id
+            JOIN subjects AS first_subject ON first_subject.id = first_class_subject.subject_id
+            JOIN subjects AS second_subject ON second_subject.id = second_class_subject.subject_id
+            JOIN student_specialties AS first_choice
+              ON first_choice.subject_id = first_subject.id
+            JOIN student_specialties AS second_choice
+              ON second_choice.subject_id = second_subject.id
+             AND second_choice.student_enrollment_id = first_choice.student_enrollment_id
+            JOIN student_enrollments AS enrollment
+              ON enrollment.id = first_choice.student_enrollment_id
+             AND enrollment.class_id = timetable.class_id
+             AND enrollment.end_date IS NULL
+            JOIN students AS student ON student.id = enrollment.student_id
+            WHERE timetable.class_id = :class_id
+              AND timetable.status = 'DRAFT'
+              AND first_subject.id <> second_subject.id
+              AND first_subject.id::text < second_subject.id::text
+            ORDER BY student.last_name, student.first_name, first_slot.day_of_week, first_slot.start_time
+            """
+        ),
+        {"class_id": class_id},
+    ).mappings().all()
+    return [dict(row) for row in rows]
 
 
 def _build_available_periods(configuration: dict) -> list[dict]:
@@ -616,7 +731,15 @@ def generate_timetable(
         },
     ).mappings().one()
 
-    busy_slots = get_teacher_busy_slots(db, str(class_id), school_year_id)
+    busy_slots = get_teacher_busy_slots(
+        db, str(class_id), school_year_id,
+        include_drafts=True,
+        target_start_date=target_start_date,
+        target_end_date=target_end_date,
+    )
+    busy_rooms = get_room_busy_slots(
+        db, str(class_id), school_year_id, target_start_date, target_end_date
+    )
     available_rooms = list_rooms(db)
     specialty_subjects = [subject for subject in subjects if subject["is_specialty"]]
     regular_subjects = [subject for subject in subjects if not subject["is_specialty"]]
@@ -686,36 +809,93 @@ def generate_timetable(
             selected["class_subject_id"]
         )
 
-    # Les spécialités d'une même classe se déroulent toutes sur le même
-    # bloc de 2 heures (jamais une heure isolée), chacune dans sa propre
-    # salle, jamais deux fois le même jour pour une spécialité donnée.
-    specialty_days_used: set[int] = set()
+    # Les spécialités se placent en blocs de 2 heures (jamais une heure
+    # isolée), chacune dans sa propre salle, jamais deux fois le même jour
+    # pour une même spécialité. Deux spécialités choisies par un même élève ne
+    # doivent jamais se chevaucher : elles vont donc dans des « barrettes »
+    # (blocs horaires) différentes, alors que deux spécialités qu'aucun élève
+    # ne combine peuvent partager la même barrette.
     used_period_keys: set[tuple[int, time]] = set()
     if specialty_subjects:
+        conflicting_pairs = _get_specialty_conflicting_pairs(db, class_id)
+        conflict_count = {
+            subject["subject_id"]: sum(1 for pair in conflicting_pairs if subject["subject_id"] in pair)
+            for subject in specialty_subjects
+        }
         double_periods = _build_double_periods(all_periods)
-        for candidate in double_periods:
-            if candidate["day_of_week"] in specialty_days_used:
-                continue
-            pending = [
-                subject for subject in specialty_subjects
-                if subject["remaining_minutes"] > 0
-                and subject["remaining_minutes"] >= 120
-                and not _teacher_is_busy(busy_slots, subject["teacher_id"], candidate)
-            ]
-            if not pending:
-                continue
-            for index, selected in enumerate(pending):
-                effective_duration = 120
-                room_id = (
-                    available_rooms[index % len(available_rooms)]["id"]
-                    if available_rooms else None
+        placed_blocks: list[dict] = []
+
+        def _overlapping_blocks(candidate):
+            return [
+                block for block in placed_blocks
+                if block["day_of_week"] == candidate["day_of_week"]
+                and _periods_overlap(
+                    block["start_time"], block["end_time"],
+                    candidate["start_time"], candidate["end_time"],
                 )
-                _insert_slot(candidate, selected, effective_duration, room_id)
-            specialty_days_used.add(candidate["day_of_week"])
-            for period_start in candidate["covered_period_starts"]:
-                used_period_keys.add((candidate["day_of_week"], period_start))
-            if all(subject["remaining_minutes"] < 120 for subject in specialty_subjects):
-                break
+            ]
+
+        def _specialty_fits(subject, candidate):
+            if any(
+                block["subject_id"] == subject["subject_id"]
+                and block["day_of_week"] == candidate["day_of_week"]
+                for block in placed_blocks
+            ):
+                return False
+            if _teacher_is_busy(busy_slots, subject["teacher_id"], candidate):
+                return False
+            for block in _overlapping_blocks(candidate):
+                if block["teacher_id"] == subject["teacher_id"]:
+                    return False
+                if frozenset((block["subject_id"], subject["subject_id"])) in conflicting_pairs:
+                    return False
+            return True
+
+        # Les spécialités les plus contraintes sont placées en premier.
+        for subject in sorted(
+            specialty_subjects,
+            key=lambda item: (-conflict_count[item["subject_id"]], item["subject_name"]),
+        ):
+            while subject["remaining_minutes"] >= 120:
+                reusable_starts = {
+                    (block["day_of_week"], block["start_time"]) for block in placed_blocks
+                }
+                ordered_candidates = sorted(
+                    double_periods,
+                    key=lambda item: 0 if (item["day_of_week"], item["start_time"]) in reusable_starts else 1,
+                )
+                candidate = next(
+                    (item for item in ordered_candidates if _specialty_fits(subject, item)),
+                    None,
+                )
+                if candidate is None:
+                    break
+                taken_rooms = {block["room_id"] for block in _overlapping_blocks(candidate)}
+                taken_rooms |= {
+                    busy_room["room_id"] for busy_room in busy_rooms
+                    if busy_room["day_of_week"] == candidate["day_of_week"]
+                    and _periods_overlap(
+                        busy_room["start_time"], busy_room["end_time"],
+                        candidate["start_time"], candidate["end_time"],
+                    )
+                }
+                room_id = next(
+                    (room["id"] for room in available_rooms if room["id"] not in taken_rooms),
+                    None,
+                )
+                _insert_slot(candidate, subject, 120, room_id)
+                placed_blocks.append(
+                    {
+                        "day_of_week": candidate["day_of_week"],
+                        "start_time": candidate["start_time"],
+                        "end_time": candidate["end_time"],
+                        "subject_id": subject["subject_id"],
+                        "teacher_id": subject["teacher_id"],
+                        "room_id": room_id,
+                    }
+                )
+                for period_start in candidate["covered_period_starts"]:
+                    used_period_keys.add((candidate["day_of_week"], period_start))
 
     # Seules l'EMC, l'anglais et l'espagnol peuvent occuper une heure isolée ;
     # toutes les autres matières (collège comme lycée) se placent en blocs
@@ -798,6 +978,45 @@ def generate_timetable(
         for subject in subjects
         if subject["remaining_minutes"] > 0
     ]
+    for item in unplaced:
+        item["reason"] = "Plus assez de créneaux libres, ou enseignant déjà occupé."
+
+    # Une matière demandée sans enseignant actif n'est jamais générée : on la
+    # signale au lieu de la laisser disparaître silencieusement.
+    generated_ids = {subject["class_subject_id"] for subject in subjects}
+    requested_minutes_by_id = {
+        requirement.class_subject_id: requirement.weekly_minutes for requirement in requirements
+    }
+    missing_ids = [
+        class_subject_id for class_subject_id in requested_minutes_by_id
+        if class_subject_id not in generated_ids
+    ]
+    if missing_ids:
+        missing_rows = db.execute(
+            text(
+                """
+                SELECT class_subject.id AS class_subject_id, subject.name AS subject_name
+                FROM class_subjects AS class_subject
+                JOIN subjects AS subject ON subject.id = class_subject.subject_id
+                WHERE class_subject.class_id = :class_id
+                  AND class_subject.id = ANY(:class_subject_ids)
+                ORDER BY subject.name
+                """
+            ),
+            {"class_id": class_id, "class_subject_ids": missing_ids},
+        ).mappings().all()
+        for row in missing_rows:
+            requested = requested_minutes_by_id[row["class_subject_id"]]
+            unplaced.append(
+                {
+                    "class_subject_id": row["class_subject_id"],
+                    "subject_name": row["subject_name"],
+                    "remaining_minutes": requested,
+                    "requested_minutes": requested,
+                    "placed_minutes": 0,
+                    "reason": "Aucun enseignant affecté à cette matière.",
+                }
+            )
     try:
         db.commit()
     except IntegrityError as exc:
@@ -835,6 +1054,33 @@ def validate_timetable(
     if draft is None:
         raise ValueError("Aucune proposition n'est disponible pour cette classe.")
 
+    overlaps = get_student_specialty_overlaps(db, class_id)
+    if overlaps:
+        day_names = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+        details = "; ".join(
+            f"{item['first_name']} {item['last_name']} : « {item['first_subject_name']} » et "
+            f"« {item['second_subject_name']} » le {day_names[item['day_of_week'] - 1]} "
+            f"{item['start_time']:%H:%M}-{item['end_time']:%H:%M}"
+            for item in overlaps[:3]
+        )
+        extra = f" (et {len(overlaps) - 3} autre(s))" if len(overlaps) > 3 else ""
+        raise ValueError(
+            "Publication impossible : un élève a deux spécialités en même temps. "
+            f"{details}{extra}. Régénérez le brouillon ou déplacez un cours."
+        )
+
+    incomplete = get_incomplete_requirements(db, draft["id"])
+    if incomplete:
+        details = "; ".join(
+            f"{item['subject_name']} {item['placed_minutes'] / 60:g} h sur {item['requested_minutes'] / 60:g} h"
+            for item in incomplete[:5]
+        )
+        extra = f" (et {len(incomplete) - 5} autre(s))" if len(incomplete) > 5 else ""
+        raise ValueError(
+            "Publication impossible : volume horaire incomplet. "
+            f"{details}{extra}. Ajoutez les créneaux manquants ou régénérez le brouillon."
+        )
+
     db.execute(
         text(
             """
@@ -867,9 +1113,19 @@ def validate_timetable(
 
 
 def get_teacher_busy_slots(
-    db: Session, exclude_class_id: str | None, school_year_id: UUID | str | None = None
+    db: Session,
+    exclude_class_id: str | None,
+    school_year_id: UUID | str | None = None,
+    include_drafts: bool = False,
+    target_start_date: date | None = None,
+    target_end_date: date | None = None,
 ) -> list[dict]:
-    """Retourne les occupations publiées des enseignants, et leurs indisponibilités déclarées."""
+    """Retourne les occupations des enseignants, et leurs indisponibilités déclarées.
+
+    Seuls comptent les emplois du temps de la même année scolaire dont la période
+    de validité recoupe la plage visée. Avec `include_drafts`, les brouillons des
+    autres classes réservent aussi leurs enseignants.
+    """
 
     rows = db.execute(
         text(
@@ -878,12 +1134,28 @@ def get_teacher_busy_slots(
                    slot.start_time, slot.end_time
             FROM timetable_slots AS slot
             JOIN timetables AS timetable ON timetable.id = slot.timetable_id
+            JOIN classes AS slot_class ON slot_class.id = timetable.class_id
             JOIN teacher_assignments AS assignment
               ON assignment.id = slot.teacher_assignment_id
-            WHERE timetable.status = 'PUBLISHED'
+            WHERE (
+                  timetable.status = 'PUBLISHED'
+                  OR (CAST(:include_drafts AS boolean) AND timetable.status = 'DRAFT')
+              )
               AND (
                   CAST(:exclude_class_id AS uuid) IS NULL
                   OR timetable.class_id <> CAST(:exclude_class_id AS uuid)
+              )
+              AND (
+                  CAST(:school_year_id AS uuid) IS NULL
+                  OR slot_class.school_year_id = CAST(:school_year_id AS uuid)
+              )
+              AND (
+                  CAST(:target_start_date AS date) IS NULL
+                  OR timetable.effective_end_date >= CAST(:target_start_date AS date)
+              )
+              AND (
+                  CAST(:target_end_date AS date) IS NULL
+                  OR timetable.effective_start_date <= CAST(:target_end_date AS date)
               )
 
             UNION ALL
@@ -895,72 +1167,48 @@ def get_teacher_busy_slots(
                OR unavailable.school_year_id = CAST(:school_year_id AS uuid)
             """
         ),
-        {"exclude_class_id": exclude_class_id, "school_year_id": school_year_id},
+        {
+            "exclude_class_id": exclude_class_id,
+            "school_year_id": school_year_id,
+            "include_drafts": include_drafts,
+            "target_start_date": target_start_date,
+            "target_end_date": target_end_date,
+        },
     ).mappings().all()
     return [dict(row) for row in rows]
 
 
-def get_class_timetable(db: Session, class_id: str, published_only: bool = False) -> list[dict]:
-    """Retourne le brouillon prioritaire ou le planning publié, avec ses cours datés."""
+# ---- 5 : occupations des salles par les autres classes
+def get_room_busy_slots(
+    db: Session,
+    exclude_class_id: str,
+    school_year_id: UUID | str,
+    target_start_date: date,
+    target_end_date: date,
+) -> list[dict]:
+    """Salles déjà occupées (emplois du temps publiés ou brouillons) par les autres classes."""
 
-    status_filter = "timetable.status = 'PUBLISHED'" if published_only else "timetable.status IN ('DRAFT', 'PUBLISHED')"
-    selected_status = """
-        timetable.status = (
-            SELECT CASE
-                WHEN :published_only THEN 'PUBLISHED'::timetable_status_enum
-                WHEN EXISTS (
-                    SELECT 1 FROM timetables AS draft
-                    WHERE draft.class_id = :class_id AND draft.status = 'DRAFT'
-                ) THEN 'DRAFT'::timetable_status_enum
-                ELSE 'PUBLISHED'::timetable_status_enum
-            END
-        )
-    """
     rows = db.execute(
         text(
-            f"""
-            SELECT detail.slot_id AS id, detail.timetable_id, detail.version,
-                   detail.status, detail.day_of_week, detail.start_time,
-                   detail.end_time, detail.class_subject_id, detail.subject_id,
-                   subject.is_specialty, detail.subject_name, detail.teacher_name,
-                   detail.room_name, level.education_stage,
-                   timetable.effective_start_date, timetable.effective_end_date,
-                   NULL::date AS course_date, 'RECURRING'::text AS slot_kind
-            FROM v_timetable_slots_detailed AS detail
-            JOIN timetables AS timetable ON timetable.id = detail.timetable_id
-            JOIN classes AS class ON class.id = detail.class_id
-            JOIN class_levels AS level ON level.id = class.class_level_id
-            JOIN subjects AS subject ON subject.id = detail.subject_id
-            WHERE detail.class_id = :class_id
-              AND {status_filter}
-              AND {selected_status}
-
-            UNION ALL
-
-            SELECT dated_slot.id, timetable.id, timetable.version, timetable.status,
-                   EXTRACT(ISODOW FROM dated_slot.course_date)::smallint,
-                   dated_slot.start_time, dated_slot.end_time,
-                   class_subject.id, subject.id, subject.is_specialty,
-                   subject.name, teacher.first_name || ' ' || teacher.last_name,
-                   room.name, level.education_stage,
-                   timetable.effective_start_date, timetable.effective_end_date,
-                   dated_slot.course_date, 'DATED'::text
-            FROM timetable_date_slots AS dated_slot
-            JOIN timetables AS timetable ON timetable.id = dated_slot.timetable_id
-            JOIN teacher_assignments AS assignment ON assignment.id = dated_slot.teacher_assignment_id
-            JOIN class_subjects AS class_subject ON class_subject.id = assignment.class_subject_id
-            JOIN subjects AS subject ON subject.id = class_subject.subject_id
-            JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
-            JOIN classes AS class ON class.id = timetable.class_id
-            JOIN class_levels AS level ON level.id = class.class_level_id
-            LEFT JOIN rooms AS room ON room.id = dated_slot.room_id
-            WHERE timetable.class_id = :class_id
-              AND {status_filter}
-              AND {selected_status}
-            ORDER BY course_date NULLS FIRST, day_of_week, start_time
+            """
+            SELECT slot.room_id, slot.day_of_week, slot.start_time, slot.end_time
+            FROM timetable_slots AS slot
+            JOIN timetables AS timetable ON timetable.id = slot.timetable_id
+            JOIN classes AS slot_class ON slot_class.id = timetable.class_id
+            WHERE slot.room_id IS NOT NULL
+              AND timetable.status IN ('PUBLISHED', 'DRAFT')
+              AND timetable.class_id <> CAST(:exclude_class_id AS uuid)
+              AND slot_class.school_year_id = CAST(:school_year_id AS uuid)
+              AND timetable.effective_end_date >= :target_start_date
+              AND timetable.effective_start_date <= :target_end_date
             """
         ),
-        {"class_id": class_id, "published_only": published_only},
+        {
+            "exclude_class_id": exclude_class_id,
+            "school_year_id": school_year_id,
+            "target_start_date": target_start_date,
+            "target_end_date": target_end_date,
+        },
     ).mappings().all()
     return [dict(row) for row in rows]
 
@@ -1414,6 +1662,8 @@ def list_class_special_courses(db: Session, class_id: str) -> list[dict]:
             """
             SELECT special.id, special.title, special.day_of_week,
                    special.start_time, special.end_time, special.note,
+                   special.valid_from AS effective_start_date,
+                   special.valid_until AS effective_end_date,
                    subject.name AS subject_name,
                    student.first_name AS student_first_name,
                    student.last_name AS student_last_name
@@ -1482,8 +1732,10 @@ def get_teacher_timetable(db: Session, teacher_id: str) -> dict:
                    detail.class_subject_id, detail.subject_name,
                    detail.class_id,
                    level.name || ' ' || class.group_label AS class_name,
-                   detail.room_name
+                   detail.room_name,
+                   timetable.effective_start_date, timetable.effective_end_date
             FROM v_timetable_slots_detailed AS detail
+            JOIN timetables AS timetable ON timetable.id = detail.timetable_id
             JOIN classes AS class ON class.id = detail.class_id
             JOIN class_levels AS level ON level.id = class.class_level_id
             WHERE detail.teacher_id = :teacher_id

@@ -11,7 +11,9 @@ import {
 } from 'lucide-react'
 
 import { getMyTeacherTimetable } from '../services/teacher_timetable_service.js'
-import { DAY_LABELS, getScheduleRows } from '../utils/timetable_display.js'
+import WeekNavigator from '../components/week_navigator.jsx'
+import { addDays, formatShortDate, getWeekStart, isSlotOnDate } from '../utils/timetable_week.js'
+import { DAY_LABELS, getMergedDayCells, getScheduleRows } from '../utils/timetable_display.js'
 import '../styles/student_timetable_page.css'
 
 const PALETTE = ['violet', 'green', 'blue', 'orange', 'pink', 'teal', 'yellow', 'red']
@@ -48,6 +50,7 @@ export default function TeacherTimetablePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedDayIndex, setSelectedDayIndex] = useState(getDefaultDayIndex)
+  const [weekStart, setWeekStart] = useState(getWeekStart)
 
   useEffect(function loadTimetableEffect() {
     async function load() {
@@ -74,15 +77,20 @@ export default function TeacherTimetablePage() {
     }
   })
 
-  function findSlotForCell(dayIndex, period) {
-    return slots.find(
+  function findSlotsForCell(dayIndex, period) {
+    const dateValue = addDays(weekStart, dayIndex)
+    return slots.filter(
       (slot) =>
-        slot.day_of_week === dayIndex + 1 &&
+        isSlotOnDate(slot, dateValue, dayIndex) &&
         timeLabel(slot.start_time) < period.end &&
         timeLabel(slot.end_time) > period.start
     )
   }
   const daySchedule = getScheduleRows(slots, breaks)
+  const weekHasCourses = DAY_LABELS.some((_, dayIndex) =>
+    slots.some((slot) => isSlotOnDate(slot, addDays(weekStart, dayIndex), dayIndex)))
+  const mergedCellsByDay = DAY_LABELS.map((_, dayIndex) =>
+    getMergedDayCells(daySchedule, (row) => findSlotsForCell(dayIndex, row)))
 
   return (
     <main className="stp-main">
@@ -98,15 +106,17 @@ export default function TeacherTimetablePage() {
           <p className="stp-empty">Aucun emploi du temps disponible pour le moment.</p>
         ) : (
           <>
-            {/* Grille complète des 7 jours : lisible uniquement à partir d'un écran d'ordinateur. */}
+            <WeekNavigator weekStart={weekStart} onChange={setWeekStart} lastDayIndex={6} />
+            {!weekHasCourses && <p className="stp-empty">Aucun cours cette semaine : elle est en dehors de la période de l’emploi du temps.</p>}
+            {/* Grille complète : lisible uniquement à partir d'un écran d'ordinateur. */}
             <div className="stp-grid-wrapper stp-desktop-only">
               <div className="stp-grid" style={{ '--stp-period-count': daySchedule.length }}>
                 <div className="stp-grid__corner" />
-                {DAY_LABELS.map((day) => (
-                  <div key={day} className="stp-grid__day-head">{day}</div>
+                {DAY_LABELS.map((day, labelIndex) => (
+                  <div key={day} className="stp-grid__day-head">{day} <small>{formatShortDate(addDays(weekStart, labelIndex))}</small></div>
                 ))}
 
-                {daySchedule.map((entry) => (
+                {daySchedule.map((entry, rowIndex) => (
                   entry.type === 'break' ? (
                     <div key={`break-${entry.start}`} className="stp-break-row">
                       {entry.label} ({entry.start}-{entry.end})
@@ -118,18 +128,33 @@ export default function TeacherTimetablePage() {
                         <span>{entry.end}</span>
                       </div>
                       {DAY_LABELS.map((day, dayIndex) => {
-                        const slot = findSlotForCell(dayIndex, entry)
-                        if (!slot) {
-                          return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free">Libre</div>
+                        const cell = mergedCellsByDay[dayIndex][rowIndex]
+                        if (!cell) return null
+                        const spanStyle = cell.span > 1 ? { gridRow: `span ${cell.span}` } : undefined
+                        if (cell.slots.length === 0) {
+                          return <div key={`${day}-${entry.start}`} className="stp-cell stp-cell--free" style={spanStyle}>Libre</div>
                         }
-                        const SubjectIcon = getSubjectIcon(slot.subject_name)
-                        const color = classColorByName.get(slot.class_name) ?? 'violet'
+                        const parallel = cell.slots.length > 1
+                        const renderedSlots = cell.slots.map((slot) => {
+                          const SubjectIcon = getSubjectIcon(slot.subject_name)
+                          const color = classColorByName.get(slot.class_name) ?? 'violet'
+                          return (
+                            <div
+                              key={slot.id ?? slot.subject_name}
+                              className={`${parallel ? 'stp-cell__sub' : 'stp-cell'} stp-cell--${color}${slot.is_special ? ' stp-cell--special' : ''}`}
+                              style={parallel ? undefined : spanStyle}
+                            >
+                              <span className="stp-cell__title"><SubjectIcon aria-hidden="true" size={parallel ? 12 : 14} /> {slot.subject_name}</span>
+                              <span className="stp-cell__meta">
+                                {slot.class_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
+                              </span>
+                            </div>
+                          )
+                        })
+                        if (!parallel) return <Fragment key={`${day}-${entry.start}`}>{renderedSlots}</Fragment>
                         return (
-                          <div key={`${day}-${entry.start}`} className={`stp-cell stp-cell--${color}`}>
-                            <span className="stp-cell__title"><SubjectIcon aria-hidden="true" size={14} /> {slot.subject_name}</span>
-                            <span className="stp-cell__meta">
-                              {slot.class_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
-                            </span>
+                          <div key={`${day}-${entry.start}`} style={spanStyle} className="stp-cell stp-cell--parallel" title={`${cell.slots.length} cours en parallèle`}>
+                            {renderedSlots}
                           </div>
                         )
                       })}
@@ -152,12 +177,13 @@ export default function TeacherTimetablePage() {
                     onClick={() => setSelectedDayIndex(dayIndex)}
                   >
                     {day.slice(0, 3)}
+                    <small>{formatShortDate(addDays(weekStart, dayIndex))}</small>
                   </button>
                 ))}
               </div>
 
               <div className="stp-day-agenda">
-                {daySchedule.map((entry) => {
+                {daySchedule.map((entry, rowIndex) => {
                   if (entry.type === 'break') {
                     return (
                       <div key={`mobile-break-${entry.start}`} className="stp-day-agenda__break">
@@ -165,32 +191,40 @@ export default function TeacherTimetablePage() {
                       </div>
                     )
                   }
-                  const slot = findSlotForCell(selectedDayIndex, entry)
-                  if (!slot) {
+                  const cell = mergedCellsByDay[selectedDayIndex][rowIndex]
+                  if (!cell) return null
+                  const endTime = daySchedule[rowIndex + cell.span - 1].end
+                  if (cell.slots.length === 0) {
                     return (
                       <div key={`mobile-free-${entry.start}`} className="stp-day-agenda__row stp-day-agenda__row--free">
                         <div className="stp-day-agenda__time">
                           <strong>{entry.start}</strong>
-                          <span>{entry.end}</span>
+                          <span>{endTime}</span>
                         </div>
                         <span>Libre</span>
                       </div>
                     )
                   }
-                  const SubjectIcon = getSubjectIcon(slot.subject_name)
-                  const color = classColorByName.get(slot.class_name) ?? 'violet'
                   return (
-                    <div key={`mobile-${entry.start}`} className={`stp-day-agenda__row stp-day-agenda__row--${color}`}>
-                      <div className="stp-day-agenda__time">
-                        <strong>{entry.start}</strong>
-                        <span>{entry.end}</span>
-                      </div>
-                      <div className="stp-day-agenda__info">
-                        <span className="stp-day-agenda__title"><SubjectIcon aria-hidden="true" size={15} /> {slot.subject_name}</span>
-                        <span className="stp-day-agenda__meta">
-                          {slot.class_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
-                        </span>
-                      </div>
+                    <div key={`mobile-${entry.start}`} className="stp-day-agenda__group">
+                      {cell.slots.map((slot) => {
+                        const SubjectIcon = getSubjectIcon(slot.subject_name)
+                        const color = classColorByName.get(slot.class_name) ?? 'violet'
+                        return (
+                          <div key={slot.id ?? slot.subject_name} className={`stp-day-agenda__row stp-day-agenda__row--${color}`}>
+                            <div className="stp-day-agenda__time">
+                              <strong>{entry.start}</strong>
+                              <span>{endTime}</span>
+                            </div>
+                            <div className="stp-day-agenda__info">
+                              <span className="stp-day-agenda__title"><SubjectIcon aria-hidden="true" size={15} /> {slot.subject_name}</span>
+                              <span className="stp-day-agenda__meta">
+                                {slot.class_name}{slot.room_name ? ` · ${slot.room_name}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   )
                 })}

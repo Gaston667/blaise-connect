@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
   Award,
-  CalendarDays,
   ChevronRight,
   ClipboardCheck,
-  FileText,
-  NotebookPen,
   Sparkles,
   TrendingUp,
   UserRoundX,
@@ -17,13 +14,6 @@ import { getMyGradesSummary } from '../services/student_grades_service.js'
 import '../styles/guardian_portal.css'
 
 const RELATIONSHIP_LABELS = { FATHER: 'Père', MOTHER: 'Mère' }
-
-const QUICK_LINKS = [
-  { page: 'student-grades', label: 'Notes', description: 'Évaluations et moyennes', icon: NotebookPen, tone: 'violet' },
-  { page: 'student-timetable', label: 'Emploi du temps', description: 'Les cours de la semaine', icon: CalendarDays, tone: 'blue' },
-  { page: 'attendance', label: 'Absences', description: 'Absences et retards', icon: UserRoundX, tone: 'orange' },
-  { page: 'guardian-report-cards', label: 'Bulletins', description: 'Bulletins validés', icon: FileText, tone: 'green' },
-]
 
 function getGreeting() {
   const hour = new Date().getHours()
@@ -55,7 +45,7 @@ function getGuardianSalutation(account) {
 }
 
 /** Accueil du portail parents : enfants, indicateurs clés et raccourcis. */
-export default function GuardianHomePage({ account, onNavigate }) {
+export default function GuardianHomePage({ account }) {
   const { kids, selectedChild, selectChild } = useGuardianChild()
   const [summary, setSummary] = useState(null)
   const [attendance, setAttendance] = useState(null)
@@ -94,7 +84,7 @@ export default function GuardianHomePage({ account, onNavigate }) {
         <p className="accueil-eyebrow"><Sparkles aria-hidden="true" size={15} /> Espace familles</p>
         <h1 className="accueil-title">{getGreeting()}, {getGuardianSalutation(account)} !</h1>
         <p className="accueil-description">
-          Suivez la scolarité de {kids.length > 1 ? 'vos enfants' : selectedChild.first_name} : notes, emploi du temps, absences et bulletins.
+          Suivez la scolarité de {kids.length > 1 ? 'vos enfants' : selectedChild.first_name} : notes, emploi du temps et absences.
         </p>
         <p className="accueil-description">
           <strong>Vous consultez les informations de {selectedChild.first_name} {selectedChild.last_name}.</strong>
@@ -141,26 +131,6 @@ export default function GuardianHomePage({ account, onNavigate }) {
             </article>
           </div>
         )}
-      </section>
-
-      <section className="accueil-quicklinks gph-quicklinks" aria-label="Accès rapides">
-        {QUICK_LINKS.map(function renderQuickLink(link) {
-          const Icon = link.icon
-          return (
-            <button
-              key={link.page}
-              type="button"
-              className={`accueil-quicklink accueil-quicklink--${link.tone}`}
-              onClick={() => onNavigate(link.page)}
-            >
-              <span className="accueil-quicklink__icon"><Icon aria-hidden="true" size={22} /></span>
-              <span className="accueil-quicklink__text">
-                <strong>{link.label}</strong>
-                <span>{link.description}</span>
-              </span>
-            </button>
-          )
-        })}
       </section>
 
       <section className="gph-section" aria-labelledby="gph-kids-title">

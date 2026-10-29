@@ -211,7 +211,7 @@ const STAT_CARD_DEFS = [
   { key: 'absences_pending', icon: UserRoundX, tone: 'orange', label: 'Justificatifs transmis\npar les élèves à vérifier', linkLabel: 'Voir les absences', page: 'attendance' },
   { key: 'evaluations_incomplete', icon: ClipboardList, tone: 'blue', label: 'Évaluations / notes\nincomplètes', linkLabel: 'Voir les évaluations', page: 'notes' },
   { key: 'correction_requests_pending', icon: CircleHelp, tone: 'violet', label: 'Demandes de correction\nen attente', linkLabel: 'Voir les demandes', page: null },
-  { key: 'report_cards_pending', icon: FileCheck2, tone: 'green', label: 'Bulletins en attente\nde validation', linkLabel: 'Voir les bulletins', page: 'report-cards' },
+  { key: 'report_cards_pending', icon: FileCheck2, tone: 'green', label: 'Bulletins en attente\nde validation', linkLabel: 'Voir les bulletins', page: null },
 ]
 
 export default function AdminDashboardPage({ onNavigate }) {

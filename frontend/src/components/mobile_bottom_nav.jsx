@@ -1,18 +1,17 @@
-import { CalendarDays, FileText, GraduationCap, House, Menu, NotebookPen, UserRoundX } from 'lucide-react'
+import { CalendarDays, GraduationCap, House, Menu, NotebookPen, UserRoundX } from 'lucide-react'
 
 const STUDENT_TABS = [
   { page: 'home', label: 'Accueil', icon: House },
   { page: 'student-timetable', label: 'Emploi du temps', icon: CalendarDays },
-  { page: 'student-grades', label: 'Notes', icon: NotebookPen },
+  { page: 'student-grades', label: 'Notes', icon: NotebookPen, matches: ['student-grades', 'student-subject-grades'] },
   { page: 'attendance', label: 'Absences', icon: UserRoundX },
 ]
 
 const GUARDIAN_TABS = [
   { page: 'home', label: 'Accueil', icon: House },
   { page: 'student-timetable', label: 'Emploi du temps', icon: CalendarDays },
-  { page: 'student-grades', label: 'Notes', icon: NotebookPen },
+  { page: 'student-grades', label: 'Notes', icon: NotebookPen, matches: ['student-grades', 'student-subject-grades'] },
   { page: 'attendance', label: 'Absences', icon: UserRoundX },
-  { page: 'guardian-report-cards', label: 'Bulletins', icon: FileText },
 ]
 
 // Le dernier onglet « Plus » ouvre le menu complet : l'admin a trop de sections pour tenir en bas.
