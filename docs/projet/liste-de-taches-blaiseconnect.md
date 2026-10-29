@@ -81,6 +81,22 @@
 | ⬜ | Décider des règles non faites : barrettes définies par l’école, salles spéciales (labo, gymnase), vacances et jours fériés, semaines A et B, options du collège (LV2, latin), préférences par matière ou par enseignant. | 29/10/2026 |
 | ⬜ | Ajouter un bouton pour verrouiller ou déverrouiller un créneau déjà généré. | 29/10/2026 |
 
+## 🧩 Règles métier à ajouter
+
+La règle de visibilité des notes (masquer les notes tant que la saisie n’est pas complète) est listée dans la section suivante.
+
+| | Tâche | Ajoutée le |
+|:-:|---|:-:|
+| ⬜ | **Appliquer la capacité d’une classe à l’inscription** : elle est affichée mais jamais contrôlée, on peut inscrire un élève au-delà. Refuser (ou avertir clairement) quand la classe est pleine. | 29/10/2026 |
+| ⬜ | **Refuser les notes d’une évaluation datée dans le futur** : aucun contrôle de la date n’existe aujourd’hui à la saisie. | 29/10/2026 |
+| ⬜ | Contrôler la cohérence de la date de naissance d’un élève (pas dans le futur, âge plausible pour le niveau de la classe). | 29/10/2026 |
+| ⬜ | Exiger au moins un responsable légal et un contact principal avant d’inscrire un élève dans une classe. | 29/10/2026 |
+| ⬜ | Afficher à la désinscription ce que l’élève perd (emploi du temps, spécialités, évaluations en cours) avant de confirmer. | 29/10/2026 |
+| ⬜ | Gérer le changement de classe en cours d’année (transfert avec date, motif « changement de classe », historique conservé). | 29/10/2026 |
+| ⬜ | Avertir avant la clôture d’une année scolaire quand des notes manquent ou que des bulletins ne sont pas validés, et bloquer la clôture si nécessaire. | 29/10/2026 |
+| 🔍 | Vérifier que la suppression d’une matière ou d’un enseignant déjà utilisés (classes, évaluations, emploi du temps) est bien refusée par le serveur ou la base, avec un message clair. | 29/10/2026 |
+| 🔍 | Vérifier que le serveur refuse la validation d’un bulletin tant qu’une absence est en attente de décision (règle prévue dans `AGENTS.md`), et ajouter un test. | 29/10/2026 |
+
 ## 🚀 À faire avant une vraie mise en service
 
 | | Tâche | Ajoutée le |
