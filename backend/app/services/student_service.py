@@ -54,6 +54,7 @@ def list_students(
             s.created_at,
             s.updated_at,
             se.class_id as class_id,
+            se.start_date AS enrollment_start_date,
             c.main_teacher_id as class_main_teacher_id,
             c.school_year_id as school_year_id,
             CONCAT_WS(' ', cl.name, NULLIF(c.group_label, '')) AS class_name,
@@ -61,7 +62,7 @@ def list_students(
         FROM students s
         LEFT JOIN accounts a ON s.account_id = a.id
         LEFT JOIN LATERAL (
-            SELECT class_id FROM student_enrollments se
+            SELECT class_id, start_date FROM student_enrollments se
             WHERE se.student_id = s.id AND se.end_date IS NULL
             LIMIT 1
         ) se ON true
@@ -123,6 +124,7 @@ def list_students(
             'created_at': row.created_at,
             'updated_at': row.updated_at,
             'class_id': row.class_id,
+            'enrollment_start_date': row.enrollment_start_date,
             'school_year_id': row.school_year_id,
             'class_name': row.class_name,
             'school_year_name': row.school_year_name,
@@ -207,6 +209,7 @@ def get_student(db: Session, student_id):
             s.created_at,
             s.updated_at,
             se.class_id as class_id,
+            se.start_date AS enrollment_start_date,
             c.main_teacher_id as class_main_teacher_id,
             c.school_year_id as school_year_id,
             CONCAT_WS(' ', cl.name, NULLIF(c.group_label, '')) AS class_name,
@@ -214,7 +217,7 @@ def get_student(db: Session, student_id):
         FROM students s
         LEFT JOIN accounts a ON s.account_id = a.id
         LEFT JOIN LATERAL (
-            SELECT class_id FROM student_enrollments se
+            SELECT class_id, start_date FROM student_enrollments se
             WHERE se.student_id = s.id AND se.end_date IS NULL
             LIMIT 1
         ) se ON true
@@ -252,6 +255,7 @@ def get_student(db: Session, student_id):
         'created_at': row.created_at,
         'updated_at': row.updated_at,
         'class_id': row.class_id,
+        'enrollment_start_date': row.enrollment_start_date,
         'class_main_teacher_id': row.class_main_teacher_id,
         'class_name': row.class_name,
         'guardians': guardians,
@@ -431,8 +435,7 @@ def _close_open_enrollment(
             """
             UPDATE student_enrollments
             SET end_date = :end_date,
-                end_reason = 'LEFT_SCHOOL',
-                updated_at = now()
+                end_reason = 'LEFT_SCHOOL'
             WHERE id = :enrollment_id
             """
         ),

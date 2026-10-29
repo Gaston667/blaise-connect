@@ -143,3 +143,22 @@ class TerminaleFromPremiereTests(ApiTestCase):
             self.skipTest("Moins de 2 spécialités de Première sont proposées en Terminale.")
         response = self.enroll(offered[:2])
         self.assertIn(response.status_code, (200, 201), response.text[:200])
+
+
+class EnrollmentDateTests(ApiTestCase):
+    def test_the_class_list_shows_the_enrollment_date_not_the_admission_date(self):
+        admin = self.client(ADMIN)
+        row = self.db.execute(
+            text(
+                """SELECT e.student_id, e.class_id, e.start_date FROM student_enrollments e
+                   WHERE e.end_date IS NULL LIMIT 1"""
+            )
+        ).first()
+        if row is None:
+            self.skipTest("Aucun élève inscrit dans les données de test.")
+        items = self.data(admin.get("/students/", params={"class_id": str(row.class_id), "limit": 100}))
+        items = items if isinstance(items, list) else items["items"]
+        found = next(item for item in items if item["id"] == str(row.student_id))
+        self.assertEqual(found["enrollment_start_date"], row.start_date.isoformat())
+        detail = self.data(admin.get(f"/students/{row.student_id}"))
+        self.assertEqual(detail["enrollment_start_date"], row.start_date.isoformat())

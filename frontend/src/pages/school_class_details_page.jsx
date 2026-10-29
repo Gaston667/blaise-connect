@@ -29,7 +29,7 @@ import {
   updateSchoolClass,
 } from '../services/school_classes_overview_service.js'
 import EnrollmentStepper from '../components/enrollment_stepper.jsx'
-import { enrollStudent, getStudentSpecialtyOptions, listStudents } from '../services/students_service.js'
+import { enrollStudent, getStudentSpecialtyOptions, listStudents, unenrollStudent } from '../services/students_service.js'
 import { createTeacherAssignment } from '../services/teachers_overview_service.js'
 import './../styles/school_class_details_page.css'
 
@@ -111,6 +111,8 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
   const [savingCoefficient, setSavingCoefficient] = useState(false)
   // Retrait matière
   const [confirmRemoveSubjectId, setConfirmRemoveSubjectId] = useState(null)
+  const [studentToUnenroll, setStudentToUnenroll] = useState(null)
+  const [unenrolling, setUnenrolling] = useState(false)
   const [removingSubject, setRemovingSubject] = useState(false)
   // Affectation d'un enseignant à une matière non affectée
   const [assignPickerSubjectId, setAssignPickerSubjectId] = useState(null)
@@ -190,6 +192,21 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
       setTeachers(availableTeachers)
     } catch (loadError) {
       setError(loadError.message)
+    }
+  }
+
+  async function handleUnenrollStudent() {
+    if (!studentToUnenroll) return
+    setUnenrolling(true)
+    setError('')
+    try {
+      await unenrollStudent(studentToUnenroll.id)
+      setStudentToUnenroll(null)
+      await loadClassStudents()
+    } catch (unenrollError) {
+      setError(unenrollError.message)
+    } finally {
+      setUnenrolling(false)
     }
   }
 
@@ -887,6 +904,7 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                       <th>Sexe</th>
                       <th>Date d’inscription</th>
                       <th>Statut</th>
+                      {canEdit && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -909,12 +927,27 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                           </span>
                         </td>
                         <td>{student.gender === 'MALE' ? 'Masculin' : student.gender === 'FEMALE' ? 'Féminin' : '—'}</td>
-                        <td>{formatDate(student.admission_date)}</td>
+                        <td>{formatDate(student.enrollment_start_date)}</td>
                         <td>
                           <span className={`scd-student-status scd-student-status--${student.status.toLowerCase()}`}>
                             {STUDENT_STATUS_LABEL[student.status] ?? student.status}
                           </span>
                         </td>
+                        {canEdit && (
+                          <td>
+                            <button
+                              type="button"
+                              className="scd-btn-outline"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setError('')
+                                setStudentToUnenroll(student)
+                              }}
+                            >
+                              Désinscrire
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -1225,6 +1258,22 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
               </div>
             )}
           </section>
+        </div>
+      )}
+
+      {canEdit && studentToUnenroll && (
+        <div className="scd-confirm-overlay" onClick={() => setStudentToUnenroll(null)}>
+          <div className="scd-confirm-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <h3>Désinscrire {formatProfileName(studentToUnenroll.first_name, studentToUnenroll.last_name, studentToUnenroll.gender)} ?</h3>
+            <p>L’élève quitte cette classe à partir d’aujourd’hui. Ses notes, absences et bulletins restent conservés dans l’historique.</p>
+            {error && <p className="scd-error">{error}</p>}
+            <div className="scd-confirm-actions">
+              <button type="button" className="scd-btn-outline" onClick={() => setStudentToUnenroll(null)}>Annuler</button>
+              <button type="button" className="scd-btn-danger" disabled={unenrolling} onClick={handleUnenrollStudent}>
+                {unenrolling ? 'Désinscription…' : 'Oui, désinscrire'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

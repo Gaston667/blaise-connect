@@ -24,6 +24,7 @@ class StudentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     class_id: UUID | None
+    enrollment_start_date: date | None = None
     class_main_teacher_id: UUID | None = None
     viewer_is_main_teacher: bool = False
     school_year_id: UUID | None

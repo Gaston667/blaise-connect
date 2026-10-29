@@ -834,6 +834,11 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
     }
   }
 
+  function confirmUnenrollment() {
+    const message = 'Désinscrire cet élève de sa classe ? Ses notes, absences et bulletins restent conservés.'
+    if (window.confirm(message)) handleAction(unenrollStudent)
+  }
+
   async function handleAction(actionFn) {
     setMenuOpen(false)
     setError('')
@@ -888,7 +893,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
               <div><dt>Dernière modification</dt><dd>{formatDate(details.updated_at)}</dd></div>
               <div><dt>Classe actuelle</dt><dd>{details.class_name ?? className(details.class_id)}</dd></div>
               <div><dt>Année scolaire</dt><dd>{details.school_year_name ?? yearName(details.school_year_id)}</dd></div>
-              <div><dt>Date d’inscription</dt><dd>{formatDate(details.admission_date)}</dd></div>
+              <div><dt>Date d’inscription</dt><dd>{formatDate(details.enrollment_start_date ?? details.admission_date)}</dd></div>
             </dl>
           </div>
         </div>
@@ -898,7 +903,7 @@ export default function StudentDetailsPage({ student, onNavigate, account }) {
             <button
               type="button"
               className="sdp-btn-secondary"
-              onClick={details.class_id ? () => handleAction(unenrollStudent) : openEnrollmentModal}
+              onClick={details.class_id ? confirmUnenrollment : openEnrollmentModal}
               disabled={details.status === 'ARCHIVED'}
               title={details.status === 'ARCHIVED' ? 'Un élève archivé ne peut pas être inscrit dans une classe.' : ''}
             >
