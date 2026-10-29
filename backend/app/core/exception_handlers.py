@@ -9,9 +9,11 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.core.api_response import error_response
 from app.core.exceptions import AppError, ErrorCodes
+from app.core.postgres_error_message import extract_postgres_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +79,7 @@ def _field_errors_from_validation(errors: Iterable[dict]) -> dict[str, str]:
         if location and location[0] == "body":
             location = location[1:]
         field_name = ".".join(str(part) for part in location) or "detail"
-        field_errors[field_name] = error.get("msg", "Valeur invalide.")
+        field_errors[field_name] = error.get("msg", "Valeur invalide.").removeprefix("Value error, ")
     return field_errors
 
 
@@ -128,9 +130,11 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
     """Expose les erreurs de validation sous forme de champs lisibles."""
 
     field_errors = _field_errors_from_validation(exc.errors())
+    # Une seule règle métier violée (ex. dates incohérentes) : on l'affiche telle quelle.
+    only_message = next(iter(field_errors.values())) if len(field_errors) == 1 else None
     return error_response(
         code=ErrorCodes.VALIDATION_ERROR,
-        message="La validation a échoué.",
+        message=only_message or "La validation a échoué.",
         status_code=422,
         field_errors=field_errors,
     )
@@ -145,6 +149,17 @@ async def value_error_handler(_: Request, exc: ValueError) -> JSONResponse:
         code=code,
         message=message,
         status_code=400,
+    )
+
+
+async def integrity_error_handler(_: Request, exc: IntegrityError) -> JSONResponse:
+    """Traduit une règle de la base violée en message lisible, sans détail technique."""
+
+    logger.warning("Règle de la base violée : %s", getattr(exc, "orig", exc))
+    return error_response(
+        code=ErrorCodes.CONFLICT,
+        message=extract_postgres_error_message(exc),
+        status_code=409,
     )
 
 
@@ -168,4 +183,5 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(ValueError, value_error_handler)
+    app.add_exception_handler(IntegrityError, integrity_error_handler)
     app.add_exception_handler(Exception, unexpected_exception_handler)

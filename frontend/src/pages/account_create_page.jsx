@@ -152,6 +152,19 @@ export default function AccountCreatePage({ onNavigate }) {
     event.preventDefault()
     setErrorMessage('')
     setSuccessMessage('')
+    const today = new Date().toISOString().slice(0, 10)
+    if (form.birth_date && form.birth_date > today) {
+      setErrorMessage('La date de naissance ne peut pas être dans le futur.')
+      return
+    }
+    if (isStudent && form.birth_date && form.admission_date && form.birth_date > form.admission_date) {
+      setErrorMessage('La date de naissance doit être antérieure à la date d’admission.')
+      return
+    }
+    if (isTeacher && form.birth_date && form.hire_date && form.birth_date > form.hire_date) {
+      setErrorMessage('La date de naissance doit être antérieure à la date d’embauche.')
+      return
+    }
 
     if (form.password !== form.password_confirmation) {
       setErrorMessage('Les deux mots de passe ne correspondent pas.')
@@ -400,7 +413,7 @@ export default function AccountCreatePage({ onNavigate }) {
             <label>Nom *<input name="last_name" value={form.last_name} onChange={updateField} maxLength="100" autoComplete="off" required /></label>
 
             {(isStudent || isTeacher) && (
-              <label>Date de naissance *<input name="birth_date" type="date" value={form.birth_date} onChange={updateField} required /></label>
+              <label>Date de naissance *<input name="birth_date" type="date" value={form.birth_date} onChange={updateField} max={new Date().toISOString().slice(0, 10)} required /></label>
             )}
             {isStudent && <label>Lieu de naissance<input name="birth_place" value={form.birth_place} onChange={updateField} maxLength="150" autoComplete="off" /></label>}
 

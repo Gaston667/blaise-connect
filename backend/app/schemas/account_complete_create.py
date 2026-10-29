@@ -1,5 +1,7 @@
 """Contrat de création atomique d'un compte et de son profil."""
 
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
 from app.schemas.account_creation_role import AccountCreationRole
@@ -47,6 +49,24 @@ class AccountCompleteCreate(BaseModel):
             raise ValueError("La date d'admission est obligatoire pour un élève.")
         if self.role in {"TEACHER", "ADMIN"} and self.profile.hire_date is None:
             raise ValueError("La date d'embauche est obligatoire pour ce rôle.")
+        today = date.today()
+        birth_date = self.profile.birth_date
+        if birth_date is not None and birth_date > today:
+            raise ValueError("La date de naissance ne peut pas être dans le futur.")
+        if (
+            self.role == "STUDENT"
+            and birth_date is not None
+            and self.profile.admission_date is not None
+            and birth_date > self.profile.admission_date
+        ):
+            raise ValueError("La date de naissance doit être antérieure à la date d'admission.")
+        if (
+            self.role == "TEACHER"
+            and birth_date is not None
+            and self.profile.hire_date is not None
+            and birth_date > self.profile.hire_date
+        ):
+            raise ValueError("La date de naissance doit être antérieure à la date d'embauche.")
         if self.role == "TEACHER" and not self.profile.qualification:
             raise ValueError("La qualification est obligatoire pour un enseignant.")
         if self.role == "GUARDIAN" and (
