@@ -62,8 +62,8 @@ export default function GenerateAllTimetables({ onGenerated, onSelectClass }) {
     <section className="tmp-generate-all" aria-labelledby="tmp-generate-all-title">
       <div className="tmp-generate-all__head">
         <div>
-          <h2 id="tmp-generate-all-title"><Wand2 aria-hidden="true" size={18} /> Générer pour toutes les classes</h2>
-          <p>Crée un brouillon pour chaque classe de l’année courante, en respectant les enseignants, les salles, les spécialités et les règles d’un emploi du temps. Les créneaux placés à la main sont conservés. Rien n’est publié automatiquement.</p>
+          <h2 id="tmp-generate-all-title"><Wand2 aria-hidden="true" size={18} /> Génération automatique</h2>
+          <p>Crée un brouillon pour chaque classe de l’année courante. Les créneaux placés à la main sont conservés et rien n’est publié automatiquement.</p>
         </div>
         <button type="button" className="tmp-generate-all__toggle" onClick={() => setIsOpen((current) => !current)} aria-expanded={isOpen}>
           {isOpen ? 'Fermer' : 'Générer pour toutes les classes'}
@@ -72,7 +72,6 @@ export default function GenerateAllTimetables({ onGenerated, onSelectClass }) {
 
       {isOpen && (
         <form className="tmp-generate-all__form" onSubmit={run}>
-          <p className="tmp-field-hint">Les volumes horaires déjà configurés pour chaque classe sont utilisés. Les brouillons existants de toutes les classes seront remplacés.</p>
           <div className="tmp-generate-all__dates">
             <label className="tmp-field">
               <span>Début (facultatif)</span>
@@ -85,8 +84,7 @@ export default function GenerateAllTimetables({ onGenerated, onSelectClass }) {
           </div>
           {isConfirming && (
             <p className="tmp-error" role="alert">
-              Les brouillons de toutes les classes vont être remplacés. Seuls les créneaux placés à la main (verrouillés) sont conservés.
-              Les emplois du temps déjà publiés ne changent pas.
+              Les brouillons de toutes les classes vont être remplacés (sauf les créneaux placés à la main). Les emplois du temps publiés ne changent pas.
             </p>
           )}
           <div className="tmp-generate-all__actions">

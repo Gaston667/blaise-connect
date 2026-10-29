@@ -786,6 +786,8 @@ export default function TimetableManagementPage() {
   })
 
   const timetableStatus = savedSlots[0]?.status ?? null
+  const yearNames = new Set(classes.map(function getYearName(schoolClass) { return schoolClass.school_year_name }))
+  const singleYearName = yearNames.size === 1 ? [...yearNames][0] : ''
   const distinctTeacherCount = useMemo(function countDistinctTeachers() {
     return new Set(savedSlots.map(function getTeacherName(slot) {
       return slot.teacher_name
@@ -1148,7 +1150,7 @@ export default function TimetableManagementPage() {
         <aside className="tmp-class-sidebar">
           <div className="tmp-class-sidebar__heading">
             <h2>Classes</h2>
-            <p>Choisissez la classe à organiser.</p>
+            <p>{singleYearName ? `Année ${singleYearName}` : 'Choisissez la classe à organiser.'}</p>
           </div>
           <div className="tmp-class-sidebar__list">
             {classesLoading ? <p>Chargement…</p> : classes.map(function renderClassItem(schoolClass) {
@@ -1165,7 +1167,7 @@ export default function TimetableManagementPage() {
                   }}
                 >
                   <School aria-hidden="true" size={17} />
-                  <span><strong>{formatClassName(schoolClass)}</strong><small>{schoolClass.school_year_name}</small></span>
+                  <span><strong>{formatClassName(schoolClass)}</strong>{!singleYearName && <small>{schoolClass.school_year_name}</small>}</span>
                 </button>
               )
             })}
@@ -1191,17 +1193,6 @@ export default function TimetableManagementPage() {
 
       {selectedClassId && (
         <>
-          <section className="tmp-selected-class">
-            <div className="tmp-selected-class__identity">
-              <span className="tmp-selected-class__icon"><School aria-hidden="true" size={24} /></span>
-              <div>
-                <span>Classe sélectionnée</span>
-                <strong>{formatClassName(selectedClass)}</strong>
-                <small>{selectedClass?.school_year_name ?? ''}</small>
-              </div>
-            </div>
-          </section>
-
           <nav className="tmp-tabs" aria-label="Rubriques de l’emploi du temps">
             {TABS.map(function renderTab(tab) {
               const TabIcon = tab.icon
@@ -1232,11 +1223,11 @@ export default function TimetableManagementPage() {
             <section className="tmp-panel tmp-overview">
               <div className="tmp-panel__heading">
                 <div>
-                  <h2>Planning de {formatClassName(selectedClass)}</h2>
-                  <p>Créez les créneaux un par un, puis consultez immédiatement le résultat.</p>
+                  <h2>{formatClassName(selectedClass)}</h2>
+                  <p>Année {selectedClass?.school_year_name ?? ''}</p>
                 </div>
                 <span className={savedSlots.length ? 'tmp-status tmp-status--ready' : 'tmp-status'}>
-                  {savedSlots.length ? 'Brouillon disponible' : 'À préparer'}
+                  {!savedSlots.length ? 'À préparer' : timetableStatus === 'PUBLISHED' ? 'Publié' : 'Brouillon'}
                 </span>
               </div>
 
@@ -1244,27 +1235,25 @@ export default function TimetableManagementPage() {
                 <article><BookOpen size={20} /><span>Matières</span><strong>{subjects.length}</strong></article>
                 <article><CalendarDays size={20} /><span>Créneaux placés</span><strong>{savedSlots.length}</strong></article>
                 <article><Users size={20} /><span>Enseignants</span><strong>{distinctTeacherCount}</strong></article>
-                <article><Eye size={20} /><span>État</span><strong>{timetableStatus === 'PUBLISHED' ? 'Publié' : 'Brouillon'}</strong></article>
+                <article><Settings size={20} /><span>Horaires</span><strong>{timetableConfiguration?.days?.length ? `${timetableConfiguration.days.length} jours` : 'À configurer'}</strong></article>
               </div>
 
               <div className="tmp-overview__actions">
-                <button type="button" className="tmp-btn-primary" onClick={function openManualCreation() { setActiveTab('build'); setBuildMode('manual') }}>
-                  <Plus aria-hidden="true" size={17} /> Créer un créneau
-                </button>
-                <button type="button" className="tmp-btn-secondary" onClick={function openSchedule() { setActiveTab('schedule') }}>
-                  <Eye aria-hidden="true" size={17} /> Voir l’emploi du temps
-                </button>
+                {savedSlots.length === 0 ? (
+                  <button type="button" className="tmp-btn-primary" onClick={function openBuild() { setActiveTab('build') }}>
+                    <PencilRuler aria-hidden="true" size={17} /> Créer le brouillon
+                  </button>
+                ) : timetableStatus === 'PUBLISHED' ? (
+                  <button type="button" className="tmp-btn-primary" onClick={function openSchedule() { setActiveTab('schedule') }}>
+                    <Eye aria-hidden="true" size={17} /> Voir l’emploi du temps
+                  </button>
+                ) : (
+                  <button type="button" className="tmp-btn-primary" onClick={function openDraft() { setActiveTab('build'); setBuildMode('generate') }}>
+                    <Eye aria-hidden="true" size={17} /> Voir le brouillon
+                  </button>
+                )}
               </div>
 
-              <section className="tmp-overview-config">
-                <div>
-                  <h3><Settings aria-hidden="true" size={18} /> Configuration des horaires</h3>
-                  <p>{timetableConfiguration?.days?.length ? `${timetableConfiguration.days.length} journée(s) configurée(s) pour ce cycle.` : 'Les horaires et pauses ne sont pas encore configurés pour ce cycle.'}</p>
-                </div>
-                <button type="button" className="tmp-btn-primary" onClick={function openConfiguration() { setActiveTab('configuration') }}>
-                  <Settings aria-hidden="true" size={17} /> Configurer
-                </button>
-              </section>
             </section>
           )}
 
@@ -1706,12 +1695,9 @@ export default function TimetableManagementPage() {
             <section className="tmp-panel">
               <div className="tmp-panel__heading">
                 <div>
-                  <h2>Emploi du temps actuel</h2>
-                  <p>Planning publié, visible des élèves et des enseignants. Pour le modifier, passez par « Créer le brouillon ».</p>
+                  <h2>Emploi du temps publié</h2>
+                  <p>Visible des élèves et des enseignants. Pour le modifier, passez par « Créer le brouillon ».</p>
                 </div>
-                <button type="button" className="tmp-btn-secondary" onClick={function addAnotherSlot() { setActiveTab('build'); setBuildMode('manual') }}>
-                  <Plus aria-hidden="true" size={17} /> Ajouter un créneau
-                </button>
               </div>
 
               <label className="tmp-field tmp-week-picker">
