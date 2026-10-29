@@ -1213,6 +1213,71 @@ def get_room_busy_slots(
     return [dict(row) for row in rows]
 
 
+def get_class_timetable(db: Session, class_id: str, published_only: bool = False) -> list[dict]:
+    """Retourne le brouillon prioritaire ou le planning publié, avec ses cours datés."""
+
+    status_filter = "timetable.status = 'PUBLISHED'" if published_only else "timetable.status IN ('DRAFT', 'PUBLISHED')"
+    selected_status = """
+        timetable.status = (
+            SELECT CASE
+                WHEN :published_only THEN 'PUBLISHED'::timetable_status_enum
+                WHEN EXISTS (
+                    SELECT 1 FROM timetables AS draft
+                    WHERE draft.class_id = :class_id AND draft.status = 'DRAFT'
+                ) THEN 'DRAFT'::timetable_status_enum
+                ELSE 'PUBLISHED'::timetable_status_enum
+            END
+        )
+    """
+    rows = db.execute(
+        text(
+            f"""
+            SELECT detail.slot_id AS id, detail.timetable_id, detail.version,
+                   detail.status, detail.day_of_week, detail.start_time,
+                   detail.end_time, detail.class_subject_id, detail.subject_id,
+                   subject.is_specialty, detail.subject_name, detail.teacher_name,
+                   detail.room_name, level.education_stage,
+                   timetable.effective_start_date, timetable.effective_end_date,
+                   NULL::date AS course_date, 'RECURRING'::text AS slot_kind
+            FROM v_timetable_slots_detailed AS detail
+            JOIN timetables AS timetable ON timetable.id = detail.timetable_id
+            JOIN classes AS class ON class.id = detail.class_id
+            JOIN class_levels AS level ON level.id = class.class_level_id
+            JOIN subjects AS subject ON subject.id = detail.subject_id
+            WHERE detail.class_id = :class_id
+              AND {status_filter}
+              AND {selected_status}
+
+            UNION ALL
+
+            SELECT dated_slot.id, timetable.id, timetable.version, timetable.status,
+                   EXTRACT(ISODOW FROM dated_slot.course_date)::smallint,
+                   dated_slot.start_time, dated_slot.end_time,
+                   class_subject.id, subject.id, subject.is_specialty,
+                   subject.name, teacher.first_name || ' ' || teacher.last_name,
+                   room.name, level.education_stage,
+                   timetable.effective_start_date, timetable.effective_end_date,
+                   dated_slot.course_date, 'DATED'::text
+            FROM timetable_date_slots AS dated_slot
+            JOIN timetables AS timetable ON timetable.id = dated_slot.timetable_id
+            JOIN teacher_assignments AS assignment ON assignment.id = dated_slot.teacher_assignment_id
+            JOIN class_subjects AS class_subject ON class_subject.id = assignment.class_subject_id
+            JOIN subjects AS subject ON subject.id = class_subject.subject_id
+            JOIN teachers AS teacher ON teacher.id = assignment.teacher_id
+            JOIN classes AS class ON class.id = timetable.class_id
+            JOIN class_levels AS level ON level.id = class.class_level_id
+            LEFT JOIN rooms AS room ON room.id = dated_slot.room_id
+            WHERE timetable.class_id = :class_id
+              AND {status_filter}
+              AND {selected_status}
+            ORDER BY course_date NULLS FIRST, day_of_week, start_time
+            """
+        ),
+        {"class_id": class_id, "published_only": published_only},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
 def get_draft_conflicts(db: Session, class_id: str) -> list[dict]:
     """Détecte, sans publier, les créneaux du brouillon en conflit (même
     enseignant ou même salle) avec un emploi du temps déjà publié d'une
