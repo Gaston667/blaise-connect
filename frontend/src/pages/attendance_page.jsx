@@ -31,7 +31,7 @@ import {
   reviewAttendanceChangeRequest,
   reviewAttendanceJustification,
   updateAttendanceRecord,
-  uploadMyAttendanceJustification,
+  uploadGuardianAttendanceJustification,
 } from '../services/attendance_service.js'
 import { useGuardianChild } from '../context/guardian_child_context.js'
 import MobileCardList from '../components/mobile_card_list.jsx'
@@ -483,12 +483,12 @@ function StudentAttendanceView({ onNavigate }) {
   useEffect(function loadStudentAttendanceEffect() { loadData() }, [childId])
 
   return <div className="attendance-page">
-    <PageHeader subtitle={isGuardianView ? `Consultez l'assiduité de ${selectedChild.first_name}.` : "Consultez votre assiduité et transmettez vos justificatifs."} />
+    <PageHeader subtitle={isGuardianView ? `Consultez l'assiduité de ${selectedChild.first_name} et transmettez ses justificatifs.` : "Consultez votre assiduité."} />
     <SummaryCards absenceCount={data.absence_count} lateCount={data.late_count} pendingCount={data.pending_justification_count} />
     <section className="attendance-panel"><h2>{isGuardianView ? 'Historique' : 'Mon historique'}</h2>
-      <IncidentTable records={data.incidents} actionLabel="Justifier" onAction={setSelected} student selfLabel={isGuardianView ? selectedChild.first_name : 'Moi'} onOpen={isGuardianView ? undefined : function openDetail(record) { onNavigate('attendance-record-details', record) }} />
+      <IncidentTable records={data.incidents} actionLabel={isGuardianView ? 'Justifier' : undefined} onAction={isGuardianView ? setSelected : undefined} canAction={(record) => Boolean(record.can_justify)} selfLabel={isGuardianView ? selectedChild.first_name : 'Moi'} onOpen={isGuardianView ? undefined : function openDetail(record) { onNavigate('attendance-record-details', record) }} />
     </section>
-    {selected && <JustificationModal record={selected} onClose={() => setSelected(null)} onSaved={async () => { setSelected(null); toast.success('Justificatif transmis.'); await loadData() }} />}
+    {selected && isGuardianView && <JustificationModal studentId={childId} record={selected} onClose={() => setSelected(null)} onSaved={async () => { setSelected(null); toast.success('Justificatif transmis.'); await loadData() }} />}
   </div>
 }
 
@@ -513,7 +513,7 @@ function EventTable({ events }) {
 
 function LegacyIncidentTable({ records, onOpen }) {
   if (!records.length) return <p className="attendance-empty">Aucun incident enregistré.</p>
-  return <div className="attendance-table-wrap"><table className="attendance-table"><thead><tr><th>Date</th><th>Élève</th><th>Classe / matière</th><th>Incident</th><th>Justification</th></tr></thead><tbody>{records.map((record) => <tr key={record.id} className="attendance-clickable-row" tabIndex="0" onClick={function openRecord() { onOpen?.(record) }} onKeyDown={function openRecordWithKeyboard(event) { if (event.key === 'Enter') onOpen?.(record) }}>
+  return <div className="attendance-table-wrap"><table className="attendance-table"><thead><tr><th>Date</th><th>Élève</th><th>Classe / matière</th><th>Incident</th><th>Statut</th></tr></thead><tbody>{records.map((record) => <tr key={record.id} className="attendance-clickable-row" tabIndex="0" onClick={function openRecord() { onOpen?.(record) }} onKeyDown={function openRecordWithKeyboard(event) { if (event.key === 'Enter') onOpen?.(record) }}>
     <td>{formatDate(record.attendance_date)}</td><td>{record.student_name || 'Moi'}<small>{record.registration_number}</small></td><td>{record.class_name}<small>{record.subject_name}</small></td>
     <td>{incidentLabel(record.incident_type)}{record.late_minutes ? ` (${record.late_minutes} min)` : ''}</td><td><span className={`attendance-badge attendance-badge--${statusTone(record.justification_status)}`}>{justificationLabel(record.justification_status)}</span></td>
     <td onClick={function stopRowNavigation(event) { event.stopPropagation() }}>{admin ? <div className="attendance-inline-actions">{record.has_document && <button type="button" title="Voir le justificatif" onClick={() => onView(record)}><Eye /></button>}{record.justification_status === 'PENDING' && <><button type="button" title="Accepter" onClick={() => onJustification(record, 'JUSTIFIED')}><Check /></button><button type="button" title="Refuser" onClick={() => onJustification(record, 'REJECTED')}><X /></button></>}{record.justification_status === 'REJECTED' && <button type="button" title="Revenir sur le refus et accepter" onClick={() => onJustification(record, 'JUSTIFIED')}><Check /></button>}<button type="button" title="Corriger" onClick={() => onEdit(record)}><Pencil /></button></div> : actionLabel && actionLabel.includes('correction') ? <button className="attendance-link-button" type="button" onClick={() => onAction(record)}>{actionLabel}</button> : record.justification_status === 'UNJUSTIFIED' ? (record.can_justify === false ? <span className="attendance-muted" title={`Délai dépassé (limite : ${formatDate(record.justification_deadline)})`}>Délai dépassé</span> : <span className="attendance-action-with-hint"><button className="attendance-link-button" type="button" onClick={() => onAction(record)}>{actionLabel}</button>{record.justification_deadline && <small>avant le {formatDate(record.justification_deadline)}</small>}</span>) : record.justification_status === 'REJECTED' ? <span className="attendance-muted">Refusé — non modifiable</span> : '—'}</td>
@@ -582,13 +582,13 @@ function AdminEditModal({ record, onClose, onSaved }) {
   return <Modal title="Corriger un incident" onClose={onClose}><form onSubmit={save} className="attendance-modal-form"><label>Incident<select value={type} onChange={(event) => setType(event.target.value)}><option value="ABSENT">Absence</option><option value="LATE">Retard</option></select></label>{type === 'LATE' && <label>Minutes<input required min="1" type="number" value={minutes} onChange={(event) => setMinutes(event.target.value)} /></label>}<label>Motif constaté<input value={reason} onChange={(event) => setReason(event.target.value)} /></label><label>Motif de la modification ou suppression<textarea required minLength="3" value={changeReason} onChange={(event) => setChangeReason(event.target.value)} /></label><div className="attendance-form-actions attendance-form-actions--split"><button type="button" className="attendance-button attendance-button--danger" onClick={removeRecord}><Trash2 /> Supprimer</button><span /><button type="button" className="attendance-button attendance-button--outline" onClick={onClose}>Annuler</button><button className="attendance-button">Enregistrer</button></div></form></Modal>
 }
 
-function JustificationModal({ record, onClose, onSaved }) {
+function JustificationModal({ studentId, record, onClose, onSaved }) {
   const toast = useToast()
   const [reason, setReason] = useState('')
   const [file, setFile] = useState(null)
   async function submit(event) {
     event.preventDefault()
-    try { await uploadMyAttendanceJustification(record.id, reason, file); await onSaved() } catch (error) { toast.error(error.message) }
+    try { await uploadGuardianAttendanceJustification(studentId, record.id, reason, file); await onSaved() } catch (error) { toast.error(error.message) }
   }
   return <Modal title={`Justifier ${incidentLabel(record.incident_type).toLowerCase()}`} onClose={onClose}><form onSubmit={submit} className="attendance-modal-form"><p>Incident du {formatDate(record.attendance_date)} — {record.subject_name}</p><label>Explication<textarea required minLength="3" value={reason} onChange={(e) => setReason(e.target.value)} /></label><label>Document facultatif (PDF ou image, 5 Mo maximum)<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] || null)} /></label><ModalActions onClose={onClose} label="Transmettre" /></form></Modal>
 }

@@ -38,7 +38,7 @@ from app.routes.health import router as health_router
 # Crée l'application FastAPI et configure les informations de sa documentation.
 app = FastAPI(
     title="BlaiseConnect API",
-    version="0.1.0",
+    version="0.1.0-rc.3",
 )
 
 # Refuse les requetes provenant d'hotes ou d'origines non declares.

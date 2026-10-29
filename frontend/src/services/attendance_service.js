@@ -113,12 +113,12 @@ export function getMyAttendance(childId) {
   )
 }
 
-export function uploadMyAttendanceJustification(recordId, reason, file) {
+export function uploadGuardianAttendanceJustification(studentId, recordId, reason, file) {
   const body = new FormData()
   body.append('reason', reason)
   if (file) body.append('document', file)
   return apiRequestJson(
-    `${ATTENDANCE_API_URL}/me/${recordId}/justification`,
+    `/api/guardian/children/${studentId}/attendance/${recordId}/justification`,
     { method: 'POST', body },
   )
 }

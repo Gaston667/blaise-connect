@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  BarChart3,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -18,7 +19,6 @@ import { formatProfileName } from '../utils/profileDisplay.js'
 import MobileCardList from '../components/mobile_card_list.jsx'
 
 const PAGE_SIZE = 10
-const STATS_PER_SLIDE = 3
 
 const ROLE_OPTIONS = [
   { value: 'ALL', label: 'Toutes les rôles' },
@@ -119,15 +119,6 @@ function getPageNumbers(currentPage, totalPages) {
   return pages
 }
 
-/** Découpe un tableau en groupes de `size` éléments, pour le carrousel de stats. */
-function chunkArray(items, size) {
-  const chunks = []
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size))
-  }
-  return chunks
-}
-
 /** Affiche la gestion des comptes de l'US-002. */
 export default function AccountsPage({ onNavigate }) {
   const [accounts, setAccounts] = useState([])
@@ -137,6 +128,7 @@ export default function AccountsPage({ onNavigate }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(1)
+  const [statsExpanded, setStatsExpanded] = useState(false)
 
   useEffect(function loadAccountsEffect() {
     async function loadAccounts() {
@@ -274,8 +266,6 @@ export default function AccountsPage({ onNavigate }) {
     },
   ]
 
-  const statsSlides = chunkArray(statCards, STATS_PER_SLIDE)
-
   return (
     <main className="comptes-main">
       <header className="comptes-heading">
@@ -311,26 +301,37 @@ export default function AccountsPage({ onNavigate }) {
 
       {errorMessage && <p className="comptes-error" role="alert">{errorMessage}</p>}
 
-      <section className="comptes-stats-carousel" aria-label="Résumé des comptes">
-        <div className="comptes-stats-track-wrapper" tabIndex="0">
-          <div className="comptes-stats-track">
-            {statsSlides.map((slide, slideIndex) => (
-              <div className="comptes-stats-slide" key={`slide-${slideIndex}`}>
-                {slide.map((card) => (
-                  <article className="comptes-stat-card" key={card.key}>
-                    <span className={`comptes-stat-icon ${card.iconClass}`}>
-                      {card.icon}
-                    </span>
-                    <div>
-                      <strong>{card.value}</strong>
-                      <h2>{card.label}</h2>
-                      <p>{card.description}</p>
-                    </div>
-                  </article>
-                ))}
+      <section
+        className={`comptes-stats ${statsExpanded ? 'comptes-stats--expanded' : ''}`}
+        aria-label="Statistiques des comptes"
+      >
+        <button
+          type="button"
+          className="comptes-stats-toggle"
+          aria-expanded={statsExpanded}
+          aria-controls="comptes-statistiques"
+          onClick={() => setStatsExpanded((expanded) => !expanded)}
+        >
+          <span className="comptes-stats-toggle__label">
+            <BarChart3 aria-hidden="true" size={18} />
+            Statistiques
+          </span>
+          <span className="comptes-stats-toggle__value">{isLoading ? '—' : total} comptes</span>
+          <ChevronDown aria-hidden="true" size={18} className="comptes-stats-toggle__chevron" />
+        </button>
+        <div className="comptes-stats-grid" id="comptes-statistiques">
+          {statCards.map((card) => (
+            <article className="comptes-stat-card" key={card.key}>
+              <span className={`comptes-stat-icon ${card.iconClass}`}>
+                {card.icon}
+              </span>
+              <div>
+                <strong>{card.value}</strong>
+                <h2>{card.label}</h2>
+                <p>{card.description}</p>
               </div>
-            ))}
-          </div>
+            </article>
+          ))}
         </div>
       </section>
 

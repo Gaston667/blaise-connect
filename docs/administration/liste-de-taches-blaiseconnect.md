@@ -23,10 +23,12 @@ Cette liste remplace le journal des décisions. Elle sert à suivre ce qui est t
 - [x] Déployer l’application avec HTTPS sur le VPS.
 - [x] Mettre en place les scripts de sauvegarde et de restauration de la base et des documents sur le VPS.
 - [x] Planifier la sauvegarde locale quotidienne du VPS.
-- [x] Ouvrir un portail responsable légal en lecture seule : choix de l’enfant, notes, emploi du temps, absences et bulletins validés.
+- [x] Ouvrir un portail responsable légal : choix de l’enfant, notes, emploi du temps, absences, justificatifs et bulletins validés.
 
 ## À tester ou à valider
 
+- [ ] Finaliser l'affichage mobile des matières : remplacer les flèches d'ouverture des évaluations par une page dédiée aux détails des évaluations d'une matière.
+- [ ] Déplacer l'action de déconnexion en haut de page pour qu'elle soit plus facilement accessible.
 - [~] Tester les droits réels de chaque rôle sur tous les parcours importants.
 - [~] Tester entièrement le cycle des absences et des justificatifs avec des données réalistes.
 - [~] Tester le parcours bulletin : préparation, aperçu PDF, validation et téléchargement.
@@ -44,7 +46,7 @@ Cette liste remplace le journal des décisions. Elle sert à suivre ce qui est t
 ## Prévu pour une version ultérieure
 
 - [ ] DROITS DACCES DIFERER CPE SCREAIRE.
-- [ ] Portail responsable légal : dépôt d’un justificatif d’absence par le parent et notifications.
+- [ ] Portail responsable légal : notifications liées aux absences et aux justificatifs.
 - [ ] Cahier de textes et devoirs.
 - [ ] Messagerie interne.
 - [ ] Gestion financière complète : frais, factures et paiements.

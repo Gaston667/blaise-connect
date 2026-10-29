@@ -72,6 +72,8 @@
   .mcard__info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
   .mcard__info small { color: var(--color-primary); font-weight: var(--font-weight-semibold); }
   .mcard__badge { flex: 0 0 auto; }
+  .mcard__actions { display: flex; justify-content: flex-end; padding: 0 var(--space-3) var(--space-3); background: var(--color-surface); border: var(--border-default); border-top: 0; border-radius: 0 0 var(--radius-md) var(--radius-md); }
+  .mcard:has(+ .mcard__actions) { border-radius: var(--radius-md) var(--radius-md) 0 0; }
 }
 
 /* Cartes du tableau de bord admin : alignement à gauche (le nom de classe .adp-stat-card existe aussi dans la page Administrateurs). */
@@ -93,11 +95,7 @@
 }
 
 @media (max-width: 767px) {
-  /* Résumé des comptes : deux cartes par ligne, sans la description, pour gagner de la hauteur. */
-  .comptes-stats-carousel { padding: var(--space-2); }
-  .comptes-stats-slide { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
-  .comptes-stat-card { padding: var(--space-3); gap: var(--space-2); }
-  .comptes-stat-card p { display: none; }
+  /* Les statistiques des comptes sont repliées par défaut dans un bouton dédié. */
 }
 
 @media (max-width: 767px) {

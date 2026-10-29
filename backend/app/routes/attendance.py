@@ -3,7 +3,7 @@
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
 from app.core.authentication import (
@@ -22,7 +22,6 @@ from app.schemas.attendance_record_delete import AttendanceRecordDelete
 from app.services.attendance_document_service import (
     get_attendance_document_file,
     list_attendance_documents,
-    upload_attendance_justification,
 )
 from app.services.attendance_service import (
     create_attendance_change_request,
@@ -293,22 +292,3 @@ def get_my_attendance(
     """Retourne a l'eleve ses propres absences et retards."""
 
     return get_student_attendance(db, current_student.id)
-
-
-@router.post("/me/{record_id}/justification", status_code=status.HTTP_201_CREATED)
-def post_my_justification(
-    record_id: UUID,
-    db: DatabaseSession,
-    current_student: CurrentStudentDependency,
-    current_account: CurrentAccountDependency,
-    reason: str = Form(...),
-    document: UploadFile | None = File(default=None),
-):
-    """Permet a l'eleve de justifier son propre incident."""
-
-    try:
-        return upload_attendance_justification(
-            db, current_account, record_id, reason, document
-        )
-    except (LookupError, PermissionError, ValueError) as error:
-        _raise_service_error(error)

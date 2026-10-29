@@ -3,7 +3,7 @@
  * Chaque page décrit le contenu d'une carte avec de petites fonctions ;
  * le tableau d'origine est masqué par le CSS (classe `mcards-hide`) dès que la liste contient des lignes.
  */
-export default function MobileCardList({ items, getKey, onOpen, lead, title, subtitle, meta, badge, label }) {
+export default function MobileCardList({ items, getKey, onOpen, lead, title, subtitle, meta, badge, action, label }) {
   if (!items || items.length === 0) return null
 
   // Sans action d'ouverture, la carte est simplement informative.
@@ -23,6 +23,7 @@ export default function MobileCardList({ items, getKey, onOpen, lead, title, sub
               </span>
               {badge ? <span className="mcard__badge">{badge(item)}</span> : null}
             </Wrapper>
+            {action ? <div className="mcard__actions">{action(item)}</div> : null}
           </li>
         )
       })}

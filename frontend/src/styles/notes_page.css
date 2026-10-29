@@ -265,6 +265,7 @@
 .ntp-upload-button input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .ntp-inline-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .ntp-document-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ntp-table-actions { display: grid; gap: var(--space-2); }
 .ntp-document-list-button { border: 0; background: transparent; color: var(--color-primary); font-weight: 700; cursor: pointer; }
 .ntp-document-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .ntp-document-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: var(--border-default); border-radius: var(--radius-md); }

@@ -741,15 +741,14 @@ export default function NotesPage({ account, onNavigate, initialAssessmentId }) 
               <section className="ntp-list">
                 <header className="ntp-card-header"><div><h3>Absences à l’évaluation</h3><p>Les fichiers sont stockés hors de la base et référencés de façon sécurisée.</p></div></header>
                 <div className="ntp-table-wrapper">
-                  <table className="ntp-table"><thead><tr><th>Élève</th><th>Statut</th><th>Justificatif</th><th>Action</th></tr></thead>
+                  <table className="ntp-table"><thead><tr><th>Élève</th><th>Statut</th><th>Action</th></tr></thead>
                     <tbody>
                       {(gradeSheet.rows || []).filter(function onlyAbsences(row) { return row.result_type === 'ABSENT' }).map(function renderAbsence(row) {
                         return (
                           <tr key={row.grade_id}>
                             <td><strong>{row.student_name}</strong><small>{row.registration_number}</small></td>
                             <td><span className={`ntp-status ntp-status--${getAbsenceStatusTone(row.justification_status)}`}>{getAbsenceStatusLabel(row.justification_status)}</span></td>
-                            <td><div className="ntp-document-actions"><label className="ntp-upload-button"><FileUp size={15} />{uploadingGradeId === row.grade_id ? 'Envoi…' : 'Ajouter un fichier'}<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" data-grade-id={row.grade_id} onChange={handleJustificationUpload} disabled={uploadingGradeId === row.grade_id} /></label><button type="button" className="ntp-document-list-button" data-grade-id={row.grade_id} data-student-name={row.student_name} onClick={openGradeDocuments}>Voir le justificatif</button></div></td>
-                            <td>{isAdmin && row.justification_status === 'PENDING' ? <div className="ntp-inline-actions"><button type="button" className="ntp-btn-success" data-grade-id={row.grade_id} data-status="JUSTIFIED" onClick={handleAbsenceReview}>Accepter</button><button type="button" className="ntp-btn-danger" data-grade-id={row.grade_id} data-status="REJECTED" onClick={handleAbsenceReview}>Refuser</button></div> : '—'}</td>
+                            <td><div className="ntp-table-actions"><div className="ntp-document-actions"><label className="ntp-upload-button"><FileUp size={15} />{uploadingGradeId === row.grade_id ? 'Envoi…' : 'Ajouter un fichier'}<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" data-grade-id={row.grade_id} onChange={handleJustificationUpload} disabled={uploadingGradeId === row.grade_id} /></label><button type="button" className="ntp-document-list-button" data-grade-id={row.grade_id} data-student-name={row.student_name} onClick={openGradeDocuments}>Voir le justificatif</button></div>{isAdmin && row.justification_status === 'PENDING' ? <div className="ntp-inline-actions"><button type="button" className="ntp-btn-success" data-grade-id={row.grade_id} data-status="JUSTIFIED" onClick={handleAbsenceReview}>Accepter</button><button type="button" className="ntp-btn-danger" data-grade-id={row.grade_id} data-status="REJECTED" onClick={handleAbsenceReview}>Refuser</button></div> : null}</div></td>
                           </tr>
                         )
                       })}

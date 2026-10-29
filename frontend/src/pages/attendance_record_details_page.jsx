@@ -9,7 +9,6 @@ import {
   deleteAttendanceRecord,
   reviewAttendanceJustification,
   updateAttendanceRecord,
-  uploadMyAttendanceJustification,
 } from '../services/attendance_service.js'
 import '../styles/attendance_record_details_page.css'
 
@@ -146,17 +145,11 @@ export default function AttendanceRecordDetailsPage({ account, recordId, onNavig
 function AttendanceDetailActions({ account, detail, onOpenAction, onReview }) {
   const isAdmin = account?.role === 'ADMIN'
   const isTeacher = account?.role === 'TEACHER'
-  const isStudent = account?.role === 'STUDENT'
 
   return (
     <section className="attendance-detail-card attendance-detail-actions">
       <h2>Actions</h2>
       <div>
-        {isStudent && detail.justification_status === 'UNJUSTIFIED' && (
-          <button type="button" className="attendance-detail-button" onClick={function openJustification() { onOpenAction('justify') }}>
-            <FileText /> Justifier l’incident
-          </button>
-        )}
         {isTeacher && (
           <button type="button" className="attendance-detail-button" onClick={function openCorrectionRequest() { onOpenAction('request') }}>
             <Pencil /> Signaler une correction
@@ -184,7 +177,6 @@ function AttendanceDetailActions({ account, detail, onOpenAction, onReview }) {
 
 function AttendanceActionDialog({ detail, mode, onClose, onSaved, onError, onDeleted }) {
   const [reason, setReason] = useState('')
-  const [file, setFile] = useState(null)
   const [incidentType, setIncidentType] = useState(detail.incident_type)
   const [lateMinutes, setLateMinutes] = useState(detail.late_minutes || '')
   const [changeReason, setChangeReason] = useState('')
@@ -194,11 +186,6 @@ function AttendanceActionDialog({ detail, mode, onClose, onSaved, onError, onDel
     event.preventDefault()
     setSaving(true)
     try {
-      if (mode === 'justify') {
-        await uploadMyAttendanceJustification(detail.id, reason, file)
-        await onSaved('Justificatif transmis.')
-        return
-      }
       if (mode === 'request') {
         await createAttendanceChangeRequest(detail.id, {
           requested_action: 'UPDATE',
@@ -237,20 +224,18 @@ function AttendanceActionDialog({ detail, mode, onClose, onSaved, onError, onDel
     }
   }
 
-  const isJustification = mode === 'justify'
   const isRequest = mode === 'request'
-  const title = isJustification ? 'Justifier l’incident' : isRequest ? 'Signaler une correction' : 'Corriger l’incident'
+  const title = isRequest ? 'Signaler une correction' : 'Corriger l’incident'
 
   return (
     <div className="attendance-detail-dialog-backdrop" role="presentation">
       <section className="attendance-detail-dialog" role="dialog" aria-modal="true" aria-label={title}>
         <header><h2>{title}</h2><button type="button" onClick={onClose} aria-label="Fermer"><X /></button></header>
         <form onSubmit={submit}>
-          {!isJustification && <label>Incident<select value={incidentType} onChange={function changeType(event) { setIncidentType(event.target.value) }}><option value="ABSENT">Absence</option><option value="LATE">Retard</option></select></label>}
-          {!isJustification && incidentType === 'LATE' && <label>Minutes de retard<input type="number" min="1" required value={lateMinutes} onChange={function changeMinutes(event) { setLateMinutes(event.target.value) }} /></label>}
-          <label>{isJustification ? 'Explication' : 'Motif'}<textarea required={isJustification} value={reason} onChange={function changeReason(event) { setReason(event.target.value) }} /></label>
-          {isJustification && <label>Document facultatif<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={function changeFile(event) { setFile(event.target.files?.[0] || null) }} /></label>}
-          {!isJustification && <label>Raison de la modification<textarea required minLength="3" value={changeReason} onChange={function changeChangeReason(event) { setChangeReason(event.target.value) }} /></label>}
+          <label>Incident<select value={incidentType} onChange={function changeType(event) { setIncidentType(event.target.value) }}><option value="ABSENT">Absence</option><option value="LATE">Retard</option></select></label>
+          {incidentType === 'LATE' && <label>Minutes de retard<input type="number" min="1" required value={lateMinutes} onChange={function changeMinutes(event) { setLateMinutes(event.target.value) }} /></label>}
+          <label>Motif<textarea value={reason} onChange={function changeReason(event) { setReason(event.target.value) }} /></label>
+          <label>Raison de la modification<textarea required minLength="3" value={changeReason} onChange={function changeChangeReason(event) { setChangeReason(event.target.value) }} /></label>
           <footer><button type="button" onClick={onClose}>Annuler</button>{mode === 'edit' && <button type="button" className="attendance-detail-button--danger" disabled={saving || changeReason.trim().length < 3} onClick={deleteIncident}>Supprimer</button>}<button type="submit" disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button></footer>
         </form>
       </section>

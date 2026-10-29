@@ -57,6 +57,20 @@ def _can_read_record(db: Session, actor: Account, record_id: UUID) -> bool:
         return True
     if actor.role == "STUDENT":
         return _get_record_owner(db, record_id)["account_id"] == actor.id
+    if actor.role == "GUARDIAN":
+        return bool(db.execute(text("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM attendance_records AS record
+                JOIN attendance_events AS event ON event.id = record.attendance_event_id
+                JOIN student_enrollments AS enrollment
+                  ON enrollment.id = record.student_enrollment_id
+                JOIN student_guardians AS link
+                  ON link.student_id = enrollment.student_id
+                JOIN guardians AS guardian ON guardian.id = link.guardian_id
+                WHERE record.id = :record_id AND guardian.account_id = :account_id
+            )
+        """), {"record_id": record_id, "account_id": actor.id}).scalar_one())
     if actor.role == "TEACHER":
         return bool(db.execute(text("""
             SELECT EXISTS (
@@ -73,16 +87,20 @@ def _can_read_record(db: Session, actor: Account, record_id: UUID) -> bool:
 
 def upload_attendance_justification(
     db: Session,
-    student_account: Account,
+    submitting_account: Account,
     record_id: UUID,
     reason: str,
     upload: UploadFile | None,
+    expected_student_id: UUID | None = None,
 ) -> dict:
-    """Enregistre le fichier et place le justificatif en attente."""
+    """Enregistre le justificatif d'un élève autorisé et le place en attente."""
 
     owner = _get_record_owner(db, record_id)
-    if owner["account_id"] != student_account.id:
-        raise PermissionError("Cet incident n'appartient pas a cet eleve.")
+    if expected_student_id is not None:
+        if owner["student_id"] != expected_student_id:
+            raise PermissionError("Cet incident n'appartient pas a cet élève.")
+    elif owner["account_id"] != submitting_account.id:
+        raise PermissionError("Cet incident n'appartient pas a cet élève.")
     if owner["justification_status"] == "REJECTED":
         raise ValueError(
             "Ce justificatif a ete refuse par l'administration et ne peut plus etre soumis a nouveau."
@@ -145,7 +163,7 @@ def upload_attendance_justification(
             "mime_type": mime_type,
             "size_bytes": len(content),
             "sha256": sha256(content).hexdigest(),
-            "actor_id": student_account.id,
+            "actor_id": submitting_account.id,
         }).scalar_one_or_none()
         if document_id is None:
             raise ValueError("Le type de justificatif est indisponible.")

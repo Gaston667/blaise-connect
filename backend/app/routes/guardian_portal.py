@@ -1,4 +1,4 @@
-"""Routes du portail parents : consultation seule des enfants rattachés.
+"""Routes du portail parents : consultation des enfants et justificatifs d'absence.
 
 Chaque route `/guardian/children/{student_id}/...` vérifie d'abord que l'élève
 est bien rattaché au responsable connecté (`get_guardian_child`). Les données
@@ -8,9 +8,9 @@ chiffres vus par un parent soient exactement ceux vus par l'élève.
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
-from app.core.authentication import DatabaseSession
+from app.core.authentication import CurrentAccountDependency, DatabaseSession
 from app.core.guardian_self import CurrentGuardianDependency, get_guardian_child
 from app.schemas.guardian_child import GuardianChild
 from app.schemas.student_assessment_detail import StudentAssessmentDetail
@@ -18,6 +18,7 @@ from app.schemas.student_grade_item import StudentGradeItem
 from app.schemas.student_grade_summary import StudentGradeSummary
 from app.schemas.student_me_profile import StudentMeProfile
 from app.services import timetable_service
+from app.services.attendance_document_service import upload_attendance_justification
 from app.services.attendance_service import get_student_attendance
 from app.services.guardian_portal_service import (
     get_child_report_card,
@@ -115,14 +116,43 @@ def get_child_timetable(
 def get_child_attendance(
     student_id: UUID, db: DatabaseSession, guardian: CurrentGuardianDependency
 ):
-    """Retourne les absences et retards d'un enfant, en lecture seule (V1)."""
+    """Retourne les absences et retards d'un enfant rattaché."""
 
     student = get_guardian_child(db, guardian, student_id)
-    attendance = get_student_attendance(db, student.id)
-    # V1 : le parent consulte seulement. Le dépôt d'un justificatif viendra plus tard.
-    for incident in attendance.get("incidents", []):
-        incident["can_justify"] = False
-    return attendance
+    return get_student_attendance(db, student.id)
+
+
+@router.post(
+    "/children/{student_id}/attendance/{record_id}/justification",
+    status_code=status.HTTP_201_CREATED,
+)
+def post_child_attendance_justification(
+    student_id: UUID,
+    record_id: UUID,
+    db: DatabaseSession,
+    guardian: CurrentGuardianDependency,
+    current_account: CurrentAccountDependency,
+    reason: str = Form(...),
+    document: UploadFile | None = File(default=None),
+):
+    """Permet à un responsable de justifier l'absence de son enfant rattaché."""
+
+    student = get_guardian_child(db, guardian, student_id)
+    try:
+        return upload_attendance_justification(
+            db=db,
+            submitting_account=current_account,
+            record_id=record_id,
+            reason=reason,
+            upload=document,
+            expected_student_id=student.id,
+        )
+    except LookupError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except PermissionError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.get("/children/{student_id}/report-cards")

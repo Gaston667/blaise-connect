@@ -28,7 +28,7 @@ function statusTone(value) {
   }[value] || 'neutral'
 }
 
-export default function AttendanceIncidentTable({ records, onOpen, selfLabel = 'Moi' }) {
+export default function AttendanceIncidentTable({ records, onOpen, selfLabel = 'Moi', actionLabel, onAction, canAction = () => true }) {
   if (!records.length) {
     return <p className="attendance-empty">Aucun incident enregistré.</p>
   }
@@ -48,6 +48,13 @@ export default function AttendanceIncidentTable({ records, onOpen, selfLabel = '
           {justificationLabel(record.justification_status)}
         </span>
       )}
+      action={
+        actionLabel && onAction
+          ? (record) => (canAction(record) ? (
+              <button type="button" className="attendance-link-button" onClick={() => onAction(record)}>{actionLabel}</button>
+            ) : null)
+          : undefined
+      }
     />
     <div className="attendance-table-wrap mcards-hide">
       <table className="attendance-table">
@@ -57,7 +64,8 @@ export default function AttendanceIncidentTable({ records, onOpen, selfLabel = '
             <th>Élève</th>
             <th>Classe / matière</th>
             <th>Incident</th>
-            <th>Justification</th>
+            <th>Statut</th>
+            {actionLabel && onAction ? <th>Action</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -81,6 +89,7 @@ export default function AttendanceIncidentTable({ records, onOpen, selfLabel = '
                     {justificationLabel(record.justification_status)}
                   </span>
                 </td>
+                {actionLabel && onAction ? <td>{canAction(record) ? <button type="button" className="attendance-link-button" onClick={(event) => { event.stopPropagation(); onAction(record) }}>{actionLabel}</button> : '—'}</td> : null}
               </tr>
             )
           })}
