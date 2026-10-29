@@ -344,7 +344,7 @@
 @media (min-width: 768px) {
   .layout-sidebar-toggle {
     position: fixed;
-    top: 18px;
+    top: 40px;
     left: 218px;
     z-index: 60;
     display: grid;

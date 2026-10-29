@@ -12,7 +12,7 @@ function getInitials(kid) {
  * Puce de l'en-tête du portail parents : indique l'enfant consulté et, si le
  * responsable en a plusieurs, ouvre un panneau pour en changer.
  */
-export default function ChildSwitcher() {
+export default function ChildSwitcher({ variant = 'chip' }) {
   const { isGuardian, kids, selectedChild, selectChild, notice } = useGuardianChild()
   const [isOpen, setIsOpen] = useState(false)
 
@@ -25,22 +25,36 @@ export default function ChildSwitcher() {
     setIsOpen(false)
   }
 
-  return (
-    <>
-      <button
-        type="button"
-        className="csw-chip"
-        onClick={canSwitch ? () => setIsOpen(true) : undefined}
-        aria-haspopup={canSwitch ? 'dialog' : undefined}
-        aria-label={`Enfant consulté : ${selectedChild.first_name} ${selectedChild.last_name}`}
-      >
-        <span className="csw__avatar" aria-hidden="true">{getInitials(selectedChild)}</span>
+  const isBar = variant === 'bar'
+  const switchButton = (
+    <button
+      type="button"
+      className={isBar ? 'csw-chip csw-chip--flat' : 'csw-chip'}
+      onClick={canSwitch ? () => setIsOpen(true) : undefined}
+      aria-haspopup={canSwitch ? 'dialog' : undefined}
+      aria-label={`Enfant consulté : ${selectedChild.first_name} ${selectedChild.last_name}`}
+    >
+      <span className="csw__avatar" aria-hidden="true">{getInitials(selectedChild)}</span>
+      {isBar ? (
+        <strong className="csw-chip__name">{selectedChild.first_name} {selectedChild.last_name}</strong>
+      ) : (
         <span className="csw-chip__text">
           <small>Vous consultez</small>
           <strong>{selectedChild.first_name}</strong>
         </span>
-        {canSwitch ? <ChevronDown aria-hidden="true" size={16} /> : null}
-      </button>
+      )}
+      {canSwitch ? <ChevronDown aria-hidden="true" size={16} /> : null}
+    </button>
+  )
+
+  return (
+    <>
+      {isBar ? (
+        <div className="csw-bar">
+          <span className="csw-bar__label">Vous consultez</span>
+          {switchButton}
+        </div>
+      ) : switchButton}
 
       {isOpen ? (
         <div className="csw-sheet-backdrop" onClick={() => setIsOpen(false)}>

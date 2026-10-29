@@ -14,6 +14,7 @@ export default function AppHeader({
   onLogoutSuccess,
 }) {
   return (
+    <>
     <header className="layout-header">
       <button
         className="layout-menu-button"
@@ -23,9 +24,11 @@ export default function AppHeader({
       >
         <Menu aria-hidden="true" size={23} />
       </button>
-      {/* Sur l'accueil du portail parents, le sélecteur est dans le bandeau de bienvenue. */}
-      {currentPage === 'home' ? null : <ChildSwitcher />}
       <HeaderUserMenu account={account} onLogoutSuccess={onLogoutSuccess} />
     </header>
+    {/* Sur l'accueil du portail parents, le sélecteur est dans le bandeau de bienvenue ;
+        partout ailleurs, une fine barre sous l'en-tête indique l'enfant consulté. */}
+    {currentPage === 'home' ? null : <ChildSwitcher variant="bar" />}
+    </>
   )
 }
