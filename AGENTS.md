@@ -746,14 +746,33 @@ Avant d'écrire :
 
 Pendant l'écriture :
 
+- créer une migration uniquement si la base change : table, colonne, contrainte,
+  index, fonction PostgreSQL, trigger, droits SQL ou transformation de données ;
+  un changement seulement frontend ou backend n'en nécessite pas ;
+- utiliser le prochain numéro disponible sur trois chiffres, suivi d'un nom anglais
+  explicite : `013_guardian_absence_justification.sql` ; ne jamais renuméroter
+  les migrations existantes ;
 - créer une migration petite et cohérente ;
+- commencer le fichier par un commentaire indiquant son objectif, sa nature
+  (additive, corrective ou destructive), son impact sur les données existantes
+  et son éventuel risque de verrouillage ;
 - nommer chaque contrainte et index ;
 - ajouter les contraintes dans un ordre compatible avec les données existantes ;
+- pour une nouvelle colonne obligatoire, prévoir une valeur par défaut, une étape
+  de remplissage, ou l'ajouter d'abord facultative avant de la rendre `NOT NULL` ;
 - pour une grosse table, envisager `NOT VALID`, nettoyer les données puis `VALIDATE CONSTRAINT` ;
 - éviter les verrous longs et expliquer tout risque de blocage ;
 - ne jamais modifier une migration déjà appliquée dans un environnement partagé ;
+- une migration uniquement locale, jamais appliquée ni envoyée sur le dépôt
+  distant, peut être réécrite, renommée ou fusionnée avant validation ;
+- dès qu'une migration est poussée sur le dépôt distant, récupérée par un autre
+  développeur ou appliquée sur une base, elle devient immuable : ne pas la
+  fusionner, la renuméroter, la renommer ou modifier son contenu ;
+- si deux migrations déjà partagées semblent pouvoir être fusionnées, les garder
+  séparées : leur ordre et leur identité font partie de l'historique de la base ;
 - créer une nouvelle migration corrective ;
-- ne pas exécuter automatiquement une migration destructive.
+- ne pas exécuter automatiquement une migration destructive ; une suppression de
+  table, colonne ou données exige une validation explicite et une sauvegarde.
 
 Après l'écriture :
 
@@ -762,7 +781,35 @@ Après l'écriture :
 3. tester les contraintes avec des insertions valides et invalides ;
 4. tester le retour arrière si l'outil et l'opération le permettent ;
 5. produire un `pg_dump --schema-only` ou une inspection équivalente pour vérifier le schéma final ;
-6. annoncer les commandes réellement exécutées et leurs résultats.
+6. ajouter le code applicatif et les tests qui utilisent ce changement dans le même lot ;
+7. annoncer les commandes réellement exécutées et leurs résultats.
+
+### 8.1 Suivi des migrations
+
+- Les migrations sont appliquées une seule fois et dans l'ordre de leur numéro.
+- Le projet doit maintenir une table `schema_migrations` indiquant au minimum le
+  numéro, le nom du fichier, la date d'application et son empreinte SHA-256.
+- Une vérification au démarrage ne remplace pas cet historique : elle sert
+  seulement à donner un message clair lorsque la base ne contient pas une
+  évolution attendue par l'API.
+- Avant un déploiement, annoncer explicitement les migrations à appliquer et ne
+  redéployer l'API qu'après leur succès.
+
+### 8.2 Tests de bout en bout (E2E)
+
+- Les contrôles qui couvrent l'application entière sont rangés dans `tests/e2e/`.
+  Ils sont distincts des tests backend de `backend/tests/`, car ils utilisent un
+  navigateur ou un serveur réellement démarré.
+- `tests/e2e/mobile_layout_check.py` est exécuté avant un tag `RC` et avant une
+  démonstration. Il vérifie l'affichage mobile, mais ne bloque pas à lui seul une
+  production tant qu'il dépend de données fictives.
+- `tests/e2e/check_production_security.py` est exécuté après chaque déploiement
+  VPS, depuis le PC du développeur et contre l'adresse HTTPS du site ; il n'est
+  jamais installé ni exécuté sur le VPS. Un échec de sécurité doit être corrigé
+  avant de déclarer le déploiement valide.
+- Les identifiants de test ne doivent jamais rester codés en dur, dans une
+  variable d'environnement, dans un fichier `.env` ou dans la ligne de commande :
+  les scripts E2E les demandent interactivement au lancement.
 
 ## 9. Règles pour SQL et PL/pgSQL
 

@@ -7,23 +7,40 @@ Vérifie, sur des écrans de 360 et 390 px de large :
 Vérifie aussi l'emploi du temps (vue jour, onglets des jours, navigation par semaine)
 pour l'élève, le parent et l'enseignant.
 
-Prérequis : application démarrée (docker compose up), `pip install playwright`,
-navigateur Edge ou Chrome installé.
+Prérequis : application démarrée (docker compose up), `pip install playwright`
+et navigateur Edge ou Chrome installé. Les matricules sont demandés au lancement
+et le mot de passe est saisi de façon masquée ; aucun identifiant ni mot de passe
+n'est enregistré dans Git.
 
-    python e2e/mobile_layout_check.py                    # http://localhost:5173
-    python e2e/mobile_layout_check.py http://10.0.0.5:5173
+    python tests/e2e/mobile_layout_check.py                    # http://localhost:5173
+    python tests/e2e/mobile_layout_check.py http://10.0.0.5:5173
+
 Code de sortie : 0 si tout est bon, 1 sinon.
 """
 
+from getpass import getpass
 import sys
 
 from playwright.sync_api import sync_playwright
 
 BASE = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://localhost:5173"
-PASSWORD = "Password123!"
-ROLES = [("admin", "a000001"), ("enseignant", "e000001"), ("élève", "u000003"), ("parent", "p000002")]
 WIDTHS = (360, 390)
 MIN_TARGET = 40
+
+
+def ask_test_accounts():
+    """Demande les comptes de test sans conserver ni afficher leurs secrets."""
+
+    password = getpass("Mot de passe commun des comptes de test : ").strip()
+    roles = []
+    for label in ("admin", "enseignant", "élève", "parent"):
+        registration_number = input(f"Matricule {label} de test : ").strip()
+        if not registration_number:
+            raise SystemExit(f"Le matricule {label} est obligatoire.")
+        roles.append((label, registration_number))
+    if not password:
+        raise SystemExit("Le mot de passe de test est obligatoire.")
+    return password, roles
 
 MEASURE = """
 () => {
@@ -46,11 +63,11 @@ MEASURE = """
 """ % (MIN_TARGET, MIN_TARGET)
 
 
-def login(page, user):
+def login(page, user, password):
     page.goto(BASE)
     page.wait_for_selector("input[name=connexionRegistrationNumber]")
     page.fill("input[name=connexionRegistrationNumber]", user)
-    page.fill("input[name=connexionPassword]", PASSWORD)
+    page.fill("input[name=connexionPassword]", password)
     page.click("button[type=submit]")
     page.wait_for_selector(".layout-header", timeout=20000)
     page.wait_for_timeout(1500)
@@ -73,12 +90,13 @@ def page_keys(page):
 
 
 def main():
+    password, roles = ask_test_accounts()
     failures = []
     checked = 0
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="msedge", headless=True)
         for width in WIDTHS:
-            for role, user in ROLES:
+            for role, user in roles:
                 context = browser.new_context(
                     viewport={"width": width, "height": 844}, device_scale_factor=1.5,
                     is_mobile=True, has_touch=True, locale="fr-FR",
@@ -87,7 +105,7 @@ def main():
                 problems = []
                 page.on("pageerror", lambda e: problems.append(f"erreur JavaScript : {str(e)[:100]}"))
                 page.on("response", lambda r: problems.append(f"réponse {r.status} : {r.url[-60:]}") if r.status >= 500 else None)
-                login(page, user)
+                login(page, user, password)
                 keys = page_keys(page)
                 page.reload()
                 page.wait_for_selector(".layout-header")
@@ -114,11 +132,13 @@ def main():
                 context.close()
 
         # ---- emploi du temps : vue jour et navigation par semaine
-        for role, user, key in (("élève", "u000003", "student-timetable"), ("parent", "p000002", "student-timetable"),
-                                ("enseignant", "e000001", "teacher-timetable")):
+        accounts = dict(roles)
+        for role, user, key in (("élève", accounts["élève"], "student-timetable"),
+                                ("parent", accounts["parent"], "student-timetable"),
+                                ("enseignant", accounts["enseignant"], "teacher-timetable")):
             context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, locale="fr-FR")
             page = context.new_page()
-            login(page, user)
+            login(page, user, password)
             open_menu(page)
             page.locator(f"[data-page='{key}']").first.click()
             page.wait_for_selector(".stp-week-nav", timeout=10000)

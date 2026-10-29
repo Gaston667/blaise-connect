@@ -13,8 +13,8 @@
 |---|---|---|---|---|
 | Logique pure (planificateur, schémas, services) | `backend/tests/services`, `backend/tests/schemas` | non | quelques secondes | commande 1 |
 | API et base de développement | `backend/tests/integration` | oui, **transaction annulée** | environ 1 minute 30 (130 tests) | commande 2 |
-| Affichage sur téléphone | `e2e/mobile_layout_check.py` | oui (application démarrée) | 2 à 3 minutes | commande 3 |
-| Sécurité d'un serveur en ligne | `e2e/check_production_security.py` | non (aucune écriture) | quelques secondes | commande 4 |
+| Affichage sur téléphone | `tests/e2e/mobile_layout_check.py` | oui (application démarrée) | 2 à 3 minutes | commande 3 |
+| Sécurité d'un serveur en ligne | `tests/e2e/check_production_security.py` | non (aucune écriture) | quelques secondes | commande 4 |
 
 ```bash
 # 1. logique pure (sans base)
@@ -24,10 +24,15 @@ docker exec -w /app container-backend python -m unittest discover -s tests -t .
 docker exec -e RUN_DB_TESTS=1 -w /app container-backend python -m unittest discover -s tests -t .
 
 # 3. affichage mobile (pip install playwright ; Edge ou Chrome installé)
-python e2e/mobile_layout_check.py
+# Le script demande les quatre matricules de test et le mot de passe au lancement.
+python tests/e2e/mobile_layout_check.py
 
 # 4. sécurité d'un serveur en ligne (le VPS) ; compte de test uniquement
-python e2e/check_production_security.py https://ecole.example.com --api-prefix /api --login a000001:MotDePasseDeTest
+python tests/e2e/check_production_security.py https://portail.blaiseconnect.fr --api-prefix /api
+
+Les scripts sont exécutés depuis le PC du développeur. Ils demandent les
+identifiants de test au lancement : ne les placer ni dans Git, ni dans un fichier
+`.env`, ni dans la ligne de commande.
 ```
 
 Sans `RUN_DB_TESTS=1`, les tests qui touchent la base sont simplement ignorés. Les tests d'intégration partagent une seule session SQL dont les `commit` sont remplacés par des `flush` : les données de développement ne bougent jamais.
@@ -80,11 +85,11 @@ Sans `RUN_DB_TESTS=1`, les tests qui touchent la base sont simplement ignorés. 
 - Planificateur : 20 tests de logique pure (barrettes, plafonds, répartition, créneaux verrouillés…).
 - Base : génération de toutes les classes sans conflit de professeur ni de salle, sans spécialités simultanées, plafonds d'heures respectés, publication groupée, publication partielle refusée, créneau verrouillé conservé, cours particulier refusé pendant les cours de l'élève et accepté sur un créneau libre, API qui refuse de démarrer si une migration manque.
 
-### Affichage mobile (`e2e/mobile_layout_check.py`)
+### Affichage mobile (`tests/e2e/mobile_layout_check.py`)
 - 4 rôles × toutes les pages du menu × 2 largeurs (360 et 390 px) : aucun défilement horizontal, aucune erreur JavaScript ni réponse 5xx, zones tactiles d'au moins 40 px.
 - Emploi du temps de l'élève, du parent et de l'enseignant : onglets des jours, navigation par semaine, semaine vide, cours de la semaine courante.
 
-### Sécurité en ligne (`e2e/check_production_security.py`)
+### Sécurité en ligne (`tests/e2e/check_production_security.py`)
 Redirection HTTP vers HTTPS, HSTS, en-têtes, documentation fermée, hôte inconnu, CORS, routes et photos protégées, attributs du cookie (`Secure` compris). À lancer contre le VPS : **ce contrôle n'a été exécuté qu'en local, pas encore sur le serveur de production.**
 
 ## 3. Ce qui ne peut pas être automatisé ici 🖐️

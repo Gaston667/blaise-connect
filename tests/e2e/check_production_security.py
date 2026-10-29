@@ -4,16 +4,17 @@ Vérifie : redirection HTTP vers HTTPS, HSTS, en-têtes de sécurité, documenta
 exposée, hôte inconnu refusé, CORS fermé, routes protégées sans connexion, fichiers privés
 fermés, et (si on fournit un compte de test) les attributs du cookie de session.
 
-    python e2e/check_production_security.py https://ecole.example.com
-    python e2e/check_production_security.py https://ecole.example.com --api-prefix /api \
-        --login a000001:MotDePasseDeTest
-    python e2e/check_production_security.py http://localhost:8000 --allow-http     # essai en local
+    python tests/e2e/check_production_security.py https://ecole.example.com
+    python tests/e2e/check_production_security.py https://ecole.example.com --api-prefix /api
+    python tests/e2e/check_production_security.py http://localhost:8000 --allow-http  # essai local
 
-Code de sortie : 0 si tout est conforme, 1 sinon. N'écrit rien sur le serveur (une connexion de test
-est créée seulement si --login est donné ; utilisez un compte de test, jamais un vrai compte).
+Code de sortie : 0 si tout est conforme, 1 sinon. N'écrit rien sur le serveur. Le
+script peut demander un compte de test pour contrôler le cookie de session ; il ne
+doit jamais s'agir d'un vrai compte.
 """
 
 import argparse
+from getpass import getpass
 import json
 import ssl
 import sys
@@ -43,7 +44,6 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("base_url")
     parser.add_argument("--api-prefix", default="", help="préfixe de l'API (ex. /api)")
-    parser.add_argument("--login", help="matricule:mot_de_passe d'un compte de test")
     parser.add_argument("--allow-http", action="store_true", help="accepte HTTP (essai en local)")
     args = parser.parse_args()
 
@@ -51,6 +51,15 @@ def main():
     api = base + args.api_prefix.rstrip("/")
     parts = urlsplit(base)
     results: list[tuple[str, bool, str]] = []
+
+    wants_login_check = input("Vérifier aussi le cookie avec un compte de test ? [o/N] : ").strip().lower()
+    login = None
+    if wants_login_check in {"o", "oui", "y", "yes"}:
+        registration_number = input("Matricule du compte de test : ").strip()
+        password = getpass("Mot de passe du compte de test : ").strip()
+        if not registration_number or not password:
+            raise SystemExit("Le matricule et le mot de passe de test sont obligatoires.")
+        login = f"{registration_number}:{password}"
 
     def check(name, ok, detail=""):
         results.append((name, bool(ok), detail))
@@ -91,14 +100,14 @@ def main():
     for path in ("/auth/me", "/students/", "/accounts", "/report-cards", "/guardian/children"):
         status, _, _ = call(api + path)
         check(f"Refusé sans connexion : {path}", status == 401, f"statut {status}")
-    status, _, _ = call(api + "/media/accounts/a000001/photos/profile-photo.jpg")
+    status, _, _ = call(api + "/media/accounts/nonexistent-test-account/photos/profile-photo.jpg")
     check("Photos privées fermées sans connexion", status == 401, f"statut {status}")
     status, _, _ = call(api + "/media/accounts/..%2F..%2Fetc/photos/passwd")
     check("Traversée de dossier refusée", status in (400, 401, 404, 422), f"statut {status}")
 
     # ---- cookie de session
-    if args.login:
-        matricule, _, password = args.login.partition(":")
+    if login:
+        matricule, _, password = login.partition(":")
         status, headers, _ = call(api + "/auth/login", method="POST",
                                   headers={"Content-Type": "application/json"},
                                   data=json.dumps({"registration_number": matricule, "password": password}).encode())
