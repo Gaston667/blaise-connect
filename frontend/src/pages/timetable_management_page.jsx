@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   BookOpen,
@@ -642,6 +642,7 @@ export default function TimetableManagementPage() {
   const [breakForm, setBreakForm] = useState(EMPTY_BREAK_FORM)
   const [savingConfiguration, setSavingConfiguration] = useState(false)
   const [classDataLoading, setClassDataLoading] = useState(false)
+  const scrollToDraftRef = useRef(null)
   const [savingSlot, setSavingSlot] = useState(false)
   const [deletingSlotId, setDeletingSlotId] = useState('')
   const [publishing, setPublishing] = useState(false)
@@ -791,6 +792,20 @@ export default function TimetableManagementPage() {
     }).filter(Boolean)).size
   }, [savedSlots])
 
+  function scrollToDraftPreview() {
+    document.querySelector('.tmp-draft-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // Après un changement de classe, on attend la fin du chargement : la mise en page bouge avant.
+  useEffect(function scrollToOpenedDraft() {
+    if (scrollToDraftRef.current === 'waiting' && classDataLoading) {
+      scrollToDraftRef.current = 'loading'
+    } else if (scrollToDraftRef.current === 'loading' && !classDataLoading) {
+      scrollToDraftRef.current = null
+      window.setTimeout(scrollToDraftPreview, 100)
+    }
+  }, [classDataLoading])
+
   function openClassPicker() {
     setPendingClassId(selectedClassId)
     setShowClassPicker(true)
@@ -803,6 +818,19 @@ export default function TimetableManagementPage() {
     setBuildMode(null)
     setVisibleWeekStart('')
     setShowClassPicker(false)
+  }
+
+  function openGeneratedClassTimetable(classId) {
+    const isSameClass = classId === selectedClassId
+    setSelectedClassId(classId)
+    setActiveTab('build')
+    setBuildMode('generate')
+    setShowClassPicker(false)
+    if (isSameClass) {
+      window.setTimeout(scrollToDraftPreview, 100)
+    } else {
+      scrollToDraftRef.current = 'waiting'
+    }
   }
 
   function handleTabClick(tab) {
@@ -1112,7 +1140,7 @@ export default function TimetableManagementPage() {
 
       <TimetableAlerts key={alertsVersion} />
 
-      <GenerateAllTimetables onGenerated={function refreshSelectedClass() { setAlertsVersion((current) => current + 1); return selectedClassId ? refreshTimetable() : undefined }} />
+      <GenerateAllTimetables onSelectClass={openGeneratedClassTimetable} onGenerated={function refreshSelectedClass() { setAlertsVersion((current) => current + 1); return selectedClassId ? refreshTimetable() : undefined }} />
 
       {error && <p className="tmp-error" role="alert">{error}</p>}
 

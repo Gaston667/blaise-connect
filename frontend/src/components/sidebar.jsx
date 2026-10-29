@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   BookOpen, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Compass, ContactRound,
-  FileText, GraduationCap, House, NotebookPen, Presentation, ShieldCheck, UserRoundX,
+  FileText, GraduationCap, House, LifeBuoy, NotebookPen, Presentation, ShieldCheck, UserRoundX,
   Users, X,
 } from 'lucide-react'
 
@@ -32,6 +32,7 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
   const [activeSection, setActiveSection] = useState(
     isAccountManagementPage(currentPage) ? 'accounts' : null,
   )
+  const isHelpSection = activeSection === 'help'
 
   useEffect(function revealCurrentAccountSection() {
     if (isAccountManagementPage(currentPage)) setActiveSection('accounts')
@@ -39,12 +40,21 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
 
   function navigate(page) { onNavigate(page); onClose() }
   function openAccountsSection() { setActiveSection('accounts') }
+  function openHelpSection() { setActiveSection('help') }
   function returnToMainNavigation() { setActiveSection(null) }
+  function startTour() { onStartTour?.(); onClose() }
 
   return <aside className={isOpen ? 'layout-sidebar layout-sidebar-open' : 'layout-sidebar'}>
     <div className="layout-sidebar-brand"><img className="layout-logo" src={logo} alt="Logo BlaiseConnect" /><button className="layout-sidebar-close" type="button" onClick={onClose} aria-label="Fermer le menu"><X size={22} /></button></div>
     <nav className="layout-navigation" aria-label="Navigation principale">
-      {activeSection === 'accounts' ? <>
+      {isHelpSection ? <>
+        <button type="button" className="layout-navigation-back" onClick={returnToMainNavigation}>
+          <ChevronLeft aria-hidden="true" size={18} /> Aide
+        </button>
+        <button type="button" className="layout-navigation-item" onClick={startTour}>
+          <Compass size={20} /> Visite guidée
+        </button>
+      </> : activeSection === 'accounts' ? <>
         <button type="button" className="layout-navigation-back" onClick={returnToMainNavigation}>
           <ChevronLeft aria-hidden="true" size={18} /> Gestion des comptes
         </button>
@@ -67,6 +77,7 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
           <NavigationButton page="report-cards" currentPage={currentPage} onNavigate={navigate} icon={<FileText size={20} />} disabled>Bulletins</NavigationButton>
           <NavigationButton page="timetables" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Emploi du temps</NavigationButton>
           <NavigationButton page="school-years" currentPage={currentPage} onNavigate={navigate} icon={<CalendarRange size={20} />}>Années scolaires</NavigationButton>
+          <NavigationGroupButton label="Aide" icon={<LifeBuoy size={20} />} active={false} onOpen={openHelpSection} />
         </> : null}
         {isStudent ? <>
           <NavigationButton page="student-grades" currentPage={currentPage} onNavigate={navigate} icon={<NotebookPen size={20} />}>Mes notes</NavigationButton>
@@ -82,12 +93,5 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
         {isTeacher ? <NavigationButton page="teacher-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Mon emploi du temps</NavigationButton> : null}
       </>}
     </nav>
-    {isAdmin ? (
-      <div className="sidebar-bottom-card">
-        <button type="button" className="sidebar-tour-button" onClick={() => { onStartTour?.(); onClose() }}>
-          <Compass size={17} /> Visite guidée
-        </button>
-      </div>
-    ) : null}
   </aside>
 }

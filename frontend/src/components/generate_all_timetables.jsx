@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle2, Loader2, Wand2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronRight, Loader2, Wand2 } from 'lucide-react'
 
 import { generateAllTimetables, publishAllTimetables } from '../services/timetable_service.js'
 
@@ -8,7 +8,7 @@ function formatHours(minutes) {
 }
 
 /** Génère d'un coup les brouillons de toutes les classes, puis résume le résultat par classe. */
-export default function GenerateAllTimetables({ onGenerated }) {
+export default function GenerateAllTimetables({ onGenerated, onSelectClass }) {
   const [isOpen, setIsOpen] = useState(false)
   const [dates, setDates] = useState({ start: '', end: '' })
   const [isRunning, setIsRunning] = useState(false)
@@ -120,7 +120,20 @@ export default function GenerateAllTimetables({ onGenerated }) {
           )}
           <ul className="tmp-generate-all__classes">
             {result.classes.map((item) => (
-              <li key={item.class_id} className={item.complete ? 'is-complete' : 'is-incomplete'}>
+              <li
+                key={item.class_id}
+                className={item.complete ? 'is-complete' : 'is-incomplete'}
+                role="button"
+                tabIndex={0}
+                title={`Voir l’emploi du temps de ${item.class_name}`}
+                onClick={() => onSelectClass?.(item.class_id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    onSelectClass?.(item.class_id)
+                  }
+                }}
+              >
                 {item.complete ? <CheckCircle2 aria-hidden="true" size={16} /> : <AlertTriangle aria-hidden="true" size={16} />}
                 <div>
                   <strong>{item.class_name}</strong> — {item.slots_count} créneaux
@@ -138,6 +151,7 @@ export default function GenerateAllTimetables({ onGenerated }) {
                   )}
                   {item.adjustments.length > 0 && <small>{item.adjustments.join(' ')}</small>}
                 </div>
+                <ChevronRight aria-hidden="true" size={18} className="tmp-generate-all__open" />
               </li>
             ))}
           </ul>

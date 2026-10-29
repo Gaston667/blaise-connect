@@ -355,6 +355,11 @@
 .tmp-generate-all__classes > li { display: flex; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-subtle, #f5f7fb); }
 .tmp-generate-all__classes > li.is-complete svg { color: #1f9d55; flex: 0 0 auto; }
 .tmp-generate-all__classes > li.is-incomplete svg { color: #c2410c; flex: 0 0 auto; }
+.tmp-generate-all__classes > li { cursor: pointer; border: 1px solid transparent; transition: background 0.15s, border-color 0.15s; }
+.tmp-generate-all__classes > li:hover { background: var(--color-primary-lighter); border-color: var(--color-primary); }
+.tmp-generate-all__classes > li:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.tmp-generate-all__classes > li > div { flex: 1; min-width: 0; }
+.tmp-generate-all__classes > li svg.tmp-generate-all__open { margin-left: auto; align-self: center; color: var(--color-text-muted); }
 .tmp-generate-all__classes ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); font-size: var(--font-size-sm); }
 .tmp-generate-all__classes small { display: block; margin-top: var(--space-1); color: var(--color-text-muted); }
 .tmp-spin { animation: tmp-spin 1s linear infinite; }
