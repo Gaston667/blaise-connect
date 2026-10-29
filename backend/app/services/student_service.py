@@ -311,6 +311,7 @@ def enroll_student(
         class_id=enrollment_data.class_id,
         level_code=school_class.level_code,
         subject_ids=enrollment_data.specialty_subject_ids,
+        student_id=student_id,
     )
 
     if open_enrollment is not None:

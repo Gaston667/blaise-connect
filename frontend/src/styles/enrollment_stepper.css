@@ -1,0 +1,44 @@
+.enroll-stepper { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.enroll-stepper__count { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+.enroll-stepper__count strong { color: var(--color-primary); }
+
+.enroll-stepper__steps { display: flex; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.enroll-stepper__steps li { position: relative; display: grid; flex: 1; justify-items: center; gap: 4px; min-width: 0; color: var(--color-text-muted); text-align: center; }
+/* trait entre deux étapes */
+.enroll-stepper__steps li:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 13px;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--table-border, #d5deea);
+  z-index: 0;
+}
+.enroll-stepper__steps li.is-done:not(:first-child)::before,
+.enroll-stepper__steps li.is-current:not(:first-child)::before { background: var(--color-primary); }
+
+.enroll-stepper__bullet {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--table-border, #d5deea);
+  border-radius: 50%;
+  background: var(--color-surface);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.enroll-stepper__steps li.is-current .enroll-stepper__bullet { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
+.enroll-stepper__steps li.is-done .enroll-stepper__bullet { border-color: var(--color-primary); background: var(--color-primary-lighter); color: var(--color-primary); }
+.enroll-stepper__steps li.is-current small { color: var(--color-primary); font-weight: 700; }
+.enroll-stepper__steps small { font-size: 0.72rem; line-height: 1.2; overflow-wrap: anywhere; }
+
+.enroll-recap { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--table-border, #d5deea); border-radius: var(--radius-md); background: var(--color-surface-subtle, #f5f7fb); }
+.enroll-recap div { display: flex; justify-content: space-between; gap: var(--space-3); }
+.enroll-recap dt { color: var(--color-text-secondary); }
+.enroll-recap dd { margin: 0; font-weight: 600; text-align: right; }
+.enroll-note { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--color-primary-lighter); color: var(--color-primary); font-size: var(--font-size-sm); }
+.enroll-note--warning { background: #fff8e6; color: #7a4b00; }

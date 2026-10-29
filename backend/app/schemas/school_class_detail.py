@@ -14,6 +14,7 @@ class SchoolClassDetail(BaseModel):
     created_at: datetime
     updated_at: datetime
     level_name: str
+    level_code: str
     school_year_name: str
     school_year_start: date
     school_year_end: date

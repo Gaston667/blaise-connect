@@ -244,6 +244,16 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
   `database/init/080_official_weekly_volumes.sql`), arrondis à l'heure pleine. Une
   matière sans ligne de volume n'est pas planifiée mais reste dans la classe.
 
+### 3.9 bis Spécialités en Terminale
+
+- En Terminale, les spécialités choisies doivent faire partie de celles suivies
+  par l'élève lors de sa dernière inscription en Première. Un élève sans Première
+  avec spécialités (arrivée directe en Terminale) n'est pas restreint.
+- `GET /students/{id}/specialty-options?class_id=...` (administrateur) donne les
+  spécialités à proposer ; la validation est refusée côté serveur sinon.
+- L'inscription est guidée par un compteur d'étapes (classe/élève, spécialités,
+  confirmation) sur la fiche élève et sur la page de la classe.
+
 ### 3.10 Portail responsable légal
 
 - Un compte `GUARDIAN` peut se connecter. Il ne voit que les élèves non archivés
@@ -254,9 +264,10 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
   bulletins. Seuls les bulletins validés sont visibles par la famille.
 - Un responsable qui a plusieurs enfants choisit l'enfant consulté ; les chiffres
   affichés sont produits par les mêmes services que l'espace élève.
-- Le dépôt d'un justificatif par le parent et un journal des consultations ne sont
-  pas encore implémentés ; ils demanderont une validation puis, pour le journal,
-  une nouvelle migration.
+- Le parent peut déposer un justificatif d'absence de son enfant (motif et pièce jointe,
+  délai de 7 jours) ; l'administration l'accepte ou le refuse. Le journal des
+  consultations n'est pas encore implémenté ; il demandera une validation puis une
+  nouvelle migration.
 
 ## 4. Conventions PostgreSQL obligatoires
 

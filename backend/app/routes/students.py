@@ -8,6 +8,7 @@ from app.schemas.student_specialties_update import (
 
 from app.services.student_specialty_service import (
     list_available_student_specialties,
+    list_specialty_options_for_class,
     list_student_specialties,
     update_student_specialties,
 )
@@ -443,6 +444,24 @@ def get_available_student_specialties_route(
             detail=str(error),
         ) from error
     
+
+
+@router.get("/{student_id}/specialty-options")
+def get_student_specialty_options_route(
+    student_id: UUID,
+    class_id: UUID,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Spécialités à proposer pour inscrire l'élève dans une classe (Terminale : celles de Première)."""
+
+    try:
+        return list_specialty_options_for_class(db=db, student_id=student_id, class_id=class_id)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
 
 
 @router.put("/{student_id}/specialties")

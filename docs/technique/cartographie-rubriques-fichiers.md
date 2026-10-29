@@ -376,10 +376,14 @@ Ce document indique, pour chaque rubrique de BlaiseConnect, les principaux fichi
 ## Documentation et suivi
 
 - `AGENTS.md` : règles globales du projet.
-- `docs/carnet-de-stage.md` : avancement court du projet.
-- `docs/architecture-technique.md` : architecture générale.
-- `docs/administration/journal-des-decisions-blaiseconnect.md` : décisions métier.
-- `docs/administration/product-backlog-blaiseconnect-v0.1.md` : backlog.
-- `docs/administration/sprint-planning-blaiseconnect-5-semaines.md` : sprint planning.
+- `docs/projet/carnet-de-stage.md` : avancement court du projet.
+- `docs/technique/architecture-technique.md` : architecture générale.
+- `docs/projet/liste-de-taches-blaiseconnect.md` : suivi des tâches (remplace le journal des décisions).
+- `docs/projet/product-backlog-blaiseconnect-v0.1.md` : backlog.
+- `docs/projet/sprint-planning-blaiseconnect-5-semaines.md` : sprint planning.
+- `docs/README.md` : sommaire de toute la documentation.
+- `docs/idee.md` : idées à discuter (à deux).
+- `docs/fonctionnel/fonctionnement-emploi-du-temps.md` : fonctionnement de l'emploi du temps.
+- `docs/technique/tests-automatises.md` : tests automatisés et commandes.
 - `docs/diagramme/*.plantuml` : diagrammes.
 - `database/docs/RAPPORT_SECURITE_BD.md` : sécurité base de données.

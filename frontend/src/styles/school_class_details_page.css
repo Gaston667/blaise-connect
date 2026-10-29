@@ -165,3 +165,13 @@
   color: var(--color-text-secondary);
   font-size: 0.8rem;
 }
+
+/* Choix des spécialités à l'inscription */
+.scd-enroll-hint { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--color-primary-lighter); color: var(--color-primary); font-size: var(--font-size-sm); }
+.scd-enroll-specialties { display: grid; gap: var(--space-3); }
+.scd-enroll-specialties h4 { margin: 0; }
+.scd-enroll-specialties p { margin: 0; color: var(--color-text-secondary); }
+.scd-enroll-specialties__list { display: grid; gap: var(--space-2); }
+.scd-enroll-specialty { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--table-border, #d5deea); border-radius: var(--radius-md); cursor: pointer; }
+.scd-enroll-specialty input { width: 20px; height: 20px; }
+.scd-enroll-specialties__actions { display: flex; justify-content: flex-end; gap: var(--space-2); }

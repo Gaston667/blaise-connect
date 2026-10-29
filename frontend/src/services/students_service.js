@@ -200,3 +200,17 @@ export function updateStudentSpecialties(studentId, subjectIds) {
     },
   )
 }
+
+/**
+ * Spécialités à proposer pour inscrire l'élève dans une classe.
+ * En Terminale, seules celles suivies en Première sont proposées.
+ */
+export function getStudentSpecialtyOptions(studentId, classId) {
+  return apiRequestJson(
+    `${STUDENTS_API_URL}${studentId}/specialty-options?class_id=${encodeURIComponent(classId)}`,
+    {
+      method: 'GET',
+      fallbackMessage: 'Impossible de charger les spécialités proposées.',
+    },
+  )
+}

@@ -150,7 +150,7 @@ def compile_report_card_preview(report_card: dict) -> bytes:
             ),
             status_code=502,
         ) from error
-    except URLError as error:
+    except (URLError, TimeoutError, OSError) as error:
         raise AppError(
             code=ErrorCodes.LATEX_REMOTE_UNAVAILABLE,
             message="Le service distant de génération PDF est indisponible.",

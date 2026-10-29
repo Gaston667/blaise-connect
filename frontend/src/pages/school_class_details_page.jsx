@@ -28,7 +28,8 @@ import {
   getTeachers,
   updateSchoolClass,
 } from '../services/school_classes_overview_service.js'
-import { enrollStudent, listStudents } from '../services/students_service.js'
+import EnrollmentStepper from '../components/enrollment_stepper.jsx'
+import { enrollStudent, getStudentSpecialtyOptions, listStudents } from '../services/students_service.js'
 import { createTeacherAssignment } from '../services/teachers_overview_service.js'
 import './../styles/school_class_details_page.css'
 
@@ -88,6 +89,11 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
   const [enrollmentStartDate, setEnrollmentStartDate] = useState('')
   const [enrolling, setEnrolling] = useState(false)
   const [enrollError, setEnrollError] = useState('')
+  const [pendingStudent, setPendingStudent] = useState(null)
+  const [enrollStage, setEnrollStage] = useState('student')
+  const [enrollOptions, setEnrollOptions] = useState(null)
+  const [optionsLoading, setOptionsLoading] = useState(false)
+  const [enrollSpecialtyIds, setEnrollSpecialtyIds] = useState([])
   const [subjects, setSubjects] = useState([])
   const [subjectSearch, setSubjectSearch] = useState('')
   const [subjectStatus, setSubjectStatus] = useState('')
@@ -361,6 +367,8 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
     setEnrollmentStartDate(computeAssignmentStartDate())
     setEnrollPickerOpen(true)
     setEnrollPickerLoading(true)
+    setEnrollStage('student')
+    setEnrollOptions(null)
     try {
       const result = await listStudents({ status: 'ACTIVE', limit: 200 })
       const candidates = Array.isArray(result) ? result : result.items ?? []
@@ -377,17 +385,84 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
   function closeEnrollPicker() {
     if (enrolling) return
     setEnrollPickerOpen(false)
+    setPendingStudent(null)
+    setEnrollSpecialtyIds([])
+    setEnrollStage('student')
+    setEnrollOptions(null)
   }
 
+  // En Première (3) et en Terminale (2), l'élève doit avoir choisi ses spécialités
+  // pour être inscrit : on les demande avant de valider l'inscription.
+  const requiredSpecialtyCount = { PREMIERE: 3, TERMINALE: 2 }[details.level_code ?? schoolClass.level_code] ?? 0
+  const enrollSteps = requiredSpecialtyCount > 0 ? ['Élève', 'Spécialités', 'Confirmation'] : ['Élève', 'Confirmation']
+  const enrollStepIndex = enrollStage === 'student' ? 0 : enrollStage === 'specialties' ? 1 : enrollSteps.length - 1
+  const chosenSpecialtyNames = (enrollOptions?.items ?? [])
+    .filter((item) => enrollSpecialtyIds.includes(String(item.subject_id)))
+    .map((item) => item.name)
+
   async function handleEnrollStudent(student) {
+    setEnrollError('')
+    setEnrollSpecialtyIds([])
+    setPendingStudent(student)
+    if (requiredSpecialtyCount === 0) {
+      setEnrollOptions(null)
+      setEnrollStage('confirm')
+      return
+    }
+    // Les spécialités proposées dépendent de l'élève (en Terminale : celles de sa Première).
+    setOptionsLoading(true)
+    try {
+      setEnrollOptions(await getStudentSpecialtyOptions(student.id, schoolClass.id))
+      setEnrollStage('specialties')
+    } catch (loadError) {
+      setPendingStudent(null)
+      setEnrollError(loadError.message)
+    } finally {
+      setOptionsLoading(false)
+    }
+  }
+
+  function goBackInEnrollment() {
+    setEnrollError('')
+    if (enrollStage === 'confirm' && requiredSpecialtyCount > 0) {
+      setEnrollStage('specialties')
+      return
+    }
+    setPendingStudent(null)
+    setEnrollStage('student')
+  }
+
+  function goForwardInEnrollment() {
+    if (enrollSpecialtyIds.length !== requiredSpecialtyCount) {
+      setEnrollError(`Sélectionnez exactement ${requiredSpecialtyCount} spécialité${requiredSpecialtyCount > 1 ? 's' : ''}.`)
+      return
+    }
+    setEnrollError('')
+    setEnrollStage('confirm')
+  }
+
+  function toggleEnrollSpecialty(subjectId) {
+    const id = String(subjectId)
+    setEnrollSpecialtyIds((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id)
+      return current.length >= requiredSpecialtyCount ? current : [...current, id]
+    })
+  }
+
+  async function confirmEnrollment(student, specialtyIds) {
     setEnrolling(true)
     setEnrollError('')
     try {
       await enrollStudent(student.id, {
         class_id: schoolClass.id,
         start_date: enrollmentStartDate || computeAssignmentStartDate(),
+        specialty_subject_ids: specialtyIds,
       })
       setEnrollPickerOpen(false)
+      setPendingStudent(null)
+      setEnrollSpecialtyIds([])
+      setEnrollStage('student')
+      setEnrollOptions(null)
       loadClassStudents()
       load()
     } catch (e) {
@@ -1242,6 +1317,88 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
               <button type="button" className="scd-btn-outline" onClick={closeEnrollPicker}>Fermer</button>
             </div>
 
+            <EnrollmentStepper steps={enrollSteps} current={enrollStepIndex} />
+            {pendingStudent && enrollStage === 'specialties' ? (
+              <div className="scd-enroll-specialties">
+                <h4>
+                  Spécialités de {formatProfileName(pendingStudent.first_name, pendingStudent.last_name, pendingStudent.gender)}
+                </h4>
+                {enrollOptions?.restricted_to_premiere ? (
+                  <p className="enroll-note">
+                    En Terminale, l’élève ne garde que des spécialités suivies en Première (
+                    {(enrollOptions.premiere_specialties ?? []).map((item) => item.name).join(', ')}
+                    ). Choisissez-en <strong>{requiredSpecialtyCount}</strong>.
+                  </p>
+                ) : (
+                  <p>
+                    Choisissez exactement <strong>{requiredSpecialtyCount} spécialité{requiredSpecialtyCount > 1 ? 's' : ''}</strong>{' '}
+                    ({enrollSpecialtyIds.length}/{requiredSpecialtyCount} choisie{enrollSpecialtyIds.length > 1 ? 's' : ''}).
+                  </p>
+                )}
+                {(enrollOptions?.premiere_not_offered ?? []).length > 0 && (
+                  <p className="enroll-note enroll-note--warning">
+                    Non proposée{enrollOptions.premiere_not_offered.length > 1 ? 's' : ''} dans cette Terminale :{' '}
+                    {enrollOptions.premiere_not_offered.map((item) => item.name).join(', ')}.
+                  </p>
+                )}
+                {(enrollOptions?.items ?? []).length < requiredSpecialtyCount ? (
+                  <p className="scd-error">Pas assez de spécialités disponibles dans cette classe pour inscrire cet élève.</p>
+                ) : (
+                  <div className="scd-enroll-specialties__list">
+                    {enrollOptions.items.map((subject) => (
+                      <label key={subject.subject_id} className="scd-enroll-specialty">
+                        <input
+                          type="checkbox"
+                          checked={enrollSpecialtyIds.includes(String(subject.subject_id))}
+                          onChange={() => toggleEnrollSpecialty(subject.subject_id)}
+                        />
+                        <span>{subject.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {enrollError && <p className="scd-error">{enrollError}</p>}
+                <div className="scd-enroll-specialties__actions">
+                  <button type="button" className="scd-btn-outline" disabled={enrolling} onClick={goBackInEnrollment}>Retour</button>
+                  <button
+                    type="button"
+                    className="scd-btn-primary"
+                    disabled={enrolling || enrollSpecialtyIds.length !== requiredSpecialtyCount}
+                    onClick={goForwardInEnrollment}
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
+            ) : pendingStudent && enrollStage === 'confirm' ? (
+              <div className="scd-enroll-specialties">
+                <h4>Vérifiez avant de confirmer</h4>
+                <dl className="enroll-recap">
+                  <div><dt>Élève</dt><dd>{formatProfileName(pendingStudent.first_name, pendingStudent.last_name, pendingStudent.gender)}</dd></div>
+                  <div><dt>Classe</dt><dd>{details.level_name} {details.group_label} · {details.school_year_name}</dd></div>
+                  <div><dt>Date d’inscription</dt><dd>{enrollmentStartDate || computeAssignmentStartDate()}</dd></div>
+                  {requiredSpecialtyCount > 0 && <div><dt>Spécialités</dt><dd>{chosenSpecialtyNames.join(', ')}</dd></div>}
+                </dl>
+                {enrollError && <p className="scd-error">{enrollError}</p>}
+                <div className="scd-enroll-specialties__actions">
+                  <button type="button" className="scd-btn-outline" disabled={enrolling} onClick={goBackInEnrollment}>Retour</button>
+                  <button
+                    type="button"
+                    className="scd-btn-primary"
+                    disabled={enrolling}
+                    onClick={() => confirmEnrollment(pendingStudent, enrollSpecialtyIds)}
+                  >
+                    {enrolling ? 'Inscription…' : 'Confirmer l’inscription'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <>
+            {requiredSpecialtyCount > 0 && (
+              <p className="scd-enroll-hint">
+                Classe à spécialités : après avoir choisi l’élève, vous sélectionnerez ses {requiredSpecialtyCount} spécialités.
+              </p>
+            )}
             <label className="scd-teacher-search">
               <Search aria-hidden="true" size={18} />
               <input
@@ -1276,7 +1433,7 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                       key={student.id}
                       type="button"
                       className="scd-teacher-result"
-                      disabled={enrolling}
+                      disabled={enrolling || optionsLoading}
                       onClick={() => handleEnrollStudent(student)}
                     >
                       <span className="scd-avatar">
@@ -1294,6 +1451,8 @@ export default function SchoolClassDetailsPage({ account, schoolClass, onNavigat
                 </>
               )}
             </div>
+            </>
+            )}
           </section>
         </div>
       )}

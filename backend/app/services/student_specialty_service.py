@@ -56,6 +56,126 @@ def _get_current_enrollment_context(
     return row
 
 
+def get_previous_premiere_specialties(db: Session, student_id: UUID) -> list[dict]:
+    """Spécialités suivies par l'élève lors de sa dernière inscription en Première.
+
+    Règle de l'école : en Terminale, un élève garde 2 des 3 spécialités qu'il avait
+    en Première. Retourne une liste vide si l'élève n'a jamais suivi de Première
+    avec spécialités (par exemple un élève qui arrive directement en Terminale).
+    """
+
+    rows = db.execute(
+        text(
+            """
+            SELECT subject.id AS subject_id, subject.name
+            FROM student_specialties AS specialty
+            JOIN subjects AS subject ON subject.id = specialty.subject_id
+            WHERE specialty.student_enrollment_id = (
+                SELECT enrollment.id
+                FROM student_enrollments AS enrollment
+                JOIN classes AS school_class ON school_class.id = enrollment.class_id
+                JOIN class_levels AS class_level ON class_level.id = school_class.class_level_id
+                WHERE enrollment.student_id = :student_id
+                  AND class_level.code = 'PREMIERE'
+                  AND EXISTS (
+                      SELECT 1 FROM student_specialties AS has_specialty
+                      WHERE has_specialty.student_enrollment_id = enrollment.id
+                  )
+                ORDER BY enrollment.start_date DESC
+                LIMIT 1
+            )
+            ORDER BY subject.name
+            """
+        ),
+        {"student_id": student_id},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def _class_specialty_items(db: Session, class_id: UUID) -> list[dict]:
+    rows = db.execute(
+        text(
+            """
+            SELECT subject.id AS subject_id, subject.name, subject.description
+            FROM class_subjects AS class_subject
+            JOIN subjects AS subject ON subject.id = class_subject.subject_id
+            WHERE class_subject.class_id = :class_id
+              AND subject.is_specialty = true
+              AND subject.is_active = true
+            ORDER BY subject.name
+            """
+        ),
+        {"class_id": class_id},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def _restrict_to_premiere_choices(db: Session, student_id: UUID, items: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Garde les spécialités de Première proposées en Terminale ; retourne aussi celles qui ne le sont pas."""
+
+    previous = get_previous_premiere_specialties(db, student_id)
+    if not previous:
+        return items, []
+    previous_ids = {str(item["subject_id"]) for item in previous}
+    kept = [item for item in items if str(item["subject_id"]) in previous_ids]
+    offered_ids = {str(item["subject_id"]) for item in kept}
+    missing = [item for item in previous if str(item["subject_id"]) not in offered_ids]
+    return kept, missing
+
+
+def list_specialty_options_for_class(db: Session, student_id: UUID, class_id: UUID) -> dict:
+    """Spécialités à proposer pour inscrire l'élève dans cette classe.
+
+    En Terminale, seules les spécialités suivies en Première sont proposées.
+    """
+
+    school_class = db.execute(
+        text(
+            """
+            SELECT class_level.code AS level_code, class_level.name AS level_name
+            FROM classes AS school_class
+            JOIN class_levels AS class_level ON class_level.id = school_class.class_level_id
+            WHERE school_class.id = :class_id
+            """
+        ),
+        {"class_id": class_id},
+    ).first()
+    if school_class is None:
+        raise ValueError("La classe sélectionnée est introuvable.")
+    required_count = SPECIALTY_COUNT_BY_LEVEL.get(school_class.level_code, 0)
+    items = _class_specialty_items(db, class_id) if required_count else []
+    restricted = False
+    previous_not_offered: list[dict] = []
+    previous: list[dict] = []
+    if school_class.level_code == "TERMINALE":
+        previous = get_previous_premiere_specialties(db, student_id)
+        restricted = bool(previous)
+        items, previous_not_offered = _restrict_to_premiere_choices(db, student_id, items)
+    return {
+        "level_code": school_class.level_code,
+        "level_name": school_class.level_name,
+        "required_count": required_count,
+        "restricted_to_premiere": restricted,
+        "premiere_specialties": previous,
+        "premiere_not_offered": previous_not_offered,
+        "items": items,
+    }
+
+
+def _validate_terminale_choices(db: Session, student_id: UUID, subject_ids: list[UUID]) -> None:
+    """En Terminale, les spécialités choisies doivent faire partie de celles de Première."""
+
+    previous = get_previous_premiere_specialties(db, student_id)
+    if not previous:
+        return
+    allowed = {str(item["subject_id"]) for item in previous}
+    if any(str(subject_id) not in allowed for subject_id in subject_ids):
+        names = ", ".join(f"« {item['name']} »" for item in previous)
+        raise ValueError(
+            f"En Terminale, l'élève ne peut garder que des spécialités suivies en Première : {names}."
+        )
+
+
 def list_available_student_specialties(
     db: Session,
     student_id: UUID,
@@ -86,6 +206,15 @@ def list_available_student_specialties(
         {"class_id": context.class_id},
     ).mappings().all()
 
+    items = [dict(row) for row in rows]
+    restricted = False
+    if context.level_code == "TERMINALE":
+        previous = get_previous_premiere_specialties(db, student_id)
+        restricted = bool(previous)
+        if previous:
+            allowed = {str(item["subject_id"]) for item in previous}
+            items = [item for item in items if str(item["id"]) in allowed]
+
     return {
         "student_enrollment_id": context.enrollment_id,
         "level_code": context.level_code,
@@ -94,7 +223,8 @@ def list_available_student_specialties(
         "required_count": SPECIALTY_COUNT_BY_LEVEL[
             context.level_code
         ],
-        "items": [dict(row) for row in rows],
+        "restricted_to_premiere": restricted,
+        "items": items,
     }
 
 
@@ -223,6 +353,7 @@ def validate_specialty_selection_for_class(
     class_id: UUID,
     level_code: str,
     subject_ids: list[UUID],
+    student_id: UUID | None = None,
 ) -> None:
     """Valide les spécialités avant de créer une inscription annuelle."""
 
@@ -243,6 +374,8 @@ def validate_specialty_selection_for_class(
 
     _validate_specialties_belong_to_class(db, class_id, subject_ids)
     _validate_specialty_compatibility(db, subject_ids)
+    if level_code == "TERMINALE" and student_id is not None:
+        _validate_terminale_choices(db, student_id, subject_ids)
 
 
 def update_student_specialties(
@@ -283,6 +416,9 @@ def update_student_specialties(
         db=db,
         subject_ids=subject_ids,
     )
+
+    if context.level_code == "TERMINALE":
+        _validate_terminale_choices(db, student_id, subject_ids)
 
     try:
         # On remplace toute la sélection.

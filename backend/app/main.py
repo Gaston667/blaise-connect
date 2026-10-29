@@ -10,7 +10,7 @@ from app.core.database import engine
 from app.core.exception_handlers import register_exception_handlers
 from app.core.schema_check import verify_required_migrations
 from app.core.api_response import wrap_success_responses
-from app.core.http_security_config import ALLOWED_HOSTS, ALLOWED_ORIGINS
+from app.core.http_security_config import ALLOWED_HOSTS, ALLOWED_ORIGINS, IS_PRODUCTION
 from app.core.http_security_middleware import add_security_headers
 from app.routes.accounts import router as accounts_router
 from app.routes.school_years import router as school_years_router
@@ -52,6 +52,10 @@ app = FastAPI(
     title="BlaiseConnect API",
     version="0.1.0-rc.3",
     lifespan=lifespan,
+    # La documentation interactive liste toutes les routes : fermée en production.
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
 
 # Refuse les requetes provenant d'hotes ou d'origines non declares.

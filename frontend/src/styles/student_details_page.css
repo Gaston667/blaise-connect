@@ -1124,3 +1124,7 @@
 .agm-error { background: var(--alert-danger-bg); color: var(--alert-danger-text); border: var(--border-width-thin) solid var(--alert-danger-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); font-size: var(--font-size-sm); margin: 0; }
 .agm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
 .sdp-guardians-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-4); }
+
+.sdp-load-state { margin: 0 0 var(--space-3); color: var(--color-text-secondary); }
+.sdp-load-failure { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.sdp-load-failure p { margin: 0; }
