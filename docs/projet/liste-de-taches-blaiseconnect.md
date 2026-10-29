@@ -85,6 +85,7 @@
 
 | | Tâche | Ajoutée le |
 |:-:|---|:-:|
+| ⬜ | **Masquer les notes à l’élève et au parent tant que l’enseignant n’a pas saisi toutes les notes de l’évaluation** (tous les élèves de la classe pour la matière concernée). Cette règle n’existe pas aujourd’hui : `student_grade_service.py` renvoie chaque note dès qu’elle est saisie, ce qui permet à un élève de voir sa note et de se comparer avant la fin de la saisie. Elle doit être appliquée côté serveur (liste, détail, moyennes, rang, portail responsable), avec un message du type « notes bientôt disponibles », et testée. | 29/10/2026 |
 | ⬜ | **Remplacer l’aperçu PDF des bulletins par une compilation locale** : il envoie le bulletin complet (nom, matricule, notes) à un service en ligne tiers (LaTeX.Online). À ne pas utiliser avec de vraies données d’élèves. | 29/10/2026 |
 | ⬜ | Brancher les tests automatisés dans une intégration continue (GitHub Actions) pour qu’ils tournent à chaque envoi. | 29/10/2026 |
 | ⬜ | Copier automatiquement les sauvegardes vers un stockage hors du VPS. | 28/10/2026 |
