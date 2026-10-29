@@ -1,13 +1,16 @@
 import { Menu } from 'lucide-react'
 
 import ChildSwitcher from './child_switcher.jsx'
+import HeaderUserMenu from './header_user_menu.jsx'
 
 /**
- * Affiche l'en-tête de l'espace connecté. L'identité du compte connecté vit
- * désormais dans la sidebar (voir SidebarProfile), plus dans l'en-tête.
+ * Affiche l'en-tête de l'espace connecté : menu (mobile), enfant consulté
+ * (portail parents) et, en haut à droite, le compte connecté avec sa déconnexion.
  */
 export default function AppHeader({
+  account,
   onMenuOpen,
+  onLogoutSuccess,
 }) {
   return (
     <header className="layout-header">
@@ -20,6 +23,7 @@ export default function AppHeader({
         <Menu aria-hidden="true" size={23} />
       </button>
       <ChildSwitcher />
+      <HeaderUserMenu account={account} onLogoutSuccess={onLogoutSuccess} />
     </header>
   )
 }

@@ -6,8 +6,6 @@ import {
 } from 'lucide-react'
 
 import logo from '../assets/logo-blaise-connect.png.png'
-import LogoutButton from '../pages/logout_button.jsx'
-import SidebarProfile from './sidebar_profile.jsx'
 
 function isAccountManagementPage(page) {
   return ['accounts', 'account-details', 'account-new', 'students', 'student-details',
@@ -26,7 +24,7 @@ function NavigationGroupButton({ label, icon, active, onOpen }) {
   </button>
 }
 
-export default function Sidebar({ account, currentPage, isOpen, onClose, onNavigate, onLogoutSuccess, onStartTour }) {
+export default function Sidebar({ account, currentPage, isOpen, onClose, onNavigate, onStartTour }) {
   const isAdmin = account.role === 'ADMIN'
   const isTeacher = account.role === 'TEACHER'
   const isStudent = account.role === 'STUDENT'
@@ -84,14 +82,12 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
         {isTeacher ? <NavigationButton page="teacher-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Mon emploi du temps</NavigationButton> : null}
       </>}
     </nav>
-    <div className="sidebar-bottom-card">
-      {isAdmin ? (
+    {isAdmin ? (
+      <div className="sidebar-bottom-card">
         <button type="button" className="sidebar-tour-button" onClick={() => { onStartTour?.(); onClose() }}>
           <Compass size={17} /> Visite guidée
         </button>
-      ) : null}
-      <SidebarProfile account={account} />
-      <LogoutButton onLogoutSuccess={onLogoutSuccess} />
-    </div>
+      </div>
+    ) : null}
   </aside>
 }

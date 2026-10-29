@@ -883,11 +883,6 @@
     display: none;
   }
 
-  .layout-header {
-    /* Le hamburger n'existe que sur mobile et l'identité du compte vit
-       désormais dans la sidebar : l'en-tête n'a plus rien à afficher. */
-    display: none;
-  }
 
   .accueil-main,
   .comptes-main {

@@ -92,7 +92,6 @@ export default function MainLayout({
         isOpen={isSidebarOpen}
         onClose={handleSidebarClose}
         onNavigate={onNavigate}
-        onLogoutSuccess={onLogoutSuccess}
         onStartTour={onStartTour}
       />
 
@@ -106,7 +105,7 @@ export default function MainLayout({
       ) : null}
 
       <div className="layout-content">
-        <AppHeader onMenuOpen={handleSidebarOpen} />
+        <AppHeader account={account} onMenuOpen={handleSidebarOpen} onLogoutSuccess={onLogoutSuccess} />
 
         {children}
       </div>
