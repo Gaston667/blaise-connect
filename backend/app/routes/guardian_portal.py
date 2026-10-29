@@ -9,6 +9,7 @@ chiffres vus par un parent soient exactement ceux vus par l'élève.
 from uuid import UUID
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.core.authentication import CurrentAccountDependency, DatabaseSession
 from app.core.guardian_self import CurrentGuardianDependency, get_guardian_child
@@ -21,10 +22,13 @@ from app.services import timetable_service
 from app.services.attendance_document_service import upload_attendance_justification
 from app.services.attendance_service import get_student_attendance
 from app.services.guardian_portal_service import (
+    get_child_record,
     get_child_report_card,
+    list_child_documents,
     list_child_report_cards,
     list_guardian_children,
 )
+from app.services.student_document_service import get_student_document_file
 from app.services.student_grade_service import (
     get_my_assessment_detail,
     get_my_class_name,
@@ -183,3 +187,49 @@ def get_child_report_card_detail(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(error)
         ) from error
+
+
+@router.get("/children/{student_id}/record")
+def get_child_record_route(
+    student_id: UUID, db: DatabaseSession, guardian: CurrentGuardianDependency
+):
+    """Retourne le dossier administratif de l'enfant (lecture seule)."""
+
+    student = get_guardian_child(db, guardian, student_id)
+    return get_child_record(db=db, student=student)
+
+
+@router.get("/children/{student_id}/documents")
+def get_child_documents(
+    student_id: UUID, db: DatabaseSession, guardian: CurrentGuardianDependency
+):
+    """Liste les documents du dossier de l'enfant (acte de naissance, certificats...)."""
+
+    student = get_guardian_child(db, guardian, student_id)
+    return list_child_documents(db=db, student_id=student.id)
+
+
+@router.get(
+    "/children/{student_id}/documents/{document_id}/content",
+    response_class=FileResponse,
+)
+def get_child_document_content(
+    student_id: UUID,
+    document_id: UUID,
+    db: DatabaseSession,
+    guardian: CurrentGuardianDependency,
+):
+    """Télécharge un document du dossier de l'enfant rattaché."""
+
+    student = get_guardian_child(db, guardian, student_id)
+    try:
+        physical_path, mime_type, original_filename = get_student_document_file(
+            db=db, student_id=student.id, document_id=document_id
+        )
+    except LookupError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(error)
+        ) from error
+    return FileResponse(
+        path=physical_path, media_type=mime_type, filename=original_filename
+    )

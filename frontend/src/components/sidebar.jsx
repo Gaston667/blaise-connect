@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   BookOpen, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Compass, ContactRound,
-  FileText, GraduationCap, House, LifeBuoy, NotebookPen, Presentation, ShieldCheck, UserRoundX,
+  FileText, FolderOpen, GraduationCap, House, LifeBuoy, NotebookPen, Presentation, ShieldCheck, UserRoundX,
   Users, X,
 } from 'lucide-react'
 
@@ -88,6 +88,7 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
           <NavigationButton page="student-grades" currentPage={currentPage} onNavigate={navigate} icon={<NotebookPen size={20} />}>Notes</NavigationButton>
           <NavigationButton page="student-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Emploi du temps</NavigationButton>
           <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>Absences et retards</NavigationButton>
+          <NavigationButton page="guardian-child-record" currentPage={currentPage} onNavigate={navigate} icon={<FolderOpen size={20} />}>Dossier de l’enfant</NavigationButton>
           <NavigationButton page="guardian-report-cards" currentPage={currentPage} onNavigate={navigate} icon={<FileText size={20} />} disabled>Bulletins</NavigationButton>
         </> : null}
         {isTeacher ? <NavigationButton page="teacher-timetable" currentPage={currentPage} onNavigate={navigate} icon={<CalendarDays size={20} />}>Mon emploi du temps</NavigationButton> : null}

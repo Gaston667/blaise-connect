@@ -9,6 +9,7 @@ import HeaderUserMenu from './header_user_menu.jsx'
  */
 export default function AppHeader({
   account,
+  currentPage,
   onMenuOpen,
   onLogoutSuccess,
 }) {
@@ -22,7 +23,8 @@ export default function AppHeader({
       >
         <Menu aria-hidden="true" size={23} />
       </button>
-      <ChildSwitcher />
+      {/* Sur l'accueil du portail parents, le sélecteur est dans le bandeau de bienvenue. */}
+      {currentPage === 'home' ? null : <ChildSwitcher />}
       <HeaderUserMenu account={account} onLogoutSuccess={onLogoutSuccess} />
     </header>
   )

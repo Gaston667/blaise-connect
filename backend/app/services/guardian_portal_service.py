@@ -6,6 +6,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.services.report_card_service import get_report_card_detail
+from app.services.student_document_service import list_student_documents
+from app.services.student_grade_service import get_my_class_name, get_my_school_year_name
 
 
 def list_guardian_children(db: Session, guardian_id: UUID) -> list[dict]:
@@ -107,3 +109,55 @@ def get_child_report_card(db: Session, student_id: UUID, report_card_id: UUID) -
     if owned is None:
         raise LookupError("Bulletin introuvable.")
     return get_report_card_detail(db=db, report_card_id=report_card_id)
+
+
+def get_child_record(db: Session, student) -> dict:
+    """Informations du dossier de l'enfant que sa famille peut consulter.
+
+    L'information médicale et la photo ne sont volontairement pas exposées ici :
+    elles restent réservées au personnel de l'établissement.
+    """
+
+    enrollment_start_date = db.execute(
+        text(
+            """
+            SELECT start_date FROM student_enrollments
+            WHERE student_id = :student_id AND end_date IS NULL
+            """
+        ),
+        {"student_id": student.id},
+    ).scalar_one_or_none()
+
+    return {
+        "first_name": student.first_name,
+        "last_name": student.last_name,
+        "gender": student.gender,
+        "birth_date": student.birth_date,
+        "birth_place": student.birth_place,
+        "nationality": student.nationality,
+        "address": student.address,
+        "admission_date": student.admission_date,
+        "previous_establishment": student.previous_establishment,
+        "previous_level": student.previous_level,
+        "is_enrolled_in_cned": student.is_enrolled_in_cned,
+        "class_name": get_my_class_name(db=db, student_id=student.id),
+        "school_year_name": get_my_school_year_name(db=db, student_id=student.id),
+        "enrollment_start_date": enrollment_start_date,
+    }
+
+
+def list_child_documents(db: Session, student_id: UUID) -> list[dict]:
+    """Documents du dossier de l'enfant, sans les informations internes de dépôt."""
+
+    return [
+        {
+            "id": document["id"],
+            "title": document["title"],
+            "original_filename": document["original_filename"],
+            "mime_type": document["mime_type"],
+            "size_bytes": document["size_bytes"],
+            "created_at": document["created_at"],
+            "document_type_label": document["document_type_label"],
+        }
+        for document in list_student_documents(db=db, student_id=student_id)
+    ]

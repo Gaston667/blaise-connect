@@ -12,6 +12,7 @@ from tests.integration.support import (
 
 CHILD_ENDPOINTS = [
     "", "/grades", "/grades/summary", "/attendance", "/timetable", "/report-cards",
+    "/record", "/documents",
 ]
 
 
@@ -94,4 +95,62 @@ class GuardianPortalTests(ApiTestCase):
             f"/guardian/children/{foreign_child['id']}/attendance/{record}/justification",
             data={"reason": "Tentative d'une autre famille"},
         )
+        self.assertEqual(response.status_code, 404)
+
+
+class GuardianChildRecordTests(ApiTestCase):
+    """Dossier de l'enfant : informations et documents, strictement limités à la famille."""
+
+    def setUp(self):
+        super().setUp()
+        self.parent = self.client(GUARDIAN_TWO_CHILDREN)
+        self.child = self.data(self.parent.get("/guardian/children"))[0]
+
+    def add_document(self, title):
+        return self.db.execute(
+            text(
+                """
+                WITH document AS (
+                    INSERT INTO documents (document_type_id, title, storage_path, original_filename,
+                                           mime_type, size_bytes, sha256, uploaded_by_account_id)
+                    SELECT dt.id, :title, 'accounts/test/documents/' || gen_random_uuid(), 'acte.pdf',
+                           'application/pdf', 10, repeat('a', 64),
+                           (SELECT id FROM accounts WHERE registration_number = :admin)
+                    FROM document_types dt WHERE dt.code = 'ADMINISTRATIVE'
+                    RETURNING id
+                )
+                INSERT INTO document_links (document_id, entity_type, entity_id)
+                SELECT id, 'STUDENT', :student FROM document
+                RETURNING document_id
+                """
+            ),
+            {"title": title, "admin": ADMIN, "student": self.child["id"]},
+        ).scalar_one()
+
+    def test_the_record_shows_identity_but_never_medical_information(self):
+        record = self.data(self.parent.get(f"/guardian/children/{self.child['id']}/record"))
+        self.assertEqual(record["first_name"], self.child["first_name"])
+        self.assertIn("birth_date", record)
+        self.assertNotIn("medical_condition", record)
+        self.assertNotIn("photo_path", record)
+
+    def test_a_document_of_the_child_is_listed_without_internal_details(self):
+        self.add_document("Acte de naissance")
+        documents = self.data(self.parent.get(f"/guardian/children/{self.child['id']}/documents"))
+        found = next(item for item in documents if item["title"] == "Acte de naissance")
+        self.assertEqual(found["original_filename"], "acte.pdf")
+        for hidden in ("sha256", "uploaded_by_account_id", "uploaded_by_registration_number", "storage_path"):
+            self.assertNotIn(hidden, found)
+
+    def test_another_family_cannot_list_or_download_the_documents(self):
+        document_id = self.add_document("Certificat médical")
+        stranger = self.client(GUARDIAN_ONE_CHILD)
+        base = f"/guardian/children/{self.child['id']}"
+        self.assertEqual(stranger.get(f"{base}/documents").status_code, 404)
+        self.assertEqual(stranger.get(f"{base}/documents/{document_id}/content").status_code, 404)
+
+    def test_a_document_of_another_child_is_not_reachable_through_my_child(self):
+        other = self.data(self.parent.get("/guardian/children"))[1]
+        document_id = self.add_document("Certificat médical")
+        response = self.parent.get(f"/guardian/children/{other['id']}/documents/{document_id}/content")
         self.assertEqual(response.status_code, 404)

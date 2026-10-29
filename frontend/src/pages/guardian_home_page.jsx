@@ -8,6 +8,7 @@ import {
   UserRoundX,
 } from 'lucide-react'
 
+import ChildSwitcher from '../components/child_switcher.jsx'
 import { useGuardianChild } from '../context/guardian_child_context.js'
 import { getMyAttendance } from '../services/attendance_service.js'
 import { getMyGradesSummary } from '../services/student_grades_service.js'
@@ -86,9 +87,7 @@ export default function GuardianHomePage({ account }) {
         <p className="accueil-description">
           Suivez la scolarité de {kids.length > 1 ? 'vos enfants' : selectedChild.first_name} : notes, emploi du temps et absences.
         </p>
-        <p className="accueil-description">
-          <strong>Vous consultez les informations de {selectedChild.first_name} {selectedChild.last_name}.</strong>
-        </p>
+        <div className="gph-hero-child"><ChildSwitcher /></div>
       </header>
 
       <section className="gph-section" aria-labelledby="gph-indicators-title">
