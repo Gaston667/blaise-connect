@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, String, Text, Uuid, func, text
+from sqlalchemy import Boolean, DateTime, SmallInteger, String, Text, Uuid, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base import Base
@@ -30,6 +30,11 @@ class Subject(Base):
         Boolean,
         nullable=False,
         server_default=text("false"),
+    )
+    session_periods: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+        server_default=text("2"),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

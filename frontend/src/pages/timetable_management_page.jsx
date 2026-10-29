@@ -23,6 +23,9 @@ import {
 } from 'lucide-react'
 
 import { useToast } from '../components/feedback/ToastProvider.jsx'
+import GenerateAllTimetables from '../components/generate_all_timetables.jsx'
+import SpecialCourseSuggestions from '../components/special_course_suggestions.jsx'
+import TimetableAlerts from '../components/timetable_alerts.jsx'
 import {
   getSchoolClassesOverview,
   getSchoolClassSubjects,
@@ -601,6 +604,7 @@ function TimetableSlotDetail({ slot, dayDate, onClose }) {
     ['Horaire', `${formatTime(slot.start_time)} – ${formatTime(slot.end_time)} (${durationLabel})`],
     ['Type', kind],
     ['Statut', slot.status === 'DRAFT' ? 'Brouillon' : 'Publié'],
+    ['Placement', slot.is_locked ? 'Placé à la main (conservé à la régénération)' : 'Généré automatiquement'],
   ]
   return (
     <div className="tmp-slot-backdrop" role="presentation" onMouseDown={onClose}>
@@ -650,8 +654,10 @@ export default function TimetableManagementPage() {
   const [configLoading, setConfigLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [unplacedRequirements, setUnplacedRequirements] = useState([])
+  const [generationNotes, setGenerationNotes] = useState([])
 
   const [specialCourses, setSpecialCourses] = useState([])
+  const [alertsVersion, setAlertsVersion] = useState(0)
   const [classStudents, setClassStudents] = useState([])
   const [specialCoursesLoading, setSpecialCoursesLoading] = useState(false)
   const [specialCourseForm, setSpecialCourseForm] = useState(EMPTY_SPECIAL_COURSE_FORM)
@@ -1000,6 +1006,7 @@ export default function TimetableManagementPage() {
     event.preventDefault()
     setError('')
     setUnplacedRequirements([])
+    setGenerationNotes([])
     if (!generationDates.startDate || !generationDates.endDate) {
       setError('Sélectionnez les dates de début et de fin de génération.')
       return
@@ -1025,6 +1032,7 @@ export default function TimetableManagementPage() {
       )
       await refreshTimetable()
       setUnplacedRequirements(result.unplaced_requirements ?? [])
+      setGenerationNotes(result.adjustments ?? [])
       toast.success('Un nouveau brouillon d’emploi du temps a été généré. Voir l’aperçu ci-dessous.')
     } catch (generateError) {
       setError(generateError.message)
@@ -1101,6 +1109,10 @@ export default function TimetableManagementPage() {
         <ChevronRight aria-hidden="true" size={14} />
         <span>Emploi du temps</span>
       </nav>
+
+      <TimetableAlerts key={alertsVersion} />
+
+      <GenerateAllTimetables onGenerated={function refreshSelectedClass() { setAlertsVersion((current) => current + 1); return selectedClassId ? refreshTimetable() : undefined }} />
 
       {error && <p className="tmp-error" role="alert">{error}</p>}
 
@@ -1424,6 +1436,15 @@ export default function TimetableManagementPage() {
                       </div>
                     </div>
 
+                    {generationNotes.length > 0 && (
+                      <div className="tmp-field-hint" role="status">
+                        <p>Ajustements appliqués par le générateur :</p>
+                        <ul>
+                          {generationNotes.map(function renderNote(note) { return <li key={note}>{note}</li> })}
+                        </ul>
+                      </div>
+                    )}
+
                     {unplacedRequirements.length > 0 && (
                       <div className="tmp-error" role="alert">
                         <p>Volume horaire incomplet : le brouillon ne pourra pas être publié tant que ces heures ne sont pas placées.</p>
@@ -1580,6 +1601,22 @@ export default function TimetableManagementPage() {
                   <span>Heure de fin *</span>
                   <input name="endTime" type="time" value={specialCourseForm.endTime} onChange={handleSpecialCourseFieldChange} required />
                 </label>
+
+                <SpecialCourseSuggestions
+                  classId={selectedClassId}
+                  studentId={specialCourseForm.studentId}
+                  subjectId={specialCourseForm.subjectId}
+                  onPick={function pickSuggestion(item) {
+                    setSpecialCourseForm(function applySuggestion(current) {
+                      return {
+                        ...current,
+                        dayOfWeek: String(item.day_of_week),
+                        startTime: item.start_time.slice(0, 5),
+                        endTime: item.end_time.slice(0, 5),
+                      }
+                    })
+                  }}
+                />
 
                 <div className="tmp-manual-form__actions">
                   <button type="submit" className="tmp-btn-primary" disabled={savingSpecialCourse}>

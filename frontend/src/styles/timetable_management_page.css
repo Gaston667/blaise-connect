@@ -338,3 +338,41 @@
 .tmp-slot-dialog dl > div { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-2) 0; border-bottom: 1px solid var(--table-border); }
 .tmp-slot-dialog dt { color: var(--color-text-secondary); }
 .tmp-slot-dialog dd { margin: 0; font-weight: 600; text-align: right; }
+
+/* Génération pour toutes les classes */
+.tmp-generate-all { margin: 0 0 var(--space-4); padding: var(--space-4); border: 1px solid var(--table-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.tmp-generate-all__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.tmp-generate-all__head h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-1); font-size: var(--font-size-lg); color: var(--color-primary); }
+.tmp-generate-all__head p { margin: 0; max-width: 60ch; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+.tmp-generate-all__toggle, .tmp-generate-all__run { min-height: 44px; padding: 0 var(--space-5); border: 0; border-radius: var(--radius-md); background: var(--color-primary); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+.tmp-generate-all__toggle[aria-expanded='true'] { background: transparent; color: var(--color-primary); border: 1px solid var(--color-primary); }
+.tmp-generate-all__run { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
+.tmp-generate-all__run:disabled { opacity: 0.7; cursor: progress; }
+.tmp-generate-all__form { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+.tmp-generate-all__dates { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-3); }
+.tmp-generate-all__result { margin-top: var(--space-4); display: grid; gap: var(--space-3); }
+.tmp-generate-all__classes { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.tmp-generate-all__classes > li { display: flex; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-subtle, #f5f7fb); }
+.tmp-generate-all__classes > li.is-complete svg { color: #1f9d55; flex: 0 0 auto; }
+.tmp-generate-all__classes > li.is-incomplete svg { color: #c2410c; flex: 0 0 auto; }
+.tmp-generate-all__classes ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); font-size: var(--font-size-sm); }
+.tmp-generate-all__classes small { display: block; margin-top: var(--space-1); color: var(--color-text-muted); }
+.tmp-spin { animation: tmp-spin 1s linear infinite; }
+@keyframes tmp-spin { to { transform: rotate(360deg); } }
+.tmp-generate-all__publish { display: grid; gap: var(--space-2); }
+.tmp-generate-all__done { display: flex; align-items: center; gap: var(--space-2); margin: 0; color: #1f9d55; font-weight: 600; }
+
+/* Suggestions de créneaux pour un cours particulier */
+.tmp-suggestions { display: grid; gap: var(--space-2); }
+.tmp-suggestions__bar { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); }
+.tmp-suggestions__list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.tmp-suggestions__list button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--table-border); border-radius: 999px; background: var(--color-surface); color: var(--color-primary); font: inherit; cursor: pointer; }
+.tmp-suggestions__list button:hover { background: var(--color-primary-light); }
+.tmp-suggestions__list small { color: var(--color-text-muted); }
+
+/* Alertes sur les emplois du temps publiés */
+.tmp-alerts { margin: 0 0 var(--space-4); border: 1px solid #f0c36d; border-radius: var(--radius-lg); background: #fff8e6; }
+.tmp-alerts__head { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 48px; padding: 0 var(--space-4); border: 0; background: transparent; color: #7a4b00; font: inherit; cursor: pointer; text-align: left; }
+.tmp-alerts__head span { margin-left: auto; font-weight: 600; }
+.tmp-alerts ul { margin: 0; padding: 0 var(--space-4) var(--space-3) var(--space-6); color: #5c3a00; font-size: var(--font-size-sm); display: grid; gap: var(--space-2); }
+.tmp-generate-all__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }

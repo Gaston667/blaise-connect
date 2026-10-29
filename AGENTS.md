@@ -183,6 +183,67 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
   de fin incluses dans l'année scolaire. Le brouillon produit ne vaut que sur
   cette plage ; l'interface affiche ensuite les jours avec leurs dates réelles.
 
+- Génération automatique (`timetable_planner.py`, logique pure testée sans base) :
+  - règles dures : une seule matière régulière à la fois pour la classe ; un
+    enseignant ou une salle jamais à deux endroits en même temps (emplois du
+    temps publiés **et brouillons** des autres classes de la même année, dont la
+    période recoupe la plage visée) ; deux spécialités choisies par un même
+    élève jamais simultanées ; une spécialité une seule fois par jour ;
+  - les spécialités se placent en « barrettes » : toutes les spécialités d'une
+    barrette ont exactement les mêmes horaires et aucun élève n'en prend deux de
+    la même barrette ; les barrettes sont déduites des choix des élèves (au moins
+    3 en Première, 2 en Terminale, davantage si les choix l'exigent) ; le tronc
+    commun, lui, réunit toute la classe ;
+  - règles souples optimisées par score (plusieurs essais déterministes, le
+    meilleur est gardé) : peu de trous, jours équilibrés, une matière une fois
+    par jour, journées démarrant tôt ;
+  - `subjects.session_periods` (1 à 4, défaut 2) donne la taille d'une séance en
+    périodes ; le primaire et la maternelle utilisent toujours des séances d'une
+    période ; la taille d'un bloc s'adapte à la durée d'un cours (≈ 2 h) ;
+  - un volume qui n'est pas un multiple de la durée d'un cours est arrondi au
+    supérieur et signalé dans `adjustments` ; une matière demandée sans
+    enseignant est signalée dans `unplaced_requirements` avec sa raison ;
+  - la publication d'un brouillon est refusée si un volume configuré n'est pas
+    entièrement placé ou si un élève a deux spécialités en même temps ;
+  - le choix des spécialités d'un élève n'est jamais bloqué par l'emploi du
+    temps : c'est l'emploi du temps qui s'adapte (régénération du brouillon, puis
+    contrôle à la publication).
+- Plafonds : une classe a au plus 5 h (maternelle), 6 h (primaire), 7 h (collège)
+  ou 8 h (lycée) de cours par jour ; un enseignant au plus 7 h par jour, en
+  comptant ses heures dans les autres classes. Les séances d'une même matière ne
+  sont pas placées deux jours de suite quand c'est évitable.
+- « Générer pour toutes les classes » (`generate_all_timetables`) planifie toutes
+  les classes de l'année courante ensemble, en mémoire, dans plusieurs ordres, et
+  n'enregistre que le meilleur. « Publier » (`publish_all_timetables`) publie les
+  brouillons complets en une seule transaction (tout ou rien), car publier les
+  classes une par une entrerait en conflit avec les anciens emplois du temps des
+  autres classes. La publication d'un brouillon n'archive que les versions
+  publiées sur la même période ; un recouvrement partiel est refusé.
+- Heures non placées : chaque matière non placée est accompagnée de sa raison
+  (classe occupée, enseignant occupé, plafond d'heures).
+- Créneaux verrouillés : un créneau placé à la main (`timetable_slots.is_locked`)
+  est conservé à chaque régénération ; le générateur planifie le reste autour.
+- Cours particuliers : un cours individuel ne retire jamais de créneau à la
+  classe. Il est refusé s'il tombe pendant un cours que l'élève suit (tronc commun
+  et ses propres spécialités uniquement), si l'enseignant ou la salle sont pris,
+  ou hors horaires et pauses de l'école ; il est publié dès sa création quand il
+  est valide. `suggest_special_course_slots` propose les créneaux où l'élève,
+  l'enseignant et une salle sont libres (samedi matin inclus si l'école y enseigne).
+  Publier un emploi du temps est refusé tant qu'un cours particulier tombe
+  pendant un cours de l'élève ; il faut alors replacer ce cours.
+- Alertes (`get_timetable_alerts`) : spécialités d'un élève qui se chevauchent dans
+  l'emploi du temps publié, enseignant remplacé après publication. Le choix des
+  spécialités d'un élève n'est jamais bloqué par l'emploi du temps.
+- Génération et publication ne peuvent pas s'exécuter en même temps (verrou
+  consultatif PostgreSQL). Au démarrage, l'API refuse de se lancer avec un message
+  clair si une migration requise manque (`app/core/schema_check.py`).
+- Tests : logique pure dans `tests/services/test_timetable_planner.py` ; tests sur
+  la base de développement dans `tests/integration` (`RUN_DB_TESTS=1`), exécutés
+  dans une transaction annulée.
+- Volumes hebdomadaires : alignés sur le programme officiel (script de données
+  `database/init/080_official_weekly_volumes.sql`), arrondis à l'heure pleine. Une
+  matière sans ligne de volume n'est pas planifiée mais reste dans la classe.
+
 ### 3.10 Portail responsable légal
 
 - Un compte `GUARDIAN` peut se connecter. Il ne voit que les élèves non archivés
@@ -425,7 +486,7 @@ Un élève ne peut avoir qu'un contact principal. La paire élève/responsable e
 | `description` | `text` | Description facultative. |
 | `is_active` | `boolean` | Autorise l'utilisation dans de nouvelles classes. |
 
-La table ne possède pas de colonne `code`. Un code d'affichage éventuel est produit par le programme tant qu'aucune décision contraire n'est validée.
+`session_periods` (smallint, 1 à 4, défaut 2) est la taille type d'une séance en périodes consécutives (1 pour les langues vivantes et l'EMC, par exemple). La table ne possède pas de colonne `code`. Un code d'affichage éventuel est produit par le programme tant qu'aucune décision contraire n'est validée.
 
 ### 5.14 `class_subjects`
 

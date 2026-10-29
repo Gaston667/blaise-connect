@@ -1,10 +1,14 @@
 """Point d'entrée de l'API FastAPI de BlaiseConnect."""
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.core.database import engine
 from app.core.exception_handlers import register_exception_handlers
+from app.core.schema_check import verify_required_migrations
 from app.core.api_response import wrap_success_responses
 from app.core.http_security_config import ALLOWED_HOSTS, ALLOWED_ORIGINS
 from app.core.http_security_middleware import add_security_headers
@@ -35,10 +39,19 @@ from app.routes.guardian_portal import router as guardian_portal_router
 # Importation des routeurs
 from app.routes.auth import router as auth_router
 from app.routes.health import router as health_router
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Refuse de démarrer avec un message clair si une migration manque."""
+
+    verify_required_migrations(engine)
+    yield
+
+
 # Crée l'application FastAPI et configure les informations de sa documentation.
 app = FastAPI(
     title="BlaiseConnect API",
     version="0.1.0-rc.3",
+    lifespan=lifespan,
 )
 
 # Refuse les requetes provenant d'hotes ou d'origines non declares.

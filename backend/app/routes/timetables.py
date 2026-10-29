@@ -9,6 +9,7 @@ from app.schemas.room_create import RoomCreate
 from app.schemas.special_course_create import SpecialCourseCreate
 from app.schemas.break_schedule_create import BreakScheduleCreate
 from app.schemas.school_day_schedule_upsert import SchoolDayScheduleUpsert
+from app.schemas.timetable_generate_all_request import TimetableGenerateAllRequest
 from app.schemas.timetable_generation_request import TimetableGenerationRequest
 from app.schemas.timetable_date_slot_create import TimetableDateSlotCreate
 from app.schemas.timetable_slot_create import TimetableSlotCreate
@@ -116,6 +117,42 @@ def post_timetable_generation(
             target_start_date=payload.target_start_date,
             target_end_date=payload.target_end_date,
             generated_by_account_id=current_admin.id,
+        )
+    except (ValueError, LookupError, PermissionError, IntegrityError) as error:
+        _raise_service_error(error)
+
+
+@router.get("/timetables/alerts")
+def get_timetable_alerts(db: DatabaseSession, current_admin: CurrentAdminDependency):
+    """Signale les incohérences apparues après la publication des emplois du temps."""
+    return timetable_service.get_timetable_alerts(db=db)
+
+
+@router.post("/timetables/generate-all", status_code=201)
+def post_timetable_generation_for_all_classes(
+    payload: TimetableGenerateAllRequest,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+):
+    """Génère, ensemble, les brouillons de toutes les classes de l'année courante."""
+    try:
+        return timetable_service.generate_all_timetables(
+            db=db,
+            generated_by_account_id=current_admin.id,
+            target_start_date=payload.target_start_date,
+            target_end_date=payload.target_end_date,
+        )
+    except (ValueError, LookupError, PermissionError, IntegrityError) as error:
+        _raise_service_error(error)
+
+
+@router.post("/timetables/publish-all")
+def post_timetable_publication_for_all_classes(db: DatabaseSession, current_admin: CurrentAdminDependency):
+    """Publie ensemble les brouillons complets de l'année courante (tout ou rien)."""
+    try:
+        return timetable_service.publish_all_timetables(
+            db=db,
+            validated_by_account_id=current_admin.id,
         )
     except (ValueError, LookupError, PermissionError, IntegrityError) as error:
         _raise_service_error(error)
@@ -250,6 +287,32 @@ def post_special_course(
             end_time=payload.end_time,
             note=payload.note,
             created_by_account_id=current_admin.id,
+            teacher_id=payload.teacher_id,
+            room_id=payload.room_id,
+        )
+    except (ValueError, LookupError, PermissionError, IntegrityError) as error:
+        _raise_service_error(error)
+
+
+@router.get("/school-classes/{class_id}/special-courses/suggestions")
+def get_special_course_suggestions(
+    class_id: str,
+    student_id: str,
+    subject_id: str,
+    db: DatabaseSession,
+    current_admin: CurrentAdminDependency,
+    minutes: int = Query(default=60, ge=15, le=240),
+    teacher_id: str | None = None,
+):
+    """Propose les créneaux où l'élève, l'enseignant et une salle sont libres."""
+    try:
+        return timetable_service.suggest_special_course_slots(
+            db=db,
+            class_id=class_id,
+            student_id=student_id,
+            subject_id=subject_id,
+            minutes=minutes,
+            teacher_id=teacher_id,
         )
     except (ValueError, LookupError, PermissionError, IntegrityError) as error:
         _raise_service_error(error)

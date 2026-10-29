@@ -18,3 +18,5 @@ class SpecialCourseCreate(BaseModel):
     start_time: time
     end_time: time
     note: str | None = None
+    teacher_id: UUID | None = None
+    room_id: UUID | None = None

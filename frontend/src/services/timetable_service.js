@@ -183,3 +183,39 @@ export function deleteSpecialCourse(specialCourseId) {
     fallbackMessage: 'Échec de la suppression du cours particulier',
   })
 }
+
+/** Génère, ensemble, les brouillons de toutes les classes de l'année courante. */
+export function generateAllTimetables(targetStartDate, targetEndDate) {
+  return apiRequestJson('/api/timetables/generate-all', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      target_start_date: targetStartDate || null,
+      target_end_date: targetEndDate || null,
+    }),
+    fallbackMessage: 'Échec de la génération des emplois du temps',
+  })
+}
+
+/** Publie ensemble les brouillons complets de l'année courante (tout ou rien). */
+export function publishAllTimetables() {
+  return apiRequestJson('/api/timetables/publish-all', {
+    method: 'POST',
+    fallbackMessage: 'Échec de la publication des emplois du temps',
+  })
+}
+
+/** Propose des créneaux libres pour un cours particulier (élève, enseignant et salle disponibles). */
+export function getSpecialCourseSuggestions(classId, studentId, subjectId, minutes = 60) {
+  const query = new URLSearchParams({ student_id: studentId, subject_id: subjectId, minutes: String(minutes) })
+  return apiRequestJson(`/api/school-classes/${classId}/special-courses/suggestions?${query}`, {
+    fallbackMessage: 'Impossible de proposer des créneaux',
+  })
+}
+
+/** Incohérences apparues après la publication des emplois du temps. */
+export function getTimetableAlerts() {
+  return apiRequestJson('/api/timetables/alerts', {
+    fallbackMessage: 'Impossible de charger les alertes',
+  })
+}
