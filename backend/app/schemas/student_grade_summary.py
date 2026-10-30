@@ -33,3 +33,5 @@ class StudentGradeSummary(BaseModel):
     subject_averages: list[StudentSubjectAverage]
     period_averages: list[StudentPeriodAverage]
     upcoming_assessments: list[StudentUpcomingAssessment]
+    # Évaluations déjà passées dont les notes ne sont pas encore visibles (saisie en cours).
+    pending_publication_count: int = 0

@@ -43,7 +43,26 @@ _EFFECTIVE_SCORE_SQL = """
     END
 """
 
-_GRADE_BASE_JOIN = """
+# Une note n'est visible de l'élève et de sa famille qu'une fois l'évaluation complète :
+# chaque élève inscrit à la date de l'évaluation a reçu une note ou une absence.
+# Même définition que « résultats manquants » côté enseignant (assessment_service).
+_COMPLETE_ASSESSMENT_SQL = """
+    NOT EXISTS (
+        SELECT 1
+        FROM student_enrollments AS expected
+        WHERE expected.class_id = class_subject.class_id
+          AND expected.start_date <= assessment.assessment_date
+          AND (expected.end_date IS NULL OR expected.end_date >= assessment.assessment_date)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM grades AS entered
+              WHERE entered.assessment_id = assessment.id
+                AND entered.student_enrollment_id = expected.id
+          )
+    )
+"""
+
+_GRADE_BASE_JOIN = f"""
     FROM grades AS grade
     JOIN assessments AS assessment
       ON assessment.id = grade.assessment_id
@@ -62,6 +81,7 @@ _GRADE_BASE_JOIN = """
       ON enrollment.id = grade.student_enrollment_id
     JOIN students AS student
       ON student.id = enrollment.student_id
+     AND {_COMPLETE_ASSESSMENT_SQL}
 """
 
 
@@ -119,7 +139,7 @@ def get_my_assessment_detail(
     donc jamais lire une évaluation ou une note qui ne lui appartient pas.
     """
 
-    sql = """
+    sql = f"""
         WITH target AS (
             SELECT
                 assessment.id AS assessment_id,
@@ -147,6 +167,7 @@ def get_my_assessment_detail(
             JOIN student_enrollments AS enrollment ON enrollment.id = grade.student_enrollment_id
             WHERE enrollment.student_id = :student_id
               AND assessment.id = :assessment_id
+              AND {_COMPLETE_ASSESSMENT_SQL}
         ),
         class_results AS (
             SELECT
@@ -280,7 +301,22 @@ def get_my_grade_summary(db: Session, student_id: UUID) -> dict:
 
     rank, class_size = _get_my_rank(db, student_id)
 
+    pending_sql = f"""
+        SELECT COUNT(DISTINCT assessment.id)
+        FROM student_enrollments AS enrollment
+        JOIN class_subjects AS class_subject ON class_subject.class_id = enrollment.class_id
+        JOIN teacher_assignments AS assignment ON assignment.class_subject_id = class_subject.id
+        JOIN assessments AS assessment ON assessment.teacher_assignment_id = assignment.id
+        WHERE enrollment.student_id = :student_id
+          AND assessment.assessment_date >= enrollment.start_date
+          AND assessment.assessment_date <= COALESCE(enrollment.end_date, assessment.assessment_date)
+          AND assessment.assessment_date <= CURRENT_DATE
+          AND NOT {_COMPLETE_ASSESSMENT_SQL}
+    """
+    pending_count = db.execute(text(pending_sql), {"student_id": student_id}).scalar_one()
+
     return {
+        "pending_publication_count": pending_count,
         "overall_average": float(overall_average) if overall_average is not None else None,
         "rank": rank,
         "class_size": class_size,

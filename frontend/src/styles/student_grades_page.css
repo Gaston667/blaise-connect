@@ -297,3 +297,5 @@
 .sgp-back:active { transform: scale(0.97); }
 .sgp-subject-header h1 { margin: var(--space-2) 0 var(--space-1); font-size: var(--font-size-xl); }
 .sgp-subject-header p { margin: 0 0 var(--space-4); color: var(--color-text-secondary); }
+
+.sgp-pending-note { margin: 0 0 var(--space-3); padding: var(--space-3) var(--space-4); color: var(--sgp-orange-fg); background: var(--sgp-orange-bg); border-radius: var(--radius-md); font-size: var(--font-size-sm); }

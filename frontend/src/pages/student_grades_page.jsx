@@ -203,6 +203,14 @@ export default function StudentGradesPage({ onNavigate }) {
         <div className="sgp-main-col">
           <section className="sgp-section">
             <h2><CalendarClock aria-hidden="true" size={18} /> Dernières évaluations</h2>
+            {summary.pending_publication_count > 0 && (
+              <p className="sgp-pending-note" role="status">
+                {summary.pending_publication_count === 1
+                  ? '1 évaluation est en cours de saisie'
+                  : `${summary.pending_publication_count} évaluations sont en cours de saisie`}
+                {' '}: les notes s’affichent dès que l’enseignant a saisi celles de toute la classe.
+              </p>
+            )}
             <div className="sgp-evaluation-list">
               {recentGrades.length === 0 ? (
                 <p className="sgp-empty">Aucune note pour le moment.</p>
