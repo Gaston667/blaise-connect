@@ -274,6 +274,19 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - L'inscription est guidée par un compteur d'étapes (classe/élève, spécialités,
   confirmation) sur la fiche élève et sur la page de la classe.
 
+### 3.10 bis Espace enseignant
+
+- Le menu d'un enseignant contient : tableau de bord, élèves, classes, matières, notes,
+  appel et absences, emploi du temps. La section « Gestion des comptes » est réservée
+  à l'administrateur, quelle que soit la page ouverte.
+- Son tableau de bord (`GET /teachers/me/dashboard`) présente les cours du jour et le
+  prochain cours, les évaluations déjà passées dont des notes manquent, les demandes de
+  correction à valider (s'il est professeur principal) et ses propres demandes en attente.
+  Aucun cours n'est affiché les jours de vacances scolaires.
+- L'enseignant fait ses appels et saisit ses notes ; le serveur limite la saisie à ses
+  propres évaluations et refuse toute saisie datée pendant les vacances.
+- Limite connue : il voit encore la liste de tous les élèves de l'école (voir la liste de tâches).
+
 ### 3.10 Portail responsable légal
 
 - Un compte `GUARDIAN` peut se connecter. Il ne voit que les élèves non archivés

@@ -39,9 +39,11 @@ Les idées à discuter sont dans [`docs/idee.md`](../idee.md).
 | Portail responsable légal : onglet « Dossier de l'enfant » (identité, scolarité et documents en lecture seule) et barre « Vous consultez » pour changer d'enfant. |
 | Page Emploi du temps simplifiée (données et boutons en double retirés) ; la liste des emplois du temps générés ouvre l'aperçu du brouillon de la classe. |
 | Visite guidée déplacée dans un onglet « Aide » de la barre latérale. |
+| Espace enseignant : tableau de bord (cours du jour, prochain cours, évaluations à terminer, corrections à valider et en attente), accès à « Faire l'appel » depuis le menu et la barre mobile, et menu limité à son rôle (plus de section « Gestion des comptes » sur la page Élèves). |
 | Vacances scolaires saisies par l'administrateur pour chaque année (le calendrier français est décalé d'environ une semaine en Guinée, donc aucune date en dur) : affichées dans les emplois du temps de l'administrateur, de l'élève, du parent et de l'enseignant, et évaluations et appels refusés pendant les vacances. |
 | Notes masquées à l'élève et à sa famille tant que l'enseignant n'a pas saisi les notes de toute la classe (liste, détail, moyennes, rang), avec un message « évaluations en cours de saisie » et des tests. |
 | Audit des données affichées : aucune donnée métier écrite en dur dans l'application, hors la page publique des frais de scolarité. |
+| Mise en page : plus de débordement des pages sous l'en-tête, bouton de masquage du menu repositionné, barre « Vous consultez » du portail parent sous l'en-tête. |
 
 ## 🟡 À valider
 
@@ -54,6 +56,7 @@ Les idées à discuter sont dans [`docs/idee.md`](../idee.md).
 | Tester le parcours complet avec l'établissement pilote : comptes, inscriptions, notes, emplois du temps, absences et sauvegarde préalable. |
 | Vérifier que la suppression d'une matière ou d'un enseignant utilisé est refusée avec un message clair. |
 | Vérifier que la validation d'un bulletin est refusée lorsqu'une absence est encore en attente de décision. |
+| Faire tester par un vrai enseignant, sur ordinateur et sur téléphone, le tableau de bord, l'appel (enregistrement d'un appel complet) et la saisie des notes jusqu'à leur affichage chez l'élève. |
 | Vérifier sur ordinateur et sur téléphone le portail parent (barre « Vous consultez », onglet « Dossier de l'enfant », ouverture et téléchargement d'un vrai document) et la position du bouton de masquage du menu. |
 
 ## 🔴 À faire
@@ -63,23 +66,24 @@ Les tâches sont classées de la plus courte à la plus importante.
 | Ordre | Tâche |
 |:-:|---|
 | 1 | Appliquer les migrations `009` à `013` et le script `080` sur le VPS et chez le co-développeur. |
-| 2 | Créer la table `schema_migrations` (numéro, fichier, date d'application, empreinte SHA-256) demandée par `AGENTS.md` §8.1, et y enregistrer les migrations déjà appliquées. |
-| 3 | Publier les nouveaux emplois du temps générés ; les emplois du temps publiés actuels ont encore des spécialités simultanées signalées par les alertes. |
-| 4 | Faire valider les volumes horaires par la direction et compléter les matières manquantes de la 3ème A dans les données de démonstration. |
-| 5 | Ajouter l'action visible permettant de verrouiller ou déverrouiller un créneau d'emploi du temps déjà généré. |
-| 6 | Contrôler la capacité d'une classe avant une inscription et refuser clairement une classe pleine. |
-| 7 | Refuser la saisie de notes pour une évaluation future et contrôler la cohérence de la date de naissance et de l'âge de l'élève avec son niveau. |
-| 8 | Exiger au moins un responsable légal et un contact principal avant l'inscription d'un élève. |
-| 9 | Afficher les conséquences avant une désinscription et gérer le changement de classe en cours d'année avec historique. |
-| 10 | Avertir puis bloquer la clôture d'une année lorsque des notes manquent ou que des bulletins ne sont pas validés. |
-| 11 | Créer des types de documents précis (acte de naissance, certificat médical, autorisation…) à la place de « Administratif » et « Autre », et décider si le responsable peut déposer lui-même un document (avec validation par l'administration). |
-| 12 | Rendre configurables le nom de l'école, les tarifs, les dates et le pied de page : la page publique des frais de scolarité est écrite en dur pour un seul établissement, ce qui bloque la vente à une deuxième école. |
-| 13 | Brancher les tests automatisés dans GitHub Actions. |
-| 14 | Définir la conservation des sauvegardes, tester périodiquement une restauration et copier automatiquement les sauvegardes vers un stockage hors du VPS. |
-| 15 | Créer un historique global des actions sensibles pour l'administrateur. |
-| 16 | Remplacer l'aperçu PDF des bulletins par une compilation locale : l'aperçu actuel ne doit pas être utilisé avec de vraies données scolaires, car il passe par un service en ligne tiers. |
-| 17 | Préparer l'offre commerciale : grille de prix et abonnement, contrat de licence avec clause de répercussion des frais aux parents, conditions d'utilisation et protection des données des mineurs, à faire relire par un juriste. |
-| 18 | Retirer les mentions de co-auteur automatiques de 12 anciens commits : la règle GitHub qui interdit le push forcé doit être levée temporairement, une sauvegarde faite avant et le co-développeur prévenu pour qu'il réinitialise ses branches. |
-| 19 | Tester la génération d'emploi du temps avec une vraie école : enseignants, spécialités, salles et indisponibilités réelles. |
-| 20 | Décider puis implémenter les règles avancées d'emploi du temps : salles spéciales, jours fériés, semaines A/B, options du collège et préférences. |
-| 21 | Ajouter des rôles différenciés (CPE, secrétaire), les notifications parentales, le cahier de textes, la messagerie, la gestion financière complète, les statistiques avancées et une application mobile. |
+| 2 | Limiter un enseignant aux élèves, classes et matières de ses affectations : aujourd'hui il voit la liste de tous les élèves de l'école. |
+| 3 | Créer la table `schema_migrations` (numéro, fichier, date d'application, empreinte SHA-256) demandée par `AGENTS.md` §8.1, et y enregistrer les migrations déjà appliquées. |
+| 4 | Publier les nouveaux emplois du temps générés ; les emplois du temps publiés actuels ont encore des spécialités simultanées signalées par les alertes. |
+| 5 | Faire valider les volumes horaires par la direction et compléter les matières manquantes de la 3ème A dans les données de démonstration. |
+| 6 | Ajouter l'action visible permettant de verrouiller ou déverrouiller un créneau d'emploi du temps déjà généré. |
+| 7 | Contrôler la capacité d'une classe avant une inscription et refuser clairement une classe pleine. |
+| 8 | Refuser la saisie de notes pour une évaluation future et contrôler la cohérence de la date de naissance et de l'âge de l'élève avec son niveau. |
+| 9 | Exiger au moins un responsable légal et un contact principal avant l'inscription d'un élève. |
+| 10 | Afficher les conséquences avant une désinscription et gérer le changement de classe en cours d'année avec historique. |
+| 11 | Avertir puis bloquer la clôture d'une année lorsque des notes manquent ou que des bulletins ne sont pas validés. |
+| 12 | Créer des types de documents précis (acte de naissance, certificat médical, autorisation…) à la place de « Administratif » et « Autre », et décider si le responsable peut déposer lui-même un document (avec validation par l'administration). |
+| 13 | Rendre configurables le nom de l'école, les tarifs, les dates et le pied de page : la page publique des frais de scolarité est écrite en dur pour un seul établissement, ce qui bloque la vente à une deuxième école. |
+| 14 | Brancher les tests automatisés dans GitHub Actions. |
+| 15 | Définir la conservation des sauvegardes, tester périodiquement une restauration et copier automatiquement les sauvegardes vers un stockage hors du VPS. |
+| 16 | Créer un historique global des actions sensibles pour l'administrateur. |
+| 17 | Remplacer l'aperçu PDF des bulletins par une compilation locale : l'aperçu actuel ne doit pas être utilisé avec de vraies données scolaires, car il passe par un service en ligne tiers. |
+| 18 | Préparer l'offre commerciale : grille de prix et abonnement, contrat de licence avec clause de répercussion des frais aux parents, conditions d'utilisation et protection des données des mineurs, à faire relire par un juriste. |
+| 19 | Retirer les mentions de co-auteur automatiques de 12 anciens commits : la règle GitHub qui interdit le push forcé doit être levée temporairement, une sauvegarde faite avant et le co-développeur prévenu pour qu'il réinitialise ses branches. |
+| 20 | Tester la génération d'emploi du temps avec une vraie école : enseignants, spécialités, salles et indisponibilités réelles. |
+| 21 | Décider puis implémenter les règles avancées d'emploi du temps : salles spéciales, jours fériés, semaines A/B, options du collège et préférences. |
+| 22 | Ajouter des rôles différenciés (CPE, secrétaire), les notifications parentales, le cahier de textes, la messagerie, la gestion financière complète, les statistiques avancées et une application mobile. |
