@@ -28,8 +28,8 @@ const ADMIN_TABS = [
 
 const TEACHER_TABS = [
   { page: 'home', label: 'Accueil', icon: House },
-  { page: 'students', label: 'Élèves', icon: GraduationCap, matches: ['students', 'student-details'] },
   { page: 'notes', label: 'Notes', icon: NotebookPen },
+  { page: 'attendance', label: 'Appel', icon: UserRoundX },
   { page: 'teacher-timetable', label: 'Emploi du temps', icon: CalendarDays },
   MORE_TAB,
 ]

@@ -32,6 +32,7 @@ const TeacherTimetablePage = lazy(() => import('./pages/teacher_timetable_page.j
 const TimetableManagementPage = lazy(() => import('./pages/timetable_management_page.jsx'))
 const AttendancePage = lazy(() => import('./pages/attendance_page.jsx'))
 const GuardianHomePage = lazy(() => import('./pages/guardian_home_page.jsx'))
+const TeacherDashboardPage = lazy(() => import('./pages/teacher_dashboard_page.jsx'))
 const GuardianChildRecordPage = lazy(() => import('./pages/guardian_child_record_page.jsx'))
 const GuardianReportCardsPage = lazy(() => import('./pages/guardian_report_cards_page.jsx'))
 const GuardianReportCardDetails = lazy(() => import('./pages/guardian_report_cards_page.jsx').then((module) => ({ default: module.GuardianReportCardDetails })))
@@ -251,11 +252,14 @@ export default function App() {
   const canViewSchoolDirectory = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
   const canManageNotes = ['ADMIN', 'TEACHER'].includes(currentAccount.role)
   const isGuardian = currentAccount.role === 'GUARDIAN'
+  const isTeacher = currentAccount.role === 'TEACHER'
   let pageContent = canManageSchool
     ? <AdminDashboardPage account={currentAccount} onNavigate={handleNavigate} />
     : isGuardian
       ? <GuardianHomePage account={currentAccount} onNavigate={handleNavigate} />
-      : <HomePage account={currentAccount} onNavigate={handleNavigate} />
+      : isTeacher
+        ? <TeacherDashboardPage account={currentAccount} onNavigate={handleNavigate} />
+        : <HomePage account={currentAccount} onNavigate={handleNavigate} />
 
   if (currentPage === 'students' && canViewSchoolDirectory) {
     pageContent = <StudentsPage onNavigate={handleNavigate} />
@@ -373,7 +377,7 @@ export default function App() {
   }
   else if (
     currentPage === 'attendance'
-    && ['ADMIN', 'STUDENT', 'GUARDIAN'].includes(currentAccount.role)
+    && ['ADMIN', 'TEACHER', 'STUDENT', 'GUARDIAN'].includes(currentAccount.role)
   ) {
     pageContent = <AttendancePage account={currentAccount} onNavigate={handleNavigate} />
   }

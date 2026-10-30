@@ -31,6 +31,7 @@ from app.routes.grade_change_requests import router as grade_change_requests_rou
 from app.routes.student_grades import router as student_grades_router
 from app.routes.student_timetable import router as student_timetable_router
 from app.routes.teacher_timetable import router as teacher_timetable_router
+from app.routes.teacher_dashboard import router as teacher_dashboard_router
 from app.routes.timetables import router as timetables_router
 from app.routes.attendance import router as attendance_router
 from app.routes.report_cards import router as report_cards_router
@@ -93,6 +94,7 @@ app.include_router(school_holidays_router)
 app.include_router(student_grades_router)
 app.include_router(student_timetable_router)
 app.include_router(teacher_timetable_router)
+app.include_router(teacher_dashboard_router)
 app.include_router(students_router)
 app.include_router(school_classes_router)
 app.include_router(guardians_router)

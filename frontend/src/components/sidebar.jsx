@@ -30,13 +30,15 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
   const isStudent = account.role === 'STUDENT'
   const isGuardian = account.role === 'GUARDIAN'
   const [activeSection, setActiveSection] = useState(
-    isAccountManagementPage(currentPage) ? 'accounts' : null,
+    isAdmin && isAccountManagementPage(currentPage) ? 'accounts' : null,
   )
-  const isHelpSection = activeSection === 'help'
+  const isHelpSection = isAdmin && activeSection === 'help'
+  // Seul l'administrateur gère les comptes : un enseignant qui ouvre « Élèves » garde son menu.
+  const isAccountsSection = isAdmin && activeSection === 'accounts'
 
   useEffect(function revealCurrentAccountSection() {
-    if (isAccountManagementPage(currentPage)) setActiveSection('accounts')
-  }, [currentPage])
+    if (isAdmin && isAccountManagementPage(currentPage)) setActiveSection('accounts')
+  }, [currentPage, isAdmin])
 
   function navigate(page) { onNavigate(page); onClose() }
   function openAccountsSection() { setActiveSection('accounts') }
@@ -54,7 +56,7 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
         <button type="button" className="layout-navigation-item" onClick={startTour}>
           <Compass size={20} /> Visite guidée
         </button>
-      </> : activeSection === 'accounts' ? <>
+      </> : isAccountsSection ? <>
         <button type="button" className="layout-navigation-back" onClick={returnToMainNavigation}>
           <ChevronLeft aria-hidden="true" size={18} /> Gestion des comptes
         </button>
@@ -71,7 +73,7 @@ export default function Sidebar({ account, currentPage, isOpen, onClose, onNavig
           <NavigationButton page="school-classes" currentPage={currentPage} onNavigate={navigate} icon={<Users size={20} />}>Classes</NavigationButton>
           <NavigationButton page="subjects" currentPage={currentPage} onNavigate={navigate} icon={<BookOpen size={20} />}>Matières</NavigationButton>
           <NavigationButton page="notes" currentPage={currentPage} onNavigate={navigate} icon={<NotebookPen size={20} />}>Notes</NavigationButton>
-          {isAdmin ? <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>Absences</NavigationButton> : null}
+          <NavigationButton page="attendance" currentPage={currentPage} onNavigate={navigate} icon={<UserRoundX size={20} />}>{isAdmin ? 'Absences' : 'Appel et absences'}</NavigationButton>
         </> : null}
         {isAdmin ? <>
           <NavigationButton page="report-cards" currentPage={currentPage} onNavigate={navigate} icon={<FileText size={20} />} disabled>Bulletins</NavigationButton>

@@ -221,9 +221,14 @@
 
 /* La page remplit la place restante sous l'en-tête. Un `min-height: 100%` propre
    à une page ignorerait la hauteur de l'en-tête et ferait déborder le contenu. */
-.layout-content > :not(.layout-header) {
+.layout-content > main {
   flex: 1 1 auto;
   min-height: auto;
+}
+
+/* Une page faite de plusieurs blocs frères (sans balise main) garde sa hauteur naturelle. */
+.layout-content > :not(main, .layout-header) {
+  flex: 0 0 auto;
 }
 
 .mobile-bottom-nav {
