@@ -9,6 +9,7 @@ REQUIRED_COLUMNS = [
     ("subjects", "session_periods", "010_subject_session_length.sql"),
     ("timetable_slots", "is_locked", "012_locked_timetable_slots.sql"),
     ("timetable_date_slots", "is_locked", "012_locked_timetable_slots.sql"),
+    ("school_holidays", "end_date", "013_school_holidays.sql"),
 ]
 
 
@@ -22,7 +23,7 @@ def verify_required_migrations(engine: Engine) -> None:
                 text(
                     """
                     SELECT 1 FROM pg_attribute
-                    WHERE attrelid = CAST(:table AS regclass)
+                    WHERE attrelid = to_regclass(:table)
                       AND attname = :column AND NOT attisdropped
                     """
                 ),

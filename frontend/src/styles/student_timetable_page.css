@@ -273,3 +273,13 @@
 .stp-week-nav__range { color: var(--color-text-primary); }
 .stp-grid__day-head small, .stp-day-tab small { display: block; font-weight: 400; font-size: 0.7rem; opacity: 0.75; }
 .stp-day-agenda__row { min-width: 0; } .stp-day-agenda__info { min-width: 0; flex: 1; } .stp-day-agenda__title, .stp-day-agenda__meta { white-space: normal; overflow-wrap: anywhere; }
+
+/* Vacances scolaires */
+.stp-holiday-banner { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-4); color: var(--sgp-green-fg, #146c43); background: var(--sgp-green-bg, #e7f6ed); border-radius: var(--radius-md); font-size: var(--font-size-sm); }
+.stp-timeline__day-head--holiday { color: var(--sgp-green-fg, #146c43); background: var(--sgp-green-bg, #e7f6ed); }
+.stp-timeline__day-head small { display: block; font-size: 0.68rem; font-weight: var(--font-weight-regular); }
+.stp-timeline__day--holiday { background-image: repeating-linear-gradient(135deg, transparent 0, transparent 10px, rgba(31, 157, 85, 0.07) 10px, rgba(31, 157, 85, 0.07) 20px); }
+.stp-holiday-banner--upcoming { flex-wrap: wrap; color: var(--color-text-secondary); background: var(--color-primary-lighter); }
+.stp-holiday-banner--upcoming > span { flex: 1; min-width: 0; }
+.stp-holiday-banner__button { padding: 4px var(--space-3); color: var(--color-primary); background: var(--color-surface); border: 1px solid var(--color-primary); border-radius: var(--radius-full); font: inherit; font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); cursor: pointer; }
+.stp-holiday-banner__button:hover { background: var(--color-primary-light); }

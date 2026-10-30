@@ -5,10 +5,16 @@ import {
   CalendarClock,
   ChevronRight,
   Lock,
+  Palmtree,
   Pencil,
   Plus,
   Trash2,
 } from 'lucide-react'
+import {
+  createYearHoliday,
+  deleteYearHoliday,
+  getYearHolidays,
+} from '../services/school_holiday_service'
 import {
   closeSchoolYear,
   createReportingPeriod,
@@ -78,16 +84,23 @@ export default function SchoolYearDetailsPage({ schoolYearId, onNavigate }) {
   const [deletionPreview, setDeletionPreview] = useState(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [holidays, setHolidays] = useState([])
+  const [isHolidayFormOpen, setIsHolidayFormOpen] = useState(false)
+  const [holidayForm, setHolidayForm] = useState({ name: '', start_date: '', end_date: '' })
+  const [holidayError, setHolidayError] = useState('')
+  const [isHolidaySubmitting, setIsHolidaySubmitting] = useState(false)
 
   const loadDetails = useCallback(async function loadDetails() {
     setIsLoading(true)
     try {
-      const [yearData, periodsData] = await Promise.all([
+      const [yearData, periodsData, holidaysData] = await Promise.all([
         getSchoolYear(schoolYearId),
         getReportingPeriods(schoolYearId),
+        getYearHolidays(schoolYearId),
       ])
       setSchoolYear(yearData)
       setPeriods(periodsData)
+      setHolidays(holidaysData)
     } catch (error) {
       setErrorMessage(error.message)
     } finally {
@@ -126,6 +139,38 @@ export default function SchoolYearDetailsPage({ schoolYearId, onNavigate }) {
       setFormError(error.message)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  function handleHolidayFieldChange(event) {
+    const { name, value } = event.target
+    setHolidayForm((previous) => ({ ...previous, [name]: value }))
+  }
+
+  async function handleHolidaySubmit(event) {
+    event.preventDefault()
+    setHolidayError('')
+    setIsHolidaySubmitting(true)
+    try {
+      await createYearHoliday(schoolYearId, holidayForm)
+      setHolidayForm({ name: '', start_date: '', end_date: '' })
+      setIsHolidayFormOpen(false)
+      setHolidays(await getYearHolidays(schoolYearId))
+    } catch (error) {
+      setHolidayError(error.message)
+    } finally {
+      setIsHolidaySubmitting(false)
+    }
+  }
+
+  async function handleHolidayDelete(holiday) {
+    if (!window.confirm(`Supprimer les vacances « ${holiday.name} » ?`)) return
+    setHolidayError('')
+    try {
+      await deleteYearHoliday(schoolYearId, holiday.id)
+      setHolidays(await getYearHolidays(schoolYearId))
+    } catch (error) {
+      setHolidayError(error.message)
     }
   }
 
@@ -619,6 +664,119 @@ export default function SchoolYearDetailsPage({ schoolYearId, onNavigate }) {
                     <td>{formatDate(period.end_date)}</td>
                     <td>{formatDateTime(period.created_at)}</td>
                     <td>{formatDateTime(period.updated_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="details-panel" aria-labelledby="school-holidays-title">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+          <h3 id="school-holidays-title" style={{ margin: 0 }}>Vacances scolaires</h3>
+          {!isClosed && (
+            <button
+              type="button"
+              className="details-mini-button"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setIsHolidayFormOpen((open) => !open)}
+            >
+              <Plus aria-hidden="true" size={14} style={{ verticalAlign: 'middle' }} />
+              {' '}Ajouter
+            </button>
+          )}
+        </div>
+        <p style={{ margin: '0 0 var(--space-4)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+          Saisissez les dates de votre établissement : en Guinée, le calendrier du système français est
+          décalé d’environ une semaine. Pendant les vacances, l’emploi du temps n’affiche aucun cours
+          et les évaluations et appels sont refusés.
+        </p>
+
+        {isHolidayFormOpen && (
+          <form className="details-form-grid" onSubmit={handleHolidaySubmit} style={{ marginBottom: 'var(--space-5)' }}>
+            <div className="details-field">
+              <label htmlFor="holiday-name">Nom</label>
+              <input
+                id="holiday-name"
+                name="name"
+                type="text"
+                placeholder="Vacances de la Toussaint"
+                value={holidayForm.name}
+                onChange={handleHolidayFieldChange}
+                required
+              />
+            </div>
+            <div className="details-field">
+              <label htmlFor="holiday-start">Premier jour</label>
+              <input
+                id="holiday-start"
+                name="start_date"
+                type="date"
+                min={schoolYear.start_date}
+                max={schoolYear.end_date}
+                value={holidayForm.start_date}
+                onChange={handleHolidayFieldChange}
+                required
+              />
+            </div>
+            <div className="details-field">
+              <label htmlFor="holiday-end">Dernier jour</label>
+              <input
+                id="holiday-end"
+                name="end_date"
+                type="date"
+                min={holidayForm.start_date || schoolYear.start_date}
+                max={schoolYear.end_date}
+                value={holidayForm.end_date}
+                onChange={handleHolidayFieldChange}
+                required
+              />
+            </div>
+            <div className="details-field-full">
+              <button type="submit" className="details-action-primary" disabled={isHolidaySubmitting} style={{ cursor: isHolidaySubmitting ? 'wait' : 'pointer' }}>
+                {isHolidaySubmitting ? 'Enregistrement…' : 'Ajouter les vacances'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {holidayError && <p className="comptes-error" role="alert">{holidayError}</p>}
+
+        {holidays.length === 0 ? (
+          <div className="comptes-empty-state">
+            <Palmtree aria-hidden="true" size={28} />
+            <p>Aucune vacance définie pour cette année.</p>
+          </div>
+        ) : (
+          <div className="comptes-table-wrapper">
+            <table className="comptes-table">
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Premier jour</th>
+                  <th>Dernier jour</th>
+                  {!isClosed && <th>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {holidays.map((holiday) => (
+                  <tr key={holiday.id}>
+                    <td>{holiday.name}</td>
+                    <td>{formatDate(holiday.start_date)}</td>
+                    <td>{formatDate(holiday.end_date)}</td>
+                    {!isClosed && (
+                      <td>
+                        <button
+                          type="button"
+                          className="details-mini-button details-mini-button-danger"
+                          onClick={() => handleHolidayDelete(holiday)}
+                          aria-label={`Supprimer ${holiday.name}`}
+                        >
+                          <Trash2 aria-hidden="true" size={14} /> Supprimer
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

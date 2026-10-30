@@ -15,6 +15,7 @@ from app.core.http_security_middleware import add_security_headers
 from app.routes.accounts import router as accounts_router
 from app.routes.school_years import router as school_years_router
 from app.routes.reporting_periods import router as reporting_periods_router
+from app.routes.school_holidays import router as school_holidays_router
 from app.routes.students import router as students_router
 from app.routes.school_classes import router as school_classes_router
 from app.routes.guardians import router as guardians_router
@@ -88,6 +89,7 @@ app.include_router(auth_router)
 app.include_router(accounts_router)
 app.include_router(school_years_router)
 app.include_router(reporting_periods_router)
+app.include_router(school_holidays_router)
 app.include_router(student_grades_router)
 app.include_router(student_timetable_router)
 app.include_router(teacher_timetable_router)

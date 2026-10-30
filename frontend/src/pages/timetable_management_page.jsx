@@ -22,6 +22,8 @@ import {
   X,
 } from 'lucide-react'
 
+import HolidayBanners from '../components/holiday_banners.jsx'
+import useSchoolHolidays from '../hooks/use_school_holidays.js'
 import { useToast } from '../components/feedback/ToastProvider.jsx'
 import GenerateAllTimetables from '../components/generate_all_timetables.jsx'
 import SpecialCourseSuggestions from '../components/special_course_suggestions.jsx'
@@ -49,6 +51,7 @@ import {
 } from '../services/timetable_service.js'
 import { listStudents } from '../services/students_service.js'
 import { getScheduleRows } from '../utils/timetable_display.js'
+import { getHolidayOn } from '../utils/timetable_week.js'
 import '../styles/timetable_management_page.css'
 import '../styles/student_timetable_page.css'
 
@@ -465,6 +468,7 @@ function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearSta
   const [detailSlot, setDetailSlot] = useState(null)
   const currentWeekStart = weekStart || getWeekStart('')
   const currentWeekEnd = addDays(currentWeekStart, 6)
+  const holidays = useSchoolHolidays(currentWeekStart, addDays(currentWeekStart, 120))
   const gridDayDates = [0, 1, 2, 3, 4].map(function getDayDate(index) { return addDays(currentWeekStart, index) })
   const visibleSlots = slots.filter(function filterVisibleSlots(slot) {
     if (slot.course_date) return slot.course_date >= currentWeekStart && slot.course_date <= currentWeekEnd
@@ -555,21 +559,24 @@ function TimelineTimetableGrid({ slots, breaks, configurationDays, schoolYearSta
           {displayMode === 'day' && <select className="stp-timeline-day-select" value={selectedDayIndex} onChange={function selectDay(event) { setSelectedDayIndex(Number(event.target.value)) }} aria-label="Jour affiché">{gridDayDates.map(function renderDayOption(dayDate, index) { return <option key={dayDate} value={index}>{formatDayWithDate(dayDate)}</option> })}</select>}
         </div>
       </div>
+      <HolidayBanners holidays={holidays} weekStart={currentWeekStart} weekEnd={currentWeekEnd} onShowWeek={onWeekStartChange ? function showHolidayWeek(date) { onWeekStartChange(getWeekStart(date)) } : undefined} />
       <div className={`stp-timeline stp-timeline--${displayDays.length}-days`} style={{ '--timeline-height': `${timelineHeight}px` }}>
         <div className="stp-timeline__corner" />
         {displayDays.map(function renderDayHeader(dayIndex) {
           const dayDate = gridDayDates[dayIndex]
-          return <div key={dayDate} className={`stp-timeline__day-head ${isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate) ? '' : 'stp-timeline__day-head--outside'}`}>{formatDayWithDate(dayDate)}</div>
+          const dayHoliday = getHolidayOn(holidays, dayDate)
+          return <div key={dayDate} className={`stp-timeline__day-head ${isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate) ? '' : 'stp-timeline__day-head--outside'}${dayHoliday ? ' stp-timeline__day-head--holiday' : ''}`} title={dayHoliday ? `Vacances : ${dayHoliday.name}` : undefined}>{formatDayWithDate(dayDate)}{dayHoliday ? <small>Vacances</small> : null}</div>
         })}
         <div className="stp-timeline__hours">
           {hourMarkers.map(function renderHourMarker(minutes) { return <span key={minutes} style={{ top: `${(minutes - startMinutes) * pixelsPerMinute}px` }}>{formatTimelineHour(minutes)}</span> })}
         </div>
         {displayDays.map(function renderDayColumn(dayIndex) {
           const dayDate = gridDayDates[dayIndex]
-          const outsideSchoolYear = !isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate)
+          const dayHoliday = getHolidayOn(holidays, dayDate)
+          const outsideSchoolYear = !isDateInSchoolYear(dayDate, schoolYearStartDate, schoolYearEndDate) || Boolean(dayHoliday)
           const daySlots = visibleSlots.filter(function filterDaySlots(slot) { return isSlotOnDay(slot, dayIndex) })
           const layoutsBySlotId = getOverlappingSlotLayouts(daySlots)
-          return <div key={dayDate} className={`stp-timeline__day ${outsideSchoolYear ? 'stp-timeline__day--outside' : ''}`}>
+          return <div key={dayDate} className={`stp-timeline__day ${outsideSchoolYear ? 'stp-timeline__day--outside' : ''}${dayHoliday ? ' stp-timeline__day--holiday' : ''}`}>
             {hourMarkers.map(function renderHourLine(minutes) { return <span key={minutes} className="stp-timeline__hour-line" style={{ top: `${(minutes - startMinutes) * pixelsPerMinute}px` }} /> })}
             {!outsideSchoolYear && breaks.map(function renderBreak(schoolBreak) { return <div key={`${schoolBreak.start_time}-${schoolBreak.end_time}-${schoolBreak.label}`} className="stp-timeline__break" style={getVerticalStyle(schoolBreak.start_time, schoolBreak.end_time)}><span>{schoolBreak.label}</span></div> })}
             {!outsideSchoolYear && daySlots.map(function renderSlot(slot) {

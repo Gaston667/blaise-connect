@@ -107,6 +107,11 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
   `REJECTED` reçoit une valeur effective de zéro uniquement pendant le calcul.
 - Une absence `PENDING` empêche la validation définitive du bulletin concerné.
 - Les calculs officiels sont effectués côté backend et protégés par les contraintes de la base.
+- Un élève et sa famille ne voient les notes d'une évaluation que lorsqu'elle est
+  complète : chaque élève inscrit à la date de l'évaluation a reçu une note ou une
+  absence. Tant que ce n'est pas le cas, aucune note de cette évaluation n'apparaît
+  dans les listes, les détails, les moyennes ni le rang (règle appliquée côté serveur
+  dans `student_grade_service.py`). Les enseignants et administrateurs voient tout.
 
 ### 3.6 Absences et retards
 
@@ -243,6 +248,21 @@ La répétition de certains attributs d'identité entre ces quatre tables est un
 - Volumes hebdomadaires : alignés sur le programme officiel (script de données
   `database/init/080_official_weekly_volumes.sql`), arrondis à l'heure pleine. Une
   matière sans ligne de volume n'est pas planifiée mais reste dans la classe.
+
+### 3.9 ter Vacances scolaires
+
+- `school_holidays` contient les vacances d'une année scolaire : nom, premier et
+  dernier jour (inclus). Les dates sont saisies par l'administrateur : en Guinée,
+  le calendrier du système français est décalé d'environ une semaine et varie
+  chaque année, il n'est donc jamais codé en dur.
+- Règles protégées par PostgreSQL : fin >= début ; dates incluses dans l'année ;
+  deux vacances d'une même année ne se chevauchent pas ; les vacances d'une année
+  clôturée ne se modifient plus ; suppression en cascade avec une année ouverte.
+- Pendant les vacances, aucun cours n'est affiché dans les emplois du temps et le
+  serveur refuse la création d'une évaluation et d'un appel à une date de vacances.
+  Les créneaux hebdomadaires ne sont pas supprimés : ils reprennent après les vacances.
+- Lecture pour tous les comptes connectés (`GET /school-holidays`), écriture réservée
+  à l'administrateur (`/school-years/{id}/holidays`).
 
 ### 3.9 bis Spécialités en Terminale
 

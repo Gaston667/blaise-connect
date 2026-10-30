@@ -10,6 +10,7 @@ from app.models.account import Account
 from app.schemas.assessment_create import AssessmentCreate
 from app.schemas.assessment_update import AssessmentUpdate
 from app.schemas.grade_sheet_submit import GradeSheetSubmit
+from app.services.school_holiday_service import ensure_not_on_holiday
 
 
 TWENTY = Decimal("20")
@@ -360,6 +361,7 @@ def create_assessment(
     effective_assignment_end = context.end_date or context.school_year_end_date
     if not context.start_date <= assessment_data.assessment_date <= effective_assignment_end:
         raise ValueError("La date doit appartenir à la période d'affectation de l'enseignant.")
+    ensure_not_on_holiday(db, assessment_data.assessment_date, "Création d'une évaluation")
 
     assessment_id = db.execute(
         text(

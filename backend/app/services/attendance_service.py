@@ -13,6 +13,7 @@ from app.schemas.attendance_change_request_review import AttendanceChangeRequest
 from app.schemas.attendance_event_create import AttendanceEventCreate
 from app.schemas.attendance_record_update import AttendanceRecordUpdate
 from app.services.attendance_document_service import JUSTIFICATION_DEADLINE_DAYS
+from app.services.school_holiday_service import ensure_not_on_holiday
 
 # Nombre d'absences non couvertes (non justifiees ou refusees) sur l'annee
 # scolaire en cours a partir duquel un eleve remonte dans la liste de
@@ -139,6 +140,7 @@ def create_attendance_event(
     """Cree atomiquement l'appel et uniquement ses incidents."""
 
     _require_assignment_access(db, actor, event_data.teacher_assignment_id)
+    ensure_not_on_holiday(db, event_data.attendance_date, "Appel")
     roster_ids = {
         row["student_enrollment_id"]
         for row in list_attendance_roster(

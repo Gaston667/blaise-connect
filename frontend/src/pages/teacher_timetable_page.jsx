@@ -12,7 +12,9 @@ import {
 
 import { getMyTeacherTimetable } from '../services/teacher_timetable_service.js'
 import WeekNavigator from '../components/week_navigator.jsx'
-import { addDays, formatShortDate, getWeekStart, isSlotOnDate } from '../utils/timetable_week.js'
+import HolidayBanners from '../components/holiday_banners.jsx'
+import useSchoolHolidays from '../hooks/use_school_holidays.js'
+import { addDays, formatShortDate, getHolidayOn, getWeekHolidays, getWeekStart, isSlotOnDate } from '../utils/timetable_week.js'
 import { DAY_LABELS, getMergedDayCells, getScheduleRows } from '../utils/timetable_display.js'
 import '../styles/student_timetable_page.css'
 
@@ -51,6 +53,7 @@ export default function TeacherTimetablePage() {
   const [error, setError] = useState('')
   const [selectedDayIndex, setSelectedDayIndex] = useState(getDefaultDayIndex)
   const [weekStart, setWeekStart] = useState(getWeekStart)
+  const holidays = useSchoolHolidays(weekStart, addDays(weekStart, 120))
 
   useEffect(function loadTimetableEffect() {
     async function load() {
@@ -79,6 +82,7 @@ export default function TeacherTimetablePage() {
 
   function findSlotsForCell(dayIndex, period) {
     const dateValue = addDays(weekStart, dayIndex)
+    if (getHolidayOn(holidays, dateValue)) return []
     return slots.filter(
       (slot) =>
         isSlotOnDate(slot, dateValue, dayIndex) &&
@@ -88,7 +92,8 @@ export default function TeacherTimetablePage() {
   }
   const daySchedule = getScheduleRows(slots, breaks)
   const weekHasCourses = DAY_LABELS.some((_, dayIndex) =>
-    slots.some((slot) => isSlotOnDate(slot, addDays(weekStart, dayIndex), dayIndex)))
+    !getHolidayOn(holidays, addDays(weekStart, dayIndex))
+    && slots.some((slot) => isSlotOnDate(slot, addDays(weekStart, dayIndex), dayIndex)))
   const mergedCellsByDay = DAY_LABELS.map((_, dayIndex) =>
     getMergedDayCells(daySchedule, (row) => findSlotsForCell(dayIndex, row)))
 
@@ -107,7 +112,8 @@ export default function TeacherTimetablePage() {
         ) : (
           <>
             <WeekNavigator weekStart={weekStart} onChange={setWeekStart} lastDayIndex={6} />
-            {!weekHasCourses && <p className="stp-empty">Aucun cours cette semaine : elle est en dehors de la période de l’emploi du temps.</p>}
+            <HolidayBanners holidays={holidays} weekStart={weekStart} weekEnd={addDays(weekStart, 6)} onShowWeek={(date) => setWeekStart(getWeekStart(date))} />
+            {!weekHasCourses && getWeekHolidays(holidays, weekStart, addDays(weekStart, 6)).length === 0 && <p className="stp-empty">Aucun cours cette semaine : elle est en dehors de la période de l’emploi du temps.</p>}
             {/* Grille complète : lisible uniquement à partir d'un écran d'ordinateur. */}
             <div className="stp-grid-wrapper stp-desktop-only">
               <div className="stp-grid" style={{ '--stp-period-count': daySchedule.length }}>

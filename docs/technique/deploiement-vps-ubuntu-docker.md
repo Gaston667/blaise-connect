@@ -154,11 +154,12 @@ set -a
 source .env
 set +a
 
-# Exemple : appliquer 009, puis 010, 011 et 012 exactement une fois chacun.
+# Exemple : appliquer 009, puis 010, 011, 012 et 013 exactement une fois chacun.
 docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_ADMIN_USER" -d "$POSTGRES_DB" < database/migration/009_administrator_optional_job_title.sql
 docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_ADMIN_USER" -d "$POSTGRES_DB" < database/migration/010_subject_session_length.sql
 docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_ADMIN_USER" -d "$POSTGRES_DB" < database/migration/011_special_courses_student_schedule.sql
 docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_ADMIN_USER" -d "$POSTGRES_DB" < database/migration/012_locked_timetable_slots.sql
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_ADMIN_USER" -d "$POSTGRES_DB" < database/migration/013_school_holidays.sql
 ```
 
 Si une commande échoue, s'arrêter immédiatement : ne pas appliquer les suivantes

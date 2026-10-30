@@ -51,3 +51,19 @@ export function isSlotOnDate(slot, dateValue, dayIndex) {
     && (!slot.effective_start_date || dateValue >= slot.effective_start_date)
     && (!slot.effective_end_date || dateValue <= slot.effective_end_date)
 }
+
+/** Vacances qui couvrent le jour donné (AAAA-MM-JJ), ou null. */
+export function getHolidayOn(holidays, dateValue) {
+  return holidays.find((holiday) => dateValue >= holiday.start_date && dateValue <= holiday.end_date) ?? null
+}
+
+/** « du 19/10/2026 au 01/11/2026 » */
+export function formatHolidayRange(holiday) {
+  const format = (value) => parseDate(value).toLocaleDateString('fr-FR')
+  return `du ${format(holiday.start_date)} au ${format(holiday.end_date)}`
+}
+
+/** Vacances qui touchent la semaine donnée (du lundi au dimanche). */
+export function getWeekHolidays(holidays, weekStart, weekEnd) {
+  return holidays.filter((holiday) => holiday.start_date <= weekEnd && holiday.end_date >= weekStart)
+}
